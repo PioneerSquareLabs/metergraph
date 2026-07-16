@@ -74,8 +74,11 @@ jobs:
           MG_TOKEN: ci-token
       - name: Assert cost-by-function aggregates
         run: |
-          body=$(curl -sf -H "Authorization: Bearer ci-token" "localhost:8787/v1/usage?group_by=func")
-          echo "$body" | python3 - <<'EOF'
+          code=$(curl -s -o /tmp/usage.json -w "%{http_code}" -H "Authorization: Bearer ci-token" "http://localhost:8787/v1/usage?group_by=func")
+          echo "HTTP $code"
+          head -c 400 /tmp/usage.json; echo
+          test "$code" = "200"
+          python3 - </tmp/usage.json <<'EOF'
           import json, sys
           items = {i["key"]: i for i in json.load(sys.stdin)["items"]}
           assert "support.classify_ticket" in items, items.keys()
