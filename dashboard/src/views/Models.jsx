@@ -1,0 +1,79 @@
+import { api, useApi } from '../api.js'
+import { fmtInt, fmtPct, fmtTokens, fmtUsd } from '../format.js'
+import Table from '../components/Table.jsx'
+
+function cacheHitRatio(r) {
+  const denom = (r.input_tokens || 0) + (r.cache_read_tokens || 0)
+  return denom > 0 ? (r.cache_read_tokens || 0) / denom : null
+}
+
+function reasoningShare(r) {
+  return r.output_tokens > 0 ? (r.reasoning_tokens || 0) / r.output_tokens : null
+}
+
+export default function Models({ query }) {
+  const deps = [query.from, query.to, query.environment]
+  const usage = useApi(
+    () =>
+      api('/v1/usage', { group_by: 'model', from: query.from, to: query.to, environment: query.environment }),
+    deps,
+  )
+  const catalog = useApi(() => api('/v1/catalog'), [])
+
+  // model key -> publisher, matching canonical_id or aliases
+  const providerFor = (key) => {
+    if (!catalog.data) return null
+    for (const m of catalog.data.models || []) {
+      if (m.canonical_id === key || (m.aliases || []).includes(key)) return m.publisher
+    }
+    return null
+  }
+
+  if (usage.error) return <div className="error-banner">Failed to load models: {usage.error.message}</div>
+
+  return (
+    <section className="panel">
+      <div className="section-heading">
+        <h2>Models</h2>
+        <span className="live-pill">
+          {catalog.data ? `catalog ${catalog.data.version}` : 'catalog …'} · {query.rangeLabel}
+        </span>
+      </div>
+      <Table
+        loading={usage.loading}
+        rows={usage.data ? usage.data.items : null}
+        rowKey={(r) => r.key}
+        columns={[
+          { key: 'key', label: 'Model', render: (r) => <strong className="mono">{r.key}</strong> },
+          {
+            key: 'provider',
+            label: 'Provider',
+            render: (r) => providerFor(r.key) || <span className="muted">unknown</span>,
+          },
+          { key: 'calls', label: 'Calls', align: 'right', render: (r) => fmtInt(r.calls) },
+          {
+            key: 'cost_usd',
+            label: 'Cost',
+            align: 'right',
+            render: (r) =>
+              (r.unpriced_calls || 0) > 0 ? (
+                <span className="pill warn" title={`${fmtInt(r.unpriced_calls)} unpriced calls`}>
+                  {fmtUsd(r.cost_usd)} · {fmtInt(r.unpriced_calls)} unpriced
+                </span>
+              ) : (
+                fmtUsd(r.cost_usd)
+              ),
+          },
+          {
+            key: 'tokens',
+            label: 'Tokens in / out',
+            align: 'right',
+            render: (r) => `${fmtTokens(r.input_tokens)} / ${fmtTokens(r.output_tokens)}`,
+          },
+          { key: 'cache', label: 'Cache-hit ratio', align: 'right', render: (r) => fmtPct(cacheHitRatio(r)) },
+          { key: 'reasoning', label: 'Reasoning share', align: 'right', render: (r) => fmtPct(reasoningShare(r)) },
+        ]}
+      />
+    </section>
+  )
+}
