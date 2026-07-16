@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python-sdk:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -e sdk/python pytest
+      - run: pytest sdk/python/tests -q
+
+  typescript-sdk:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install
+        working-directory: sdk/typescript
+      - run: npm test
+        working-directory: sdk/typescript
+
+  server:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: metergraph
+          POSTGRES_PASSWORD: metergraph
+          POSTGRES_DB: metergraph_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U metergraph"
+          --health-interval 2s --health-timeout 2s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e "server[dev]"
+      - run: pytest server/tests -q
+        env:
+          MG_TEST_DATABASE_URL: postgresql://metergraph:metergraph@localhost:5432/metergraph_test
+
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+        working-directory: dashboard
+      - run: npm run build
+        working-directory: dashboard
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: metergraph
+          POSTGRES_PASSWORD: metergraph
+          POSTGRES_DB: metergraph
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U metergraph"
+          --health-interval 2s --health-timeout 2s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e server -e sdk/python
+      - name: Start server
+        run: |
+          uvicorn metergraph_server.main:app --port 8787 &
+          for i in $(seq 1 30); do curl -sf localhost:8787/healthz && break; sleep 1; done
+        env:
+          DATABASE_URL: postgresql://metergraph:metergraph@localhost:5432/metergraph
+          MG_TOKENS: ci-token
+      - name: Send demo traffic through the SDK
+        run: python run_e2e.py
+        working-directory: examples/fake-providers
+        env:
+          METERGRAPH_INGEST_URL: http://localhost:8787
+          METERGRAPH_APP_TOKEN: ci-token
+          METERGRAPH_FLUSH_SECONDS: "1"
+      - name: Assert cost-by-function aggregates
+        run: |
+          sleep 2
+          body=$(curl -sf -H "Authorization: Bearer ci-token" "localhost:8787/v1/usage?group_by=func")
+          echo "$body" | python3 - <<'EOF'
+          import json, sys
+          items = {i["key"]: i for i in json.load(sys.stdin)["items"]}
+          assert "support.classify_ticket" in items, items.keys()
+          assert "extraction.parse_receipt" in items, items.keys()
+          assert all(i["cost_usd"] > 0 for i in items.values()), items
+          assert sum(i["calls"] for i in items.values()) == 7, items
+          print("e2e OK:", {k: v["cost_usd"] for k, v in items.items()})
+          EOF
