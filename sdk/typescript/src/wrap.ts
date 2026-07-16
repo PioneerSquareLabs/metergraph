@@ -345,9 +345,15 @@ function patch(owner: AnyRecord | undefined, method: string, provider: string, e
   return true;
 }
 
-export function wrap<T extends AnyRecord>(client: T, provider?: "openai" | "anthropic"): T {
-  const name = provider ?? (client.chat || client.responses ? "openai" : "anthropic");
+export function wrap<T extends AnyRecord>(client: T, provider?: "openai" | "anthropic" | "google"): T {
+  const name = provider ?? (client.models?.generateContent
+    ? "google"
+    : client.chat || client.responses ? "openai" : "anthropic");
   let patched = 0;
+  if (name === "google") {
+    patched += Number(patch(client.models, "generateContent", name, "models.generate_content"));
+    patched += Number(patch(client.models, "generateContentStream", name, "models.generate_content.stream"));
+  }
   patched += Number(patch(client.chat?.completions, "create", name, "chat.completions"));
   patched += Number(patch(client.responses, "create", name, "responses"));
   patched += Number(patch(client.responses, "stream", name, "responses.stream"));
@@ -356,7 +362,7 @@ export function wrap<T extends AnyRecord>(client: T, provider?: "openai" | "anth
   if (name === "openai") {
     patched += Number(patchOpenAIBatchContent(client.files, "content"));
     patched += Number(patchOpenAIBatchContent(client.files, "retrieveContent"));
-  } else {
+  } else if (name === "anthropic") {
     patched += Number(patchAnthropicBatchResults(client.messages?.batches));
     patched += Number(patchAnthropicBatchResults(client.beta?.messages?.batches));
   }

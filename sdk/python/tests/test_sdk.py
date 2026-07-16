@@ -90,6 +90,224 @@ def test_wrap_sync_records_usage_context_and_preserves_response(tmp_path):
     _capture.set_runtime(None)
 
 
+def gemini_response(text="gemini done"):
+    return SimpleNamespace(
+        text=text,
+        response_id="resp_g_1",
+        model_version="gemini-test-001",
+        usage_metadata=SimpleNamespace(
+            prompt_token_count=100,
+            candidates_token_count=20,
+            cached_content_token_count=10,
+            thoughts_token_count=5,
+        ),
+    )
+
+
+def test_wrap_google_records_usage_and_endpoint(tmp_path):
+    rows = Rows()
+    _capture.set_runtime(
+        Runtime(rows, Options(app_root=str(tmp_path), capture_text=True))
+    )
+
+    class Models:
+        def generate_content(self, **kwargs):
+            return gemini_response()
+
+    client = SimpleNamespace(models=Models())
+    metergraph.wrap(client)
+    metergraph.wrap(client, provider="google")  # idempotent
+    result = client.models.generate_content(
+        model="gemini-test", contents="describe ticket 123"
+    )
+
+    assert result.text == "gemini done"
+    assert len(rows.rows) == 1
+    row = rows.rows[0]
+    assert row["provider"] == "google"
+    assert row["endpoint"] == "models.generate_content"
+    assert row["model"] == "gemini-test"
+    assert row["input_tokens"] == 100
+    assert row["output_tokens"] == 20
+    assert row["cache_read_tokens"] == 10
+    assert row["reasoning_tokens"] == 5
+    assert row["response_text"] == "gemini done"
+    assert row["request_id"] == "resp_g_1"
+    assert row["sdk_version"] == metergraph.__version__
+    _capture.set_runtime(None)
+
+
+def test_wrap_google_stream_takes_usage_from_cumulative_last_chunk(tmp_path):
+    rows = Rows()
+    _capture.set_runtime(
+        Runtime(rows, Options(app_root=str(tmp_path), capture_text=True))
+    )
+
+    class Models:
+        def generate_content_stream(self, **kwargs):
+            return iter(
+                [
+                    SimpleNamespace(
+                        text="par",
+                        usage_metadata=SimpleNamespace(
+                            prompt_token_count=100, candidates_token_count=8
+                        ),
+                    ),
+                    SimpleNamespace(
+                        text="tial",
+                        usage_metadata=SimpleNamespace(
+                            prompt_token_count=100,
+                            candidates_token_count=20,
+                            cached_content_token_count=10,
+                            thoughts_token_count=5,
+                        ),
+                    ),
+                ]
+            )
+
+    client = SimpleNamespace(models=Models())
+    metergraph.wrap(client, provider="google")
+    chunks = list(
+        client.models.generate_content_stream(model="gemini-test", contents="x")
+    )
+
+    assert len(chunks) == 2
+    row = rows.rows[0]
+    assert row["endpoint"] == "models.generate_content.stream"
+    assert row["stream"] is True
+    assert row["ttft_ms"] is not None
+    assert row["input_tokens"] == 100
+    assert row["output_tokens"] == 20
+    assert row["cache_read_tokens"] == 10
+    assert row["response_text"] == "partial"
+    _capture.set_runtime(None)
+
+
+def test_wrap_google_patches_async_models(tmp_path):
+    rows = Rows()
+    _capture.set_runtime(
+        Runtime(rows, Options(app_root=str(tmp_path), capture_text=True))
+    )
+
+    class Models:
+        def generate_content(self, **kwargs):
+            return gemini_response()
+
+    class AioModels:
+        async def generate_content(self, **kwargs):
+            return gemini_response("gemini async done")
+
+        async def generate_content_stream(self, **kwargs):
+            async def chunks():
+                yield SimpleNamespace(
+                    text="gemini async stream",
+                    usage_metadata=SimpleNamespace(
+                        prompt_token_count=100, candidates_token_count=20
+                    ),
+                )
+
+            return chunks()
+
+    client = SimpleNamespace(models=Models(), aio=SimpleNamespace(models=AioModels()))
+    metergraph.wrap(client)
+
+    async def run():
+        result = await client.aio.models.generate_content(
+            model="gemini-test", contents="x"
+        )
+        assert result.text == "gemini async done"
+        stream = await client.aio.models.generate_content_stream(
+            model="gemini-test", contents="x"
+        )
+        return [chunk async for chunk in stream]
+
+    assert len(asyncio.run(run())) == 1
+    assert rows.rows[0]["provider"] == "google"
+    assert rows.rows[0]["endpoint"] == "models.generate_content"
+    assert rows.rows[0]["response_text"] == "gemini async done"
+    assert rows.rows[1]["endpoint"] == "models.generate_content.stream"
+    assert rows.rows[1]["stream"] is True
+    assert rows.rows[1]["input_tokens"] == 100
+    assert rows.rows[1]["response_text"] == "gemini async stream"
+    _capture.set_runtime(None)
+
+
+def test_track_prefers_explicit_attribution_over_stack_walk(tmp_path):
+    rows = Rows()
+    _capture.set_runtime(
+        Runtime(rows, Options(app_root=str(Path(__file__).parents[1])))
+    )
+
+    class Completions:
+        def create(self, **kwargs):
+            return response()
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+    metergraph.wrap(client, provider="openai")
+
+    @metergraph.track
+    def derived_name_call():
+        return client.chat.completions.create(model="gpt-test", messages=[])
+
+    @metergraph.track("billing.summarize")
+    def explicit_name_call():
+        return client.chat.completions.create(model="gpt-test", messages=[])
+
+    derived_name_call()
+    explicit_name_call()
+    with metergraph.track("adhoc.step"):
+        client.chat.completions.create(model="gpt-test", messages=[])
+    client.chat.completions.create(model="gpt-test", messages=[])
+
+    expected = f"{derived_name_call.__module__}:{derived_name_call.__qualname__}"
+    assert rows.rows[0]["func"] == expected
+    assert rows.rows[0]["module"] == derived_name_call.__module__
+    assert rows.rows[0]["frames_json"]
+    assert rows.rows[1]["func"] == "billing.summarize"
+    assert rows.rows[2]["func"] == "adhoc.step"
+    assert rows.rows[3]["func"].endswith(
+        ":test_track_prefers_explicit_attribution_over_stack_walk"
+    )
+    _capture.set_runtime(None)
+
+
+def test_track_nested_wins_and_async_functions_propagate(tmp_path):
+    rows = Rows()
+    _capture.set_runtime(Runtime(rows, Options(app_root=str(tmp_path))))
+
+    class Completions:
+        def create(self, **kwargs):
+            return response()
+
+    class Messages:
+        async def create(self, **kwargs):
+            return response()
+
+    client = SimpleNamespace(chat=SimpleNamespace(completions=Completions()))
+    metergraph.wrap(client, provider="openai")
+    async_client = SimpleNamespace(messages=Messages())
+    metergraph.wrap(async_client, provider="anthropic")
+
+    @metergraph.track("outer.step")
+    def outer():
+        with metergraph.track("inner.step"):
+            client.chat.completions.create(model="gpt-test", messages=[])
+        return client.chat.completions.create(model="gpt-test", messages=[])
+
+    outer()
+
+    @metergraph.track("async.step")
+    async def run():
+        return await async_client.messages.create(model="claude-test", messages=[])
+
+    asyncio.run(run())
+
+    assert rows.rows[0]["func"] == "inner.step"
+    assert rows.rows[1]["func"] == "outer.step"
+    assert rows.rows[2]["func"] == "async.step"
+    _capture.set_runtime(None)
+
+
 def test_openai_completed_tool_history_is_replay_grade(tmp_path):
     rows = Rows()
     runtime = Runtime(rows, Options(app_root=str(tmp_path), capture_text=True))

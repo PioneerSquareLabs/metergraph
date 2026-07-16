@@ -13,9 +13,19 @@ import {
   route,
   setSession,
   shutdown,
+  track,
   wrap,
 } from "../dist/index.js";
+import { CaptureRuntime } from "../dist/capture.js";
 import { MAX_BATCH_BYTES, Transport } from "../dist/transport.js";
+import { setCaptureRuntime } from "../dist/wrap.js";
+
+function stubRuntime(rows, options = {}) {
+  return new CaptureRuntime(
+    { enqueue(row) { rows.push(row); return true; } },
+    { captureText: true, appRoot: "", skipFrames: [], textMaxBytes: 100_000, ...options },
+  );
+}
 
 test("wrap captures usage/context and config assignment is sticky", async (t) => {
   assert.equal(DEFAULT_INGEST_URL, "https://d2xus7mp8zdv6t.cloudfront.net");
@@ -228,6 +238,105 @@ test("wrap captures usage/context and config assignment is sticky", async (t) =>
   assert.equal(anthropicBatch.batch_custom_id, "ticket-js-2");
   assert.equal(anthropicBatch.output_tokens, 5);
   assert.equal(anthropicBatch.response_text, "anthropic batch answer");
+});
+
+test("wrap captures gemini usage from non-stream and cumulative stream responses", async (t) => {
+  const rows = [];
+  setCaptureRuntime(stubRuntime(rows));
+  t.after(() => setCaptureRuntime());
+  const client = wrap({
+    models: {
+      async generateContent() {
+        return {
+          text: "gemini done",
+          responseId: "resp_g_1",
+          usageMetadata: {
+            promptTokenCount: 100,
+            candidatesTokenCount: 20,
+            cachedContentTokenCount: 10,
+            thoughtsTokenCount: 5,
+          },
+        };
+      },
+      async generateContentStream() {
+        return {
+          async *[Symbol.asyncIterator]() {
+            yield { text: "par", usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 8 } };
+            yield {
+              text: "tial",
+              usageMetadata: {
+                promptTokenCount: 100,
+                candidatesTokenCount: 20,
+                cachedContentTokenCount: 10,
+                thoughtsTokenCount: 5,
+              },
+            };
+          },
+        };
+      },
+    },
+  });
+  wrap(client, "google"); // idempotent
+
+  const result = await client.models.generateContent({ model: "gemini-test", contents: "hello" });
+  assert.equal(result.text, "gemini done");
+  const stream = await client.models.generateContentStream({ model: "gemini-test", contents: "hello" });
+  const chunks = [];
+  for await (const chunk of stream) chunks.push(chunk);
+  assert.equal(chunks.length, 2);
+
+  assert.equal(rows.length, 2);
+  const [row, streamed] = rows;
+  assert.equal(row.provider, "google");
+  assert.equal(row.endpoint, "models.generate_content");
+  assert.equal(row.model, "gemini-test");
+  assert.equal(row.input_tokens, 100);
+  assert.equal(row.output_tokens, 20);
+  assert.equal(row.cache_read_tokens, 10);
+  assert.equal(row.reasoning_tokens, 5);
+  assert.equal(row.response_text, "gemini done");
+  assert.equal(row.sdk_version, "0.2.0");
+  assert.equal(streamed.provider, "google");
+  assert.equal(streamed.endpoint, "models.generate_content.stream");
+  assert.equal(streamed.stream, true);
+  assert.notEqual(streamed.ttft_ms, undefined);
+  assert.equal(streamed.input_tokens, 100);
+  assert.equal(streamed.output_tokens, 20);
+  assert.equal(streamed.cache_read_tokens, 10);
+  assert.equal(streamed.response_text, "partial");
+});
+
+test("track attributes rows to the wrapped function name", async (t) => {
+  const rows = [];
+  setCaptureRuntime(stubRuntime(rows, { captureText: false }));
+  t.after(() => setCaptureRuntime());
+  const client = wrap({
+    chat: {
+      completions: {
+        async create() {
+          return {
+            id: "req_track",
+            usage: { prompt_tokens: 8, completion_tokens: 3 },
+            choices: [{ message: { content: "done" }, finish_reason: "stop" }],
+          };
+        },
+      },
+    },
+  }, "openai");
+
+  async function summarizeTickets() {
+    return client.chat.completions.create({ model: "m", messages: [] });
+  }
+  await track(summarizeTickets)();
+  await track("billing.summarize", summarizeTickets)();
+  const nested = track("outer.step", async () => track("inner.step", summarizeTickets)());
+  await nested();
+  await client.chat.completions.create({ model: "m", messages: [] });
+
+  assert.equal(rows[0].func, "summarizeTickets");
+  assert.equal(rows[1].func, "billing.summarize");
+  assert.equal(rows[2].func, "inner.step");
+  assert.match(rows[3].func, /sdk\.test\.mjs/);
 });
 
 test("transport splits wire batches at 512 KiB", async (t) => {

@@ -1,6 +1,7 @@
 import { contextSnapshot, type CaptureContext } from "./context.js";
 import { scrub, templateHash } from "./template.js";
 import type { Transport } from "./transport.js";
+import { SDK_VERSION } from "./version.js";
 
 export interface RuntimeOptions {
   captureText: boolean;
@@ -189,7 +190,8 @@ export class CaptureRuntime {
       text_truncated: request.truncated || output.truncated,
       stream: extra.stream ?? false,
       ttft_ms: extra.ttftMs,
-      func: firstFrame ? `${firstFrame.m}:${firstFrame.f}:${firstFrame.l}` : undefined,
+      func: state.context.funcName
+        ?? (firstFrame ? `${firstFrame.m}:${firstFrame.f}:${firstFrame.l}` : undefined),
       module: firstFrame?.m,
       frames_json: state.frames,
       tags: state.context.tags,
@@ -197,7 +199,7 @@ export class CaptureRuntime {
       error: Boolean(extra.error),
       error_type: extra.error instanceof Error ? extra.error.name : undefined,
       sdk: "js",
-      sdk_version: "0.1.0",
+      sdk_version: SDK_VERSION,
       runtime: typeof process === "undefined" ? "edge" : `node-${process.versions.node}`,
     });
   }

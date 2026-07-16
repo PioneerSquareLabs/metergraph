@@ -7,6 +7,7 @@ import {
   setTags,
   type RouteOptions,
 } from "./context.js";
+import { track } from "./track.js";
 import { Transport, type TransportMode, type WaitUntil } from "./transport.js";
 import { setCaptureRuntime, wrap, wrapClient } from "./wrap.js";
 
@@ -166,5 +167,5 @@ export function wrapHandler<TArgs extends unknown[], TResult>(
   };
 }
 
-export { route, setSession, setTags, wrap, wrapClient };
+export { route, setSession, setTags, track, wrap, wrapClient };
 export type { RouteOptions, TransportMode };

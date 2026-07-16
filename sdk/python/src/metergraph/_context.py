@@ -18,6 +18,8 @@ class CaptureContext:
     unit_name: str | None = None
     unit_count: float | None = None
     capture_text: bool | None = None
+    func_name: str | None = None
+    func_module: str | None = None
 
 
 _current: contextvars.ContextVar[CaptureContext] = contextvars.ContextVar(

@@ -7,6 +7,7 @@ export interface CaptureContext {
   unitName?: string;
   unitCount?: number;
   captureText?: boolean;
+  funcName?: string;
 }
 export interface RouteOptions {
   unit?: string;
@@ -21,6 +22,10 @@ let ambient: CaptureContext = { tags: {} };
 export function contextSnapshot(): CaptureContext {
   const value = storage.getStore() ?? ambient;
   return { ...value, tags: { ...value.tags } };
+}
+
+export function runWithContext<T>(context: CaptureContext, fn: () => T): T {
+  return storage.run(context, fn);
 }
 
 export async function route<T>(

@@ -13,6 +13,8 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from ._version import SDK_VERSION
+
 
 log = logging.getLogger("metergraph")
 MAX_BATCH_BYTES = 512 * 1024
@@ -113,7 +115,7 @@ class Writer:
         headers = {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/json",
-            "User-Agent": "metergraph-python/0.1.0",
+            "User-Agent": f"metergraph-python/{SDK_VERSION}",
         }
         if len(body) > 32 * 1024:
             body = gzip.compress(body)

@@ -17,6 +17,7 @@ from typing import Any, Callable, Mapping
 
 from ._context import CaptureContext, snapshot
 from ._template import scrub, template_hash
+from ._version import SDK_VERSION
 
 
 log = logging.getLogger("metergraph")
@@ -352,6 +353,7 @@ class Runtime:
         *,
         context: CaptureContext | None = None,
     ) -> "CallState":
+        context = context or snapshot()
         func, module, frames = _capture_frames(
             self.options.app_root,
             (
@@ -367,11 +369,11 @@ class Runtime:
             provider=provider,
             endpoint=endpoint,
             request=dict(request),
-            context=context or snapshot(),
+            context=context,
             started=time.perf_counter(),
             ts=datetime.now(timezone.utc).isoformat(),
-            func=func,
-            module=module,
+            func=context.func_name or func,
+            module=context.func_module or module,
             frames=frames,
         )
 
@@ -495,7 +497,7 @@ class CallState:
             "error": bool(error),
             "error_type": type(error).__name__ if error else None,
             "sdk": "python",
-            "sdk_version": "0.1.0",
+            "sdk_version": SDK_VERSION,
             "runtime": f"{platform.python_implementation().lower()}-{platform.python_version()}",
         }
         try:
@@ -1014,13 +1016,31 @@ def _finish_or_stream(
 
 
 def wrap(client: Any, *, provider: str | None = None) -> Any:
-    """Patch supported resource methods on an OpenAI or Anthropic client."""
-    provider = provider or (
-        "openai"
-        if hasattr(client, "chat") or hasattr(client, "responses")
-        else "anthropic"
-    )
+    """Patch supported resource methods on an OpenAI, Anthropic, or Google client."""
+    if provider is None:
+        if hasattr(getattr(client, "models", None), "generate_content"):
+            provider = "google"
+        elif hasattr(client, "chat") or hasattr(client, "responses"):
+            provider = "openai"
+        else:
+            provider = "anthropic"
     seams: list[tuple[Any, str, str]] = []
+    if provider == "google":
+        for models in (
+            getattr(client, "models", None),
+            getattr(getattr(client, "aio", None), "models", None),
+        ):
+            if models is not None:
+                seams.extend(
+                    (
+                        (models, "generate_content", "models.generate_content"),
+                        (
+                            models,
+                            "generate_content_stream",
+                            "models.generate_content.stream",
+                        ),
+                    )
+                )
     chat = getattr(getattr(client, "chat", None), "completions", None)
     if chat is not None:
         seams.append((chat, "create", "chat.completions"))
@@ -1045,7 +1065,7 @@ def wrap(client: Any, *, provider: str | None = None) -> Any:
         if files is not None:
             patched += int(_patch_openai_batch_content(files, "content"))
             patched += int(_patch_openai_batch_content(files, "retrieve_content"))
-    else:
+    elif provider == "anthropic":
         batch_owners = [getattr(messages, "batches", None)]
         beta_messages = getattr(getattr(client, "beta", None), "messages", None)
         batch_owners.append(getattr(beta_messages, "batches", None))

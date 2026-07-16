@@ -12,10 +12,12 @@ from typing import Callable
 from ._capture import Options, Runtime, set_runtime, wrap
 from ._config import ConfigPoller
 from ._context import route, set_session, set_tags, snapshot, wrap_executor
+from ._track import track
 from ._transport import Writer
+from ._version import SDK_VERSION
 
 
-__version__ = "0.1.0"
+__version__ = SDK_VERSION
 DEFAULT_INGEST_URL = "https://d2xus7mp8zdv6t.cloudfront.net"
 log = logging.getLogger("metergraph")
 _writer: Writer | None = None
@@ -193,6 +195,7 @@ __all__ = [
     "set_session",
     "set_tags",
     "shutdown",
+    "track",
     "wrap",
     "wrap_executor",
 ]
