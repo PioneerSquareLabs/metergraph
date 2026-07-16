@@ -78,9 +78,10 @@ jobs:
           echo "HTTP $code"
           head -c 400 /tmp/usage.json; echo
           test "$code" = "200"
-          python3 - </tmp/usage.json <<'EOF'
+          python3 - /tmp/usage.json <<'EOF'
           import json, sys
-          items = {i["key"]: i for i in json.load(sys.stdin)["items"]}
+          with open(sys.argv[1]) as handle:
+              items = {i["key"]: i for i in json.load(handle)["items"]}
           assert "support.classify_ticket" in items, items.keys()
           assert "extraction.parse_receipt" in items, items.keys()
           priced = [i for i in items.values() if i["unpriced_calls"] == 0]
