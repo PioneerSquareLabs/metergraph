@@ -32,14 +32,13 @@ export METERGRAPH_INGEST_URL=http://localhost:8787
 export METERGRAPH_APP_TOKEN=dev-token
 ```
 
-Dashboard: http://localhost:8787 (enter the same token). No API keys needed to try it — run `examples/fake-providers/run_e2e.py` to send demo traffic.
+Dashboard: http://localhost:8787 (enter the same token). No API keys needed to try it — run `MG_TOKEN=dev-token python scripts/seed_demo.py` to send demo traffic.
 
 ## Packages
 
 | Package | Where | What |
 |---|---|---|
-| `metergraph` (PyPI) | [`sdk/python`](sdk/python) | Zero-dependency Python SDK — wraps OpenAI, Anthropic, and Gemini (`google-genai`) clients |
-| `metergraph` (npm) | [`sdk/typescript`](sdk/typescript) | Zero-dependency TypeScript SDK — wraps `openai`, `@anthropic-ai/sdk`, and `@google/genai` |
+| `metergraph` (PyPI + npm) | [metergraphsdk](https://github.com/metergraph/metergraphsdk) | Zero-dependency capture SDKs for Python and TypeScript — OpenAI, Anthropic, and Gemini clients |
 | `metergraph-server` | [`server`](server) | FastAPI + Postgres ingest, price catalog, usage API |
 | dashboard | [`dashboard`](dashboard) | React SPA served by the server |
 
@@ -61,11 +60,9 @@ Without `METERGRAPH_INGEST_URL`, the SDK points at Metergraph's hosted service, 
 
 ## Development
 
-```bash
-# SDKs
-cd sdk/python && python -m venv .venv && .venv/bin/pip install -e . pytest && .venv/bin/pytest
-cd sdk/typescript && npm install && npm test
+The SDKs live in their own repo: [metergraphsdk](https://github.com/metergraph/metergraphsdk).
 
+```bash
 # Server (needs Postgres)
 cd server && python -m venv .venv && .venv/bin/pip install -e ".[dev]"
 MG_TEST_DATABASE_URL=postgresql://localhost:5432/metergraph_test .venv/bin/pytest

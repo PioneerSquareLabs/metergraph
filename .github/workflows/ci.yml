@@ -6,34 +6,6 @@ on:
   pull_request:
 
 jobs:
-  python-sdk:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: ["3.10", "3.11", "3.12", "3.13"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
-      - run: pip install -e sdk/python pytest
-      - run: pytest sdk/python/tests -q
-
-  typescript-sdk:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [18, 20, 22]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node }}
-      - run: npm install
-        working-directory: sdk/typescript
-      - run: npm test
-        working-directory: sdk/typescript
-
   server:
     runs-on: ubuntu-latest
     services:
@@ -87,7 +59,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e server -e sdk/python
+      - run: pip install -e server
       - name: Start server
         run: |
           uvicorn metergraph_server.main:app --port 8787 &
@@ -95,23 +67,22 @@ jobs:
         env:
           DATABASE_URL: postgresql://metergraph:metergraph@localhost:5432/metergraph
           MG_TOKENS: ci-token
-      - name: Send demo traffic through the SDK
-        run: python run_e2e.py
-        working-directory: examples/fake-providers
+      - name: Seed demo traffic over the wire API
+        run: python scripts/seed_demo.py 3
         env:
-          METERGRAPH_INGEST_URL: http://localhost:8787
-          METERGRAPH_APP_TOKEN: ci-token
-          METERGRAPH_FLUSH_SECONDS: "1"
+          MG_URL: http://localhost:8787
+          MG_TOKEN: ci-token
       - name: Assert cost-by-function aggregates
         run: |
-          sleep 2
           body=$(curl -sf -H "Authorization: Bearer ci-token" "localhost:8787/v1/usage?group_by=func")
           echo "$body" | python3 - <<'EOF'
           import json, sys
           items = {i["key"]: i for i in json.load(sys.stdin)["items"]}
           assert "support.classify_ticket" in items, items.keys()
           assert "extraction.parse_receipt" in items, items.keys()
-          assert all(i["cost_usd"] > 0 for i in items.values()), items
-          assert sum(i["calls"] for i in items.values()) == 7, items
-          print("e2e OK:", {k: v["cost_usd"] for k, v in items.items()})
+          priced = [i for i in items.values() if i["unpriced_calls"] == 0]
+          assert priced and all(i["cost_usd"] > 0 for i in priced), items
+          unpriced = items.get("research.summarize_thread")
+          assert unpriced and unpriced["unpriced_calls"] == unpriced["calls"], unpriced
+          print("e2e OK:", {k: round(v["cost_usd"], 4) for k, v in items.items()})
           EOF
