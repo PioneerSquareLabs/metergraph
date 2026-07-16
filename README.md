@@ -21,7 +21,7 @@ Every call is attributed to `yourapp.billing:summarize_invoice` and shows up in 
 ## Quickstart (self-hosted)
 
 ```bash
-git clone https://github.com/metergraph/metergraph && cd metergraph
+git clone https://github.com/PioneerSquareLabs/metergraph && cd metergraph
 MG_TOKENS=dev-token docker compose up
 ```
 
@@ -38,7 +38,7 @@ Dashboard: http://localhost:8787 (enter the same token). No API keys needed to t
 
 | Package | Where | What |
 |---|---|---|
-| `metergraph` (PyPI + npm) | [metergraphsdk](https://github.com/metergraph/metergraphsdk) | Zero-dependency capture SDKs for Python and TypeScript — OpenAI, Anthropic, and Gemini clients |
+| `metergraph` (PyPI + npm) | [metergraphsdk](https://github.com/PioneerSquareLabs/metergraphsdk) | Zero-dependency capture SDKs for Python and TypeScript — OpenAI, Anthropic, and Gemini clients |
 | `metergraph-server` | [`server`](server) | FastAPI + Postgres ingest, price catalog, usage API |
 | dashboard | [`dashboard`](dashboard) | React SPA served by the server |
 
@@ -60,7 +60,7 @@ Without `METERGRAPH_INGEST_URL`, the SDK points at Metergraph's hosted service, 
 
 ## Development
 
-The SDKs live in their own repo: [metergraphsdk](https://github.com/metergraph/metergraphsdk).
+The SDKs live in their own repo: [metergraphsdk](https://github.com/PioneerSquareLabs/metergraphsdk).
 
 ```bash
 # Server (needs Postgres)
