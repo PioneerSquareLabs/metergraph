@@ -41,10 +41,13 @@ export default function Routes({ query }) {
         loading={usage.loading}
         rows={usage.data ? usage.data.items : null}
         rowKey={(r) => r.key}
+        search={(r) => `${routeLabel(r.key).label} ${r.key}`}
+        searchPlaceholder="Search routes…"
         columns={[
           {
             key: 'key',
             label: 'Route',
+            sort: (r) => routeLabel(r.key).label,
             render: (r) => {
               const { unnamed, label } = routeLabel(r.key)
               return unnamed ? <span className="muted">{label}</span> : <strong>{label}</strong>
@@ -56,6 +59,7 @@ export default function Routes({ query }) {
             key: 'tokens',
             label: 'Tokens in / out',
             align: 'right',
+            sort: (r) => (r.input_tokens || 0) + (r.output_tokens || 0),
             render: (r) => `${fmtTokens(r.input_tokens)} / ${fmtTokens(r.output_tokens)}`,
           },
           { key: 'cache_read_tokens', label: 'Cache read', align: 'right', render: (r) => fmtTokens(r.cache_read_tokens) },

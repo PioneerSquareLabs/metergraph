@@ -111,8 +111,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @keyframes shimmer { to { background-position: -200% 0; } }
 
 /* ---------- tables ---------- */
+.table-block { display: flex; flex-direction: column; }
+.table-toolbar { display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--ink-08); }
+.table-search { min-width: 220px; padding: 8px 12px; color: var(--ink); border: 1px solid var(--ink-12); border-radius: 8px; background: var(--card); font-size: 13px; }
+.table-search::placeholder { color: var(--ink-45); }
+.table-count { color: var(--ink-45); font: 500 10px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; }
+.th-sort { display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; }
+.th-sort:hover { color: var(--ink-70); }
+.th-sort.active { color: var(--ink); }
+.th-arrow { font-size: 10px; opacity: 0.4; }
+.th-sort.active .th-arrow { opacity: 1; color: var(--emerald-deep); }
 th { padding: 12px 22px; color: var(--ink-45); text-align: left; font: 500 10px var(--mono); text-transform: uppercase; letter-spacing: 0.08em; background: var(--paper); white-space: nowrap; }
 td { padding: 14px 22px; color: var(--ink-70); border-top: 1px solid var(--ink-08); font: 400 12px var(--mono); white-space: nowrap; }
 td:first-child { min-width: 200px; font-family: var(--display); }

@@ -83,11 +83,14 @@ export default function Models({ query }) {
         loading={usage.loading}
         rows={usage.data ? usage.data.items : null}
         rowKey={(r) => r.key}
+        search={(r) => `${r.key} ${(r.provider !== '(unknown)' && r.provider) || providerFor(r.key) || ''}`}
+        searchPlaceholder="Search models…"
         columns={[
-          { key: 'key', label: 'Model', render: (r) => <strong className="mono">{r.key}</strong> },
+          { key: 'key', label: 'Model', sort: (r) => r.key, render: (r) => <strong className="mono">{r.key}</strong> },
           {
             key: 'provider',
             label: 'Provider',
+            sort: (r) => (r.provider !== '(unknown)' && r.provider) || providerFor(r.key) || '',
             render: (r) =>
               (r.provider !== '(unknown)' && r.provider) ||
               providerFor(r.key) || <span className="muted">unknown</span>,
@@ -97,6 +100,7 @@ export default function Models({ query }) {
             key: 'cost_usd',
             label: 'Cost',
             align: 'right',
+            sort: (r) => r.cost_usd || 0,
             render: (r) =>
               (r.unpriced_calls || 0) > 0 ? (
                 <span className="pill warn" title={`${fmtInt(r.unpriced_calls)} unpriced calls`}>
@@ -110,10 +114,12 @@ export default function Models({ query }) {
             key: 'tokens',
             label: 'Tokens in / out',
             align: 'right',
+            sort: (r) => (r.input_tokens || 0) + (r.output_tokens || 0),
             render: (r) => `${fmtTokens(r.input_tokens)} / ${fmtTokens(r.output_tokens)}`,
           },
-          { key: 'cache', label: 'Cache-hit ratio', align: 'right', render: (r) => fmtPct(cacheHitRatio(r)) },
-          { key: 'reasoning', label: 'Reasoning share', align: 'right', render: (r) => fmtPct(reasoningShare(r)) },
+          { key: 'cache_read_tokens', label: 'Cache read', align: 'right', sort: (r) => r.cache_read_tokens || 0, render: (r) => fmtTokens(r.cache_read_tokens) },
+          { key: 'cache', label: 'Cache-hit ratio', align: 'right', sort: (r) => cacheHitRatio(r) ?? -1, render: (r) => fmtPct(cacheHitRatio(r)) },
+          { key: 'reasoning', label: 'Reasoning share', align: 'right', sort: (r) => reasoningShare(r) ?? -1, render: (r) => fmtPct(reasoningShare(r)) },
         ]}
       />
     </section>

@@ -43,19 +43,23 @@ function FunctionDetail({ func, query }) {
         rows={calls.data ? calls.data.items : null}
         rowKey={(c) => c.ts + c.session_id}
         emptyMessage="No calls recorded for this function in the selected range"
+        search={(c) => `${c.model || ''} ${c.status || ''} ${c.error_type || ''}`}
+        searchPlaceholder="Search calls…"
         columns={[
-          { key: 'ts', label: 'Time', render: (c) => fmtTs(c.ts) },
-          { key: 'model', label: 'Model', render: (c) => <span className="mono">{c.model}</span> },
+          { key: 'ts', label: 'Time', sort: (c) => c.ts, render: (c) => fmtTs(c.ts) },
+          { key: 'model', label: 'Model', sort: (c) => c.model, render: (c) => <span className="mono">{c.model}</span> },
           {
             key: 'tokens',
             label: 'Tokens in / out',
             align: 'right',
+            sort: (c) => (c.input_tokens || 0) + (c.output_tokens || 0),
             render: (c) => `${fmtTokens(c.input_tokens)} / ${fmtTokens(c.output_tokens)}`,
           },
           {
             key: 'cost_usd',
             label: 'Cost',
             align: 'right',
+            sort: (c) => c.cost_usd || 0,
             render: (c) =>
               c.cost_status === 'unpriced' ? <span className="muted">unpriced</span> : fmtUsd(c.cost_usd),
           },
@@ -63,6 +67,7 @@ function FunctionDetail({ func, query }) {
           {
             key: 'status',
             label: 'Status',
+            sort: (c) => (c.error ? 1 : 0),
             render: (c) =>
               c.error ? (
                 <span className="pill err">{c.error_type || 'error'}</span>
@@ -130,14 +135,17 @@ export default function Functions({ query }) {
           rowKey={(r) => r.key}
           activeKey={selected}
           onRowClick={(r) => setSelected(selected === r.key ? null : r.key)}
+          search={(r) => r.key}
+          searchPlaceholder="Search functions…"
           columns={[
-            { key: 'key', label: 'Function', render: (r) => <strong>{r.key}</strong> },
+            { key: 'key', label: 'Function', sort: (r) => r.key, render: (r) => <strong>{r.key}</strong> },
             { key: 'calls', label: 'Calls', align: 'right', render: (r) => fmtInt(r.calls) },
             { key: 'cost_usd', label: 'Cost', align: 'right', render: (r) => fmtUsd(r.cost_usd) },
             {
               key: 'tokens',
               label: 'Tokens in / out',
               align: 'right',
+              sort: (r) => (r.input_tokens || 0) + (r.output_tokens || 0),
               render: (r) => `${fmtTokens(r.input_tokens)} / ${fmtTokens(r.output_tokens)}`,
             },
             { key: 'cache_read_tokens', label: 'Cache read', align: 'right', render: (r) => fmtTokens(r.cache_read_tokens) },
@@ -146,6 +154,7 @@ export default function Functions({ query }) {
             {
               key: 'spark',
               label: 'Cost trend',
+              sort: false,
               render: (r) => <Sparkline values={sparkMap[r.key]} />,
             },
           ]}
