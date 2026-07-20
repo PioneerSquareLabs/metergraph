@@ -1,6 +1,7 @@
 import { api, useApi } from '../api.js'
 import { fmtInt, fmtMs, fmtPct, fmtTokens, fmtUsd, routeLabel } from '../format.js'
 import Table from '../components/Table.jsx'
+import HBarChart from '../components/HBarChart.jsx'
 
 export default function Routes({ query }) {
   const deps = [query.from, query.to, query.environment]
@@ -12,7 +13,25 @@ export default function Routes({ query }) {
 
   if (usage.error) return <div className="error-banner">Failed to load routes: {usage.error.message}</div>
 
+  const barItems = usage.data
+    ? usage.data.items.map((r) => ({ ...r, key: routeLabel(r.key).label }))
+    : null
+
   return (
+    <>
+    <section className="panel">
+      <div className="section-heading">
+        <h2>Spend by route</h2>
+        <span className="live-pill">cost · {query.rangeLabel}</span>
+      </div>
+      <div className="panel-body">
+        {usage.loading ? <div className="table-loading" /> : null}
+        {!usage.loading && barItems ? (
+          <HBarChart items={barItems} sub={(r) => `${fmtInt(r.calls)} calls`} />
+        ) : null}
+      </div>
+    </section>
+
     <section className="panel">
       <div className="section-heading">
         <h2>Routes</h2>
@@ -45,5 +64,6 @@ export default function Routes({ query }) {
         ]}
       />
     </section>
+    </>
   )
 }

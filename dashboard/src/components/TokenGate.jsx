@@ -16,11 +16,9 @@ export default function TokenGate({ error, onDone }) {
     <div className="token-shell">
       <div className="token-glow" />
       <form className="token-card" onSubmit={submit}>
-        <div className="logo">
-          <svg viewBox="0 0 24 24">
-            <path d="M3 20 9 8l4 7 3-5 5 10" />
-          </svg>
-          Metergraph
+        <div className="wordmark" aria-label="Metergraph">
+          <b><span>meter</span><span className="wm-graph">graph</span><span className="wm-spike" aria-hidden="true">&#10033;</span></b>
+          <small>OSS</small>
         </div>
         <p className="eyebrow">Self-hosted · LLM cost tracking</p>
         <h1>Connect to your server</h1>

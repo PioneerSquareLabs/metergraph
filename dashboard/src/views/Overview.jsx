@@ -2,6 +2,8 @@ import { api, useApi } from '../api.js'
 import { fmtInt, fmtPct, fmtTokens, fmtUsd } from '../format.js'
 import StatCard from '../components/StatCard.jsx'
 import BarChart from '../components/BarChart.jsx'
+import DonutChart from '../components/DonutChart.jsx'
+import HBarChart from '../components/HBarChart.jsx'
 
 export default function Overview({ query }) {
   const deps = [query.from, query.to, query.environment]
@@ -10,6 +12,26 @@ export default function Overview({ query }) {
     () =>
       api('/v1/usage', {
         group_by: 'model',
+        from: query.from,
+        to: query.to,
+        environment: query.environment,
+      }),
+    deps,
+  )
+  const providers = useApi(
+    () =>
+      api('/v1/usage', {
+        group_by: 'provider',
+        from: query.from,
+        to: query.to,
+        environment: query.environment,
+      }),
+    deps,
+  )
+  const funcs = useApi(
+    () =>
+      api('/v1/usage', {
+        group_by: 'func',
         from: query.from,
         to: query.to,
         environment: query.environment,
@@ -46,6 +68,8 @@ export default function Overview({ query }) {
 
   if (usage.error) return <div className="error-banner">Failed to load usage: {usage.error.message}</div>
 
+  const callsSub = (row) => `${fmtInt(row.calls)} calls`
+
   return (
     <>
       {unpriced.length > 0 ? (
@@ -61,7 +85,7 @@ export default function Overview({ query }) {
       <div className="metrics">
         <StatCard
           label="Total cost"
-          tone="lime"
+          tone="emerald"
           value={usage.loading ? '…' : fmtUsd(totals.cost)}
           detail={`${query.rangeLabel}`}
         />
@@ -100,6 +124,49 @@ export default function Overview({ query }) {
           ) : null}
         </div>
       </section>
+
+      <div className="chart-grid three">
+        <section className="panel">
+          <div className="section-heading">
+            <h2>Spend by provider</h2>
+            <span className="live-pill">share · {query.rangeLabel}</span>
+          </div>
+          <div className="panel-body">
+            {providers.loading ? <div className="table-loading" /> : null}
+            {providers.error ? (
+              <div className="error-banner">Failed to load providers: {providers.error.message}</div>
+            ) : null}
+            {!providers.loading && !providers.error && providers.data ? (
+              <DonutChart items={providers.data.items} centerLabel="all providers" />
+            ) : null}
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="section-heading">
+            <h2>Top functions</h2>
+            <span className="live-pill">cost · {query.rangeLabel}</span>
+          </div>
+          <div className="panel-body">
+            {funcs.loading ? <div className="table-loading" /> : null}
+            {funcs.error ? <div className="error-banner">Failed to load functions: {funcs.error.message}</div> : null}
+            {!funcs.loading && !funcs.error && funcs.data ? (
+              <HBarChart items={funcs.data.items} sub={callsSub} />
+            ) : null}
+          </div>
+        </section>
+
+        <section className="panel">
+          <div className="section-heading">
+            <h2>Top models</h2>
+            <span className="live-pill">cost · {query.rangeLabel}</span>
+          </div>
+          <div className="panel-body">
+            {usage.loading ? <div className="table-loading" /> : null}
+            {!usage.loading && items ? <HBarChart items={items} sub={callsSub} /> : null}
+          </div>
+        </section>
+      </div>
 
       {!usage.loading && items && items.length === 0 ? (
         <div className="empty panel">No data yet — point your SDK at this server</div>

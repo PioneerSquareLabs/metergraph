@@ -123,12 +123,82 @@ function usageItem(key, weight, days, scale, meta) {
   }
 }
 
+// Roll up per-key items into coarser buckets so a demo reconciles across views:
+// provider totals equal the sum of their models, module/route totals equal the
+// sum of their functions. Without this each group_by is generated independently
+// and the same window shows different totals depending on the grouping.
+function rollup(items, keyOf) {
+  const groups = new Map()
+  for (const item of items) {
+    const key = keyOf(item.key)
+    if (!key) continue
+    const g = groups.get(key) || {
+      key,
+      calls: 0,
+      cost_usd: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_tokens: 0,
+      reasoning_tokens: 0,
+      unpriced_calls: 0,
+      _latWeighted: 0,
+      _p95: 0,
+      _errWeighted: 0,
+    }
+    g.calls += item.calls
+    g.cost_usd += item.cost_usd
+    g.input_tokens += item.input_tokens
+    g.output_tokens += item.output_tokens
+    g.cache_read_tokens += item.cache_read_tokens
+    g.reasoning_tokens += item.reasoning_tokens
+    g.unpriced_calls += item.unpriced_calls
+    g._latWeighted += (item.avg_latency_ms || 0) * item.calls
+    g._p95 = Math.max(g._p95, item.p95_latency_ms || 0)
+    g._errWeighted += (item.error_rate || 0) * item.calls
+    groups.set(key, g)
+  }
+  return [...groups.values()].map((g) => ({
+    key: g.key,
+    calls: g.calls,
+    cost_usd: +g.cost_usd.toFixed(4),
+    input_tokens: g.input_tokens,
+    output_tokens: g.output_tokens,
+    cache_read_tokens: g.cache_read_tokens,
+    reasoning_tokens: g.reasoning_tokens,
+    avg_latency_ms: g.calls ? Math.round(g._latWeighted / g.calls) : null,
+    p95_latency_ms: g._p95 || null,
+    error_rate: g.calls ? +(g._errWeighted / g.calls).toFixed(4) : 0,
+    unpriced_calls: g.unpriced_calls,
+  }))
+}
+
 function mockUsage(params) {
   const { days } = parseRange(params)
   const scale = envScale(params)
-  const items = keysFor(params.group_by || 'func', days).map(({ key, weight, meta }) =>
-    usageItem(key, weight, days, scale, meta),
-  )
+  const groupBy = params.group_by || 'func'
+
+  // Provider rolls up from models; module/route roll up from functions.
+  const rollups = {
+    provider: () => {
+      const models = keysFor('model', days).map(({ key, weight, meta }) => usageItem(key, weight, days, scale, meta))
+      const providerOf = Object.fromEntries(MODELS.map((m) => [m.model, m.provider]))
+      return rollup(models, (key) => providerOf[key])
+    },
+    module: () => {
+      const funcs = keysFor('func', days).map(({ key, weight }) => usageItem(key, weight, days, scale))
+      const moduleOf = Object.fromEntries(FUNCS.map((f) => [f.func, f.module]))
+      return rollup(funcs, (key) => moduleOf[key])
+    },
+    route: () => {
+      const funcs = keysFor('func', days).map(({ key, weight }) => usageItem(key, weight, days, scale))
+      const routeOf = Object.fromEntries(FUNCS.map((f) => [f.func, f.route]))
+      return rollup(funcs, (key) => routeOf[key])
+    },
+  }
+
+  const items = rollups[groupBy]
+    ? rollups[groupBy]()
+    : keysFor(groupBy, days).map(({ key, weight, meta }) => usageItem(key, weight, days, scale, meta))
   items.sort((a, b) => b.cost_usd - a.cost_usd)
   return { items }
 }
