@@ -82,7 +82,8 @@ def usage(
                round(avg(latency_ms)) as avg_latency_ms,
                percentile_cont(0.95) within group (order by latency_ms) as p95_latency_ms,
                avg(case when error then 1.0 else 0.0 end) as error_rate,
-               count(*) filter (where cost_status = 'unpriced') as unpriced_calls
+               count(*) filter (where cost_status = 'unpriced') as unpriced_calls,
+               0::bigint as reported_calls
         from calls
         where ts >= %s and ts < %s{where}
         group by {group}
@@ -106,6 +107,7 @@ def usage(
             "p95_latency_ms": round(row[8 + offset]) if row[8 + offset] is not None else None,
             "error_rate": float(row[9 + offset]) if row[9 + offset] is not None else 0.0,
             "unpriced_calls": row[10 + offset],
+            "reported_calls": row[11 + offset],
         }
         if group_by == "model":
             item["provider"] = row[1]
@@ -209,9 +211,12 @@ def calls(
         where += " and ts < %s"
         params.append(cutoff)
     sql = f"""
-        select ts, func, module, route, provider, model, input_tokens, output_tokens,
-               cache_read_tokens, reasoning_tokens, cost_usd, cost_status, latency_ms,
-               status, error_type, stream, session_id, environment
+        select ts, func, module, route, provider, model, canonical_model,
+               input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+               reasoning_tokens, cost_usd, null::numeric as reported_cost_usd,
+               cost_usd as catalog_cost_usd, price_id as catalog_price_id,
+               array[]::text[] as catalog_reasons, cost_status, latency_ms, status,
+               error_type, stream, session_id, environment, sdk
         from calls
         where true{where}
         order by ts desc
@@ -220,17 +225,21 @@ def calls(
     with db.pool().connection() as con:
         rows = con.execute(sql, (*params, limit)).fetchall()
     columns = (
-        "ts", "func", "module", "route", "provider", "model", "input_tokens",
-        "output_tokens", "cache_read_tokens", "reasoning_tokens", "cost_usd",
-        "cost_status", "latency_ms", "status", "error_type", "stream",
-        "session_id", "environment",
+        "ts", "func", "module", "route", "provider", "model", "canonical_model",
+        "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens",
+        "reasoning_tokens", "cost_usd", "reported_cost_usd", "catalog_cost_usd",
+        "catalog_price_id", "catalog_reasons", "cost_status", "latency_ms", "status",
+        "error_type", "stream", "session_id", "environment", "sdk",
     )
     items = []
     for row in rows:
         item = dict(zip(columns, row))
         item["ts"] = item["ts"].isoformat()
-        if item["cost_usd"] is not None:
-            item["cost_usd"] = float(item["cost_usd"])
+        for key in ("cost_usd", "reported_cost_usd", "catalog_cost_usd"):
+            if item[key] is not None:
+                item[key] = float(item[key])
+        if item["sdk"] == "js":
+            item["sdk"] = "typescript"
         items.append(item)
     return {"items": items}
 

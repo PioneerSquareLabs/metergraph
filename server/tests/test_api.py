@@ -62,6 +62,7 @@ def _rows():
             "latency_ms": 300,
             "error": True,
             "error_type": "APIError",
+            "sdk": "js",
         },
         {"event_type": "outcome", "event_id": "e1", "route": "summarizer"},
     ]
@@ -106,6 +107,13 @@ def test_ingest_and_usage_roundtrip(client):
     calls = client.get("/v1/calls", params={"func": "app.support:classify"}, headers=AUTH).json()["items"]
     assert len(calls) == 1
     assert calls[0]["error_type"] == "APIError"
+    assert calls[0]["canonical_model"] == "google/gemini-2.5-flash"
+    assert calls[0]["catalog_cost_usd"] == calls[0]["cost_usd"]
+    assert calls[0]["catalog_price_id"]
+    assert calls[0]["catalog_reasons"] == []
+    assert calls[0]["reported_cost_usd"] is None
+    assert calls[0]["sdk"] == "typescript"
+    assert by_func["app.support:classify"]["reported_calls"] == 0
 
 
 def test_content_never_reaches_database(client):
