@@ -1,4 +1,4 @@
-export default function Sparkline({ values, width = 120, height = 28, stroke = 'var(--lime)' }) {
+export default function Sparkline({ values, width = 120, height = 28, stroke = 'var(--emerald)' }) {
   if (!values || values.length < 2 || values.every((v) => !v)) {
     return <span className="spark-none">—</span>
   }

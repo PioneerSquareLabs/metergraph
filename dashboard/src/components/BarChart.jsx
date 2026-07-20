@@ -1,18 +1,18 @@
 import { fmtBucket, fmtUsd } from '../format.js'
 
 export const SERIES_COLORS = [
-  '#c9ff55',
-  '#75e292',
-  '#9fcce0',
-  '#ffd06e',
-  '#f1a392',
-  '#c9a7e8',
-  '#e8ebe2',
-  '#8f978a',
+  '#10b981',
+  '#0b1220',
+  '#f59e0b',
+  '#3b82f6',
+  '#dd4444',
+  '#8b5cf6',
+  '#0ea5e9',
+  '#64748b',
 ]
 
 export function seriesColor(index, key) {
-  if (key === 'other') return '#4c5149'
+  if (key === 'other') return '#b7bfca'
   return SERIES_COLORS[index % SERIES_COLORS.length]
 }
 

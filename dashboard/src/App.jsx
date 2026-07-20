@@ -100,11 +100,8 @@ export default function App() {
   return (
     <div className="shell">
       <header className="topbar">
-        <a className="logo" href="#/overview">
-          <svg viewBox="0 0 24 24">
-            <path d="M3 20 9 8l4 7 3-5 5 10" />
-          </svg>
-          Metergraph
+        <a className="wordmark" href="#/overview" aria-label="Metergraph home">
+          <b><span>meter</span><span className="wm-graph">graph</span><span className="wm-spike" aria-hidden="true">&#10033;</span></b>
           <small>OSS</small>
         </a>
         <nav className="tabs">

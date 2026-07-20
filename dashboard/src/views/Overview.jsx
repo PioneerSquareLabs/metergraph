@@ -61,7 +61,7 @@ export default function Overview({ query }) {
       <div className="metrics">
         <StatCard
           label="Total cost"
-          tone="lime"
+          tone="emerald"
           value={usage.loading ? '…' : fmtUsd(totals.cost)}
           detail={`${query.rangeLabel}`}
         />
