@@ -1,60 +1,146 @@
+import { useMemo, useState } from 'react'
+
 /**
- * Generic table.
- * columns: [{ key, label, align?, render?(row) }]
- * rows: array of objects; rowKey(row) -> string
+ * Generic table with client-side search and click-to-sort.
+ * columns: [{ key, label, align?, render?(row), sort? }]
+ *   - sort: (row) => primitive   custom sort value
+ *   - sort: false                column is not sortable
+ *   - sort omitted               sortable by row[key]
+ * search: optional (row) => string. When provided, a search box filters rows.
  */
-export default function Table({ columns, rows, rowKey, onRowClick, loading, emptyMessage, activeKey }) {
+export default function Table({
+  columns,
+  rows,
+  rowKey,
+  onRowClick,
+  loading,
+  emptyMessage,
+  activeKey,
+  search,
+  searchPlaceholder = 'Search…',
+}) {
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState({ key: null, dir: 'asc' })
+
+  const accessorFor = (c) =>
+    typeof c.sort === 'function' ? c.sort : c.sort === false ? null : (row) => row[c.key]
+
+  const view = useMemo(() => {
+    if (!rows) return null
+    const q = query.trim().toLowerCase()
+    let out = q && search ? rows.filter((r) => search(r).toLowerCase().includes(q)) : rows
+    if (sort.key) {
+      const col = columns.find((c) => c.key === sort.key)
+      const acc = col && accessorFor(col)
+      if (acc) {
+        const dir = sort.dir === 'desc' ? -1 : 1
+        out = [...out].sort((a, b) => {
+          const av = acc(a)
+          const bv = acc(b)
+          if (av == null && bv == null) return 0
+          if (av == null) return 1
+          if (bv == null) return -1
+          if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir
+          return String(av).localeCompare(String(bv)) * dir
+        })
+      }
+    }
+    return out
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, query, sort, search])
+
+  const toggleSort = (key) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }))
+
   return (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            {columns.map((c) => (
-              <th key={c.key} style={c.align === 'right' ? { textAlign: 'right' } : undefined}>
-                {c.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {loading
-            ? [0, 1, 2, 3].map((i) => (
-                <tr key={'loading-' + i}>
-                  <td colSpan={columns.length}>
-                    <div className="table-loading" />
-                  </td>
-                </tr>
-              ))
-            : null}
-          {!loading && rows && rows.length === 0 ? (
+    <div className="table-block">
+      {search ? (
+        <div className="table-toolbar">
+          <input
+            type="search"
+            className="table-search"
+            placeholder={searchPlaceholder}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label="Filter rows"
+          />
+          {query && view ? <span className="table-count">{view.length} match{view.length === 1 ? '' : 'es'}</span> : null}
+        </div>
+      ) : null}
+      <div className="table-wrap">
+        <table>
+          <thead>
             <tr>
-              <td colSpan={columns.length}>
-                <div className="empty">{emptyMessage || 'No data yet — point your SDK at this server'}</div>
-              </td>
-            </tr>
-          ) : null}
-          {!loading && rows
-            ? rows.map((row) => {
-                const key = rowKey(row)
+              {columns.map((c) => {
+                const sortable = accessorFor(c) != null
+                const active = sort.key === c.key
                 return (
-                  <tr
-                    key={key}
-                    className={
-                      (onRowClick ? 'row-click' : '') + (activeKey && activeKey === key ? ' row-active' : '')
-                    }
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  <th
+                    key={c.key}
+                    style={c.align === 'right' ? { textAlign: 'right' } : undefined}
+                    aria-sort={active ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
                   >
-                    {columns.map((c) => (
-                      <td key={c.key} style={c.align === 'right' ? { textAlign: 'right' } : undefined}>
-                        {c.render ? c.render(row) : row[c.key]}
-                      </td>
-                    ))}
-                  </tr>
+                    {sortable ? (
+                      <button
+                        type="button"
+                        className={'th-sort' + (active ? ' active' : '')}
+                        onClick={() => toggleSort(c.key)}
+                      >
+                        {c.label}
+                        <span className="th-arrow" aria-hidden="true">
+                          {active ? (sort.dir === 'asc' ? '↑' : '↓') : '↕'}
+                        </span>
+                      </button>
+                    ) : (
+                      c.label
+                    )}
+                  </th>
                 )
-              })
-            : null}
-        </tbody>
-      </table>
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {loading
+              ? [0, 1, 2, 3].map((i) => (
+                  <tr key={'loading-' + i}>
+                    <td colSpan={columns.length}>
+                      <div className="table-loading" />
+                    </td>
+                  </tr>
+                ))
+              : null}
+            {!loading && view && view.length === 0 ? (
+              <tr>
+                <td colSpan={columns.length}>
+                  <div className="empty">
+                    {query ? `No rows match “${query}”` : emptyMessage || 'No data yet — point your SDK at this server'}
+                  </div>
+                </td>
+              </tr>
+            ) : null}
+            {!loading && view
+              ? view.map((row) => {
+                  const key = rowKey(row)
+                  return (
+                    <tr
+                      key={key}
+                      className={
+                        (onRowClick ? 'row-click' : '') + (activeKey && activeKey === key ? ' row-active' : '')
+                      }
+                      onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    >
+                      {columns.map((c) => (
+                        <td key={c.key} style={c.align === 'right' ? { textAlign: 'right' } : undefined}>
+                          {c.render ? c.render(row) : row[c.key]}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })
+              : null}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
