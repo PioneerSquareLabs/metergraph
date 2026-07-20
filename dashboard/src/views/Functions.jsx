@@ -4,6 +4,7 @@ import { fmtInt, fmtMs, fmtPct, fmtTokens, fmtTs, fmtUsd } from '../format.js'
 import Table from '../components/Table.jsx'
 import Sparkline from '../components/Sparkline.jsx'
 import BarChart from '../components/BarChart.jsx'
+import HBarChart from '../components/HBarChart.jsx'
 
 function FunctionDetail({ func, query }) {
   const deps = [func, query.from, query.to, query.environment]
@@ -105,6 +106,19 @@ export default function Functions({ query }) {
 
   return (
     <>
+      <section className="panel">
+        <div className="section-heading">
+          <h2>Spend by function</h2>
+          <span className="live-pill">cost · {query.rangeLabel}</span>
+        </div>
+        <div className="panel-body">
+          {usage.loading ? <div className="table-loading" /> : null}
+          {!usage.loading && usage.data ? (
+            <HBarChart items={usage.data.items} sub={(r) => `${fmtInt(r.calls)} calls`} />
+          ) : null}
+        </div>
+      </section>
+
       <section className="panel">
         <div className="section-heading">
           <h2>Functions</h2>

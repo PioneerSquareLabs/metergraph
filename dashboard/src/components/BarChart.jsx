@@ -1,20 +1,7 @@
 import { fmtBucket, fmtUsd } from '../format.js'
+import { seriesColor } from './palette.js'
 
-export const SERIES_COLORS = [
-  '#10b981',
-  '#0b1220',
-  '#f59e0b',
-  '#3b82f6',
-  '#dd4444',
-  '#8b5cf6',
-  '#0ea5e9',
-  '#64748b',
-]
-
-export function seriesColor(index, key) {
-  if (key === 'other') return '#b7bfca'
-  return SERIES_COLORS[index % SERIES_COLORS.length]
-}
+export { SERIES_COLORS, seriesColor } from './palette.js'
 
 /** Stacked bar chart of cost per bucket. series: [{ key, values }] */
 export default function BarChart({ buckets, series, height = 190 }) {
@@ -30,6 +17,7 @@ export default function BarChart({ buckets, series, height = 190 }) {
   const chartH = height - padTop - padBottom
   const step = W / n
   const barW = Math.max(2, Math.min(38, step * 0.68))
+  const gap = barW > 6 ? 1.5 : 0 // 2px surface gap between stacked segments when bars are wide enough
 
   // ~6 evenly spaced x labels
   const labelEvery = Math.max(1, Math.ceil(n / 6))
@@ -45,7 +33,6 @@ export default function BarChart({ buckets, series, height = 190 }) {
           let y = padTop + chartH
           return (
             <g key={bucket}>
-              <title>{`${fmtBucket(bucket)} — ${fmtUsd(totals[i])}`}</title>
               {series.map((sr, si) => {
                 const v = sr.values[i] || 0
                 if (v <= 0) return null
@@ -57,9 +44,11 @@ export default function BarChart({ buckets, series, height = 190 }) {
                     x={x.toFixed(2)}
                     y={y.toFixed(2)}
                     width={barW.toFixed(2)}
-                    height={Math.max(h, 0.5).toFixed(2)}
+                    height={Math.max(h - gap, 0.5).toFixed(2)}
                     fill={seriesColor(si, sr.key)}
-                  />
+                  >
+                    <title>{`${fmtBucket(bucket)}\n${sr.key} — ${fmtUsd(v)}\ntotal ${fmtUsd(totals[i])}`}</title>
+                  </rect>
                 )
               })}
             </g>

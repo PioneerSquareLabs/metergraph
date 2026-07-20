@@ -1,6 +1,8 @@
 import { api, useApi } from '../api.js'
 import { fmtInt, fmtPct, fmtTokens, fmtUsd } from '../format.js'
 import Table from '../components/Table.jsx'
+import DonutChart from '../components/DonutChart.jsx'
+import HBarChart from '../components/HBarChart.jsx'
 
 function cacheHitRatio(r) {
   const denom = (r.input_tokens || 0) + (r.cache_read_tokens || 0)
@@ -16,6 +18,11 @@ export default function Models({ query }) {
   const usage = useApi(
     () =>
       api('/v1/usage', { group_by: 'model', from: query.from, to: query.to, environment: query.environment }),
+    deps,
+  )
+  const providers = useApi(
+    () =>
+      api('/v1/usage', { group_by: 'provider', from: query.from, to: query.to, environment: query.environment }),
     deps,
   )
   const catalog = useApi(() => api('/v1/catalog'), [])
@@ -34,6 +41,37 @@ export default function Models({ query }) {
   if (usage.error) return <div className="error-banner">Failed to load models: {usage.error.message}</div>
 
   return (
+    <>
+    <div className="chart-grid two">
+      <section className="panel">
+        <div className="section-heading">
+          <h2>Spend by provider</h2>
+          <span className="live-pill">share · {query.rangeLabel}</span>
+        </div>
+        <div className="panel-body">
+          {providers.loading ? <div className="table-loading" /> : null}
+          {providers.error ? (
+            <div className="error-banner">Failed to load providers: {providers.error.message}</div>
+          ) : null}
+          {!providers.loading && !providers.error && providers.data ? (
+            <DonutChart items={providers.data.items} centerLabel="all providers" />
+          ) : null}
+        </div>
+      </section>
+      <section className="panel">
+        <div className="section-heading">
+          <h2>Spend by model</h2>
+          <span className="live-pill">cost · {query.rangeLabel}</span>
+        </div>
+        <div className="panel-body">
+          {usage.loading ? <div className="table-loading" /> : null}
+          {!usage.loading && usage.data ? (
+            <HBarChart items={usage.data.items} sub={(r) => `${fmtInt(r.calls)} calls`} />
+          ) : null}
+        </div>
+      </section>
+    </div>
+
     <section className="panel">
       <div className="section-heading">
         <h2>Models</h2>
@@ -79,5 +117,6 @@ export default function Models({ query }) {
         ]}
       />
     </section>
+    </>
   )
 }
