@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import pytest
+
 from metergraph_server import prices
 
 VERSION, DOC, SNAPSHOT = prices.load()
@@ -27,6 +29,48 @@ def test_openai_cache_read_included_in_input():
     assert result.status == "priced"
     assert result.canonical_model == "openai/gpt-5.6-luna"
     assert result.cost_usd == Decimal("0.05") + Decimal("0.005")
+
+
+def test_gpt_4o_mini_is_priced():
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model="gpt-4o-mini",
+        at=_at("2026-07-22"),
+        input_tokens=100_000,
+        output_tokens=50_000,
+        cache_read_tokens=20_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == "openai/gpt-4o-mini"
+    # billable input excludes the cached tokens (input_includes_cache_read)
+    expected = (
+        Decimal(80_000) * Decimal("0.15") / Decimal(1_000_000)
+        + Decimal(50_000) * Decimal("0.60") / Decimal(1_000_000)
+        + Decimal(20_000) * Decimal("0.075") / Decimal(1_000_000)
+    )
+    assert result.cost_usd == expected.quantize(Decimal("0.00000001"))
+
+
+@pytest.mark.parametrize(
+    ("model", "input_rate", "output_rate"),
+    [
+        ("gpt-4o", Decimal("2.50"), Decimal("10.00")),
+        ("gpt-4.1", Decimal("2.00"), Decimal("8.00")),
+        ("gpt-4.1-mini", Decimal("0.40"), Decimal("1.60")),
+        ("gpt-4.1-nano", Decimal("0.10"), Decimal("0.40")),
+    ],
+)
+def test_legacy_openai_models_are_priced(model, input_rate, output_rate):
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model=model,
+        at=_at("2026-07-22"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == f"openai/{model}"
+    assert result.cost_usd == input_rate + output_rate
 
 
 def test_anthropic_effective_dating():
