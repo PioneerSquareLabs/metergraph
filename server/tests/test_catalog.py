@@ -29,6 +29,26 @@ def test_openai_cache_read_included_in_input():
     assert result.cost_usd == Decimal("0.05") + Decimal("0.005")
 
 
+def test_gpt_4o_mini_is_priced():
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model="gpt-4o-mini",
+        at=_at("2026-07-22"),
+        input_tokens=100_000,
+        output_tokens=50_000,
+        cache_read_tokens=20_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == "openai/gpt-4o-mini"
+    # billable input excludes the cached tokens (input_includes_cache_read)
+    expected = (
+        Decimal(80_000) * Decimal("0.15") / Decimal(1_000_000)
+        + Decimal(50_000) * Decimal("0.60") / Decimal(1_000_000)
+        + Decimal(20_000) * Decimal("0.075") / Decimal(1_000_000)
+    )
+    assert result.cost_usd == expected.quantize(Decimal("0.00000001"))
+
+
 def test_anthropic_effective_dating():
     early = SNAPSHOT.cost(
         provider="anthropic",
