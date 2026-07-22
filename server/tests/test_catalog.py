@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 
+import pytest
+
 from metergraph_server import prices
 
 VERSION, DOC, SNAPSHOT = prices.load()
@@ -47,6 +49,28 @@ def test_gpt_4o_mini_is_priced():
         + Decimal(20_000) * Decimal("0.075") / Decimal(1_000_000)
     )
     assert result.cost_usd == expected.quantize(Decimal("0.00000001"))
+
+
+@pytest.mark.parametrize(
+    ("model", "input_rate", "output_rate"),
+    [
+        ("gpt-4o", Decimal("2.50"), Decimal("10.00")),
+        ("gpt-4.1", Decimal("2.00"), Decimal("8.00")),
+        ("gpt-4.1-mini", Decimal("0.40"), Decimal("1.60")),
+        ("gpt-4.1-nano", Decimal("0.10"), Decimal("0.40")),
+    ],
+)
+def test_legacy_openai_models_are_priced(model, input_rate, output_rate):
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model=model,
+        at=_at("2026-07-22"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == f"openai/{model}"
+    assert result.cost_usd == input_rate + output_rate
 
 
 def test_anthropic_effective_dating():
