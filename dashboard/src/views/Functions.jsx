@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api, useApi } from '../api.js'
 import { fmtInt, fmtMs, fmtPct, fmtTokens, fmtTs, fmtUsd } from '../format.js'
+import { clearHashSelection, consumeHashSelection } from '../hash.js'
 import Table from '../components/Table.jsx'
 import Sparkline from '../components/Sparkline.jsx'
 import BarChart from '../components/BarChart.jsx'
@@ -84,7 +85,8 @@ function FunctionDetail({ func, query }) {
 
 export default function Functions({ query }) {
   const deps = [query.from, query.to, query.environment]
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected] = useState(consumeHashSelection)
+  useEffect(() => clearHashSelection(), [])
 
   const usage = useApi(
     () =>
@@ -119,7 +121,11 @@ export default function Functions({ query }) {
         <div className="panel-body">
           {usage.loading ? <div className="table-loading" /> : null}
           {!usage.loading && usage.data ? (
-            <HBarChart items={usage.data.items} sub={(r) => `${fmtInt(r.calls)} calls`} />
+            <HBarChart
+              items={usage.data.items}
+              sub={(r) => `${fmtInt(r.calls)} calls`}
+              onSelect={(key) => setSelected((s) => (s === key ? null : key))}
+            />
           ) : null}
         </div>
       </section>
@@ -134,7 +140,7 @@ export default function Functions({ query }) {
           rows={usage.data ? usage.data.items : null}
           rowKey={(r) => r.key}
           activeKey={selected}
-          onRowClick={(r) => setSelected(selected === r.key ? null : r.key)}
+          onRowClick={(r) => setSelected((s) => (s === r.key ? null : r.key))}
           search={(r) => r.key}
           searchPlaceholder="Search functions…"
           columns={[

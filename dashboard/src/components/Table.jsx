@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 /**
  * Generic table with client-side search and click-to-sort.
@@ -21,6 +21,20 @@ export default function Table({
 }) {
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState({ key: null, dir: 'asc' })
+
+  // Callback ref so the scroll fires once the row actually mounts (it may
+  // still be a loading skeleton when activeKey is set). Memoized on
+  // activeKey so it doesn't reattach - and rescroll - on unrelated re-renders.
+  const scrolledForRef = useRef(null)
+  const setActiveRowRef = useCallback(
+    (el) => {
+      if (el && activeKey && scrolledForRef.current !== activeKey) {
+        scrolledForRef.current = activeKey
+        el.scrollIntoView({ block: 'center' })
+      }
+    },
+    [activeKey],
+  )
 
   const accessorFor = (c) =>
     typeof c.sort === 'function' ? c.sort : c.sort === false ? null : (row) => row[c.key]
@@ -121,12 +135,12 @@ export default function Table({
             {!loading && view
               ? view.map((row) => {
                   const key = rowKey(row)
+                  const active = activeKey && activeKey === key
                   return (
                     <tr
                       key={key}
-                      className={
-                        (onRowClick ? 'row-click' : '') + (activeKey && activeKey === key ? ' row-active' : '')
-                      }
+                      ref={active ? setActiveRowRef : undefined}
+                      className={(onRowClick ? 'row-click' : '') + (active ? ' row-active' : '')}
                       onClick={onRowClick ? () => onRowClick(row) : undefined}
                     >
                       {columns.map((c) => (
