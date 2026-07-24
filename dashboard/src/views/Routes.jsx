@@ -1,10 +1,14 @@
+import { useEffect, useState } from 'react'
 import { api, useApi } from '../api.js'
 import { fmtInt, fmtMs, fmtPct, fmtTokens, fmtUsd, routeLabel } from '../format.js'
+import { clearHashSelection, consumeHashSelection } from '../hash.js'
 import Table from '../components/Table.jsx'
 import HBarChart from '../components/HBarChart.jsx'
 
 export default function Routes({ query }) {
   const deps = [query.from, query.to, query.environment]
+  const [selected, setSelected] = useState(consumeHashSelection)
+  useEffect(() => clearHashSelection(), [])
   const usage = useApi(
     () =>
       api('/v1/usage', { group_by: 'route', from: query.from, to: query.to, environment: query.environment }),
@@ -12,10 +16,6 @@ export default function Routes({ query }) {
   )
 
   if (usage.error) return <div className="error-banner">Failed to load routes: {usage.error.message}</div>
-
-  const barItems = usage.data
-    ? usage.data.items.map((r) => ({ ...r, key: routeLabel(r.key).label }))
-    : null
 
   return (
     <>
@@ -26,8 +26,13 @@ export default function Routes({ query }) {
       </div>
       <div className="panel-body">
         {usage.loading ? <div className="table-loading" /> : null}
-        {!usage.loading && barItems ? (
-          <HBarChart items={barItems} sub={(r) => `${fmtInt(r.calls)} calls`} />
+        {!usage.loading && usage.data ? (
+          <HBarChart
+            items={usage.data.items}
+            sub={(r) => `${fmtInt(r.calls)} calls`}
+            labelFor={(key) => routeLabel(key).label}
+            onSelect={(key) => setSelected((s) => (s === key ? null : key))}
+          />
         ) : null}
       </div>
     </section>
@@ -41,6 +46,8 @@ export default function Routes({ query }) {
         loading={usage.loading}
         rows={usage.data ? usage.data.items : null}
         rowKey={(r) => r.key}
+        activeKey={selected}
+        onRowClick={(r) => setSelected((s) => (s === r.key ? null : r.key))}
         search={(r) => `${routeLabel(r.key).label} ${r.key}`}
         searchPlaceholder="Search routes…"
         columns={[

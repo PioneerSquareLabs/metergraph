@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { api, useApi } from '../api.js'
 import { fmtInt, fmtPct, fmtTokens, fmtUsd } from '../format.js'
+import { clearHashSelection, consumeHashSelection } from '../hash.js'
 import Table from '../components/Table.jsx'
 import DonutChart from '../components/DonutChart.jsx'
 import HBarChart from '../components/HBarChart.jsx'
@@ -15,6 +17,8 @@ function reasoningShare(r) {
 
 export default function Models({ query }) {
   const deps = [query.from, query.to, query.environment]
+  const [selected, setSelected] = useState(consumeHashSelection)
+  useEffect(() => clearHashSelection(), [])
   const usage = useApi(
     () =>
       api('/v1/usage', { group_by: 'model', from: query.from, to: query.to, environment: query.environment }),
@@ -66,7 +70,11 @@ export default function Models({ query }) {
         <div className="panel-body">
           {usage.loading ? <div className="table-loading" /> : null}
           {!usage.loading && usage.data ? (
-            <HBarChart items={usage.data.items} sub={(r) => `${fmtInt(r.calls)} calls`} />
+            <HBarChart
+              items={usage.data.items}
+              sub={(r) => `${fmtInt(r.calls)} calls`}
+              onSelect={(key) => setSelected((s) => (s === key ? null : key))}
+            />
           ) : null}
         </div>
       </section>
@@ -83,6 +91,8 @@ export default function Models({ query }) {
         loading={usage.loading}
         rows={usage.data ? usage.data.items : null}
         rowKey={(r) => r.key}
+        activeKey={selected}
+        onRowClick={(r) => setSelected((s) => (s === r.key ? null : r.key))}
         search={(r) => `${r.key} ${(r.provider !== '(unknown)' && r.provider) || providerFor(r.key) || ''}`}
         searchPlaceholder="Search models…"
         columns={[

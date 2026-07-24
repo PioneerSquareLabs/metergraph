@@ -1,5 +1,6 @@
 import { api, useApi } from '../api.js'
 import { fmtInt, fmtPct, fmtTokens, fmtUsd } from '../format.js'
+import { navigateWithSelection } from '../hash.js'
 import StatCard from '../components/StatCard.jsx'
 import BarChart from '../components/BarChart.jsx'
 import DonutChart from '../components/DonutChart.jsx'
@@ -151,7 +152,11 @@ export default function Overview({ query }) {
             {funcs.loading ? <div className="table-loading" /> : null}
             {funcs.error ? <div className="error-banner">Failed to load functions: {funcs.error.message}</div> : null}
             {!funcs.loading && !funcs.error && funcs.data ? (
-              <HBarChart items={funcs.data.items} sub={callsSub} />
+              <HBarChart
+                items={funcs.data.items}
+                sub={callsSub}
+                onSelect={(key) => navigateWithSelection('functions', key)}
+              />
             ) : null}
           </div>
         </section>
@@ -163,7 +168,9 @@ export default function Overview({ query }) {
           </div>
           <div className="panel-body">
             {usage.loading ? <div className="table-loading" /> : null}
-            {!usage.loading && items ? <HBarChart items={items} sub={callsSub} /> : null}
+            {!usage.loading && items ? (
+              <HBarChart items={items} sub={callsSub} onSelect={(key) => navigateWithSelection('models', key)} />
+            ) : null}
           </div>
         </section>
       </div>
