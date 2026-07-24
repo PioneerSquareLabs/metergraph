@@ -4,9 +4,9 @@ Prompt/completion content (`request_json`, `response_text`, tool-call
 arguments) is discarded before anything touches the database.
 """
 
-import gzip
 import json
 import os
+import zlib
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
@@ -186,16 +186,45 @@ def project_row(row: dict, catalog: CatalogSnapshot) -> tuple:
     )
 
 
+def _gunzip_bounded(compressed: bytes, limit: int) -> bytes:
+    """Decompress gzip data, aborting once output exceeds limit.
+
+    A single `gzip.decompress()` call materializes the whole output before
+    any size check runs, so a small, highly-compressible payload (a
+    "decompression bomb") can force an arbitrarily large allocation. Capping
+    each `decompress()` call with `max_length` bounds any single allocation
+    to ~limit bytes regardless of the true decompressed size; looping on
+    `unconsumed_tail` (rather than re-slicing the input ourselves) is
+    required because a capped call can leave input unprocessed, and
+    resubmitting the wrong slice would silently corrupt the output.
+    """
+    decompressor = zlib.decompressobj(wbits=zlib.MAX_WBITS | 16)
+    chunks = []
+    total = 0
+    pending = compressed
+    while pending:
+        piece = decompressor.decompress(pending, limit - total + 1)
+        total += len(piece)
+        if total > limit:
+            raise HTTPException(413, "decompressed body too large")
+        chunks.append(piece)
+        pending = decompressor.unconsumed_tail
+    tail = decompressor.flush()
+    total += len(tail)
+    if total > limit:
+        raise HTTPException(413, "decompressed body too large")
+    chunks.append(tail)
+    return b"".join(chunks)
+
+
 def _decode_body(body: bytes, encoding: str | None, limit: int) -> dict:
     if len(body) > limit:
         raise HTTPException(413, "request body too large")
     if (encoding or "").strip().lower() == "gzip":
         try:
-            body = gzip.decompress(body)
-        except (OSError, EOFError) as exc:
+            body = _gunzip_bounded(body, limit)
+        except (OSError, EOFError, zlib.error) as exc:
             raise HTTPException(400, "invalid gzip body") from exc
-        if len(body) > limit:
-            raise HTTPException(413, "request body too large")
     try:
         payload = json.loads(body)
     except (ValueError, UnicodeDecodeError) as exc:
