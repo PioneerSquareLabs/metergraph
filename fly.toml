@@ -1,0 +1,32 @@
+# Metergraph server (API + dashboard) on Fly. The app name predates the
+# repo split, when this machine ran only the ingest API — kept because
+# producers (psl-os fly.toml) point METERGRAPH_INGEST_URL at this hostname.
+app = 'metergraph-ingest'
+primary_region = 'sjc'
+
+[build]
+  dockerfile = 'server/Dockerfile'
+
+# Secrets (set via `fly secrets set`, never committed):
+#   DATABASE_URL — Postgres DSN (shared with the pre-split ingest schema;
+#                  the server's own tables are created by its migrations)
+#   MG_TOKENS    — comma-separated bearer tokens, one per producer
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/healthz'
+
+[[vm]]
+  memory = '256mb'
+  cpu_kind = 'shared'
+  cpus = 1
