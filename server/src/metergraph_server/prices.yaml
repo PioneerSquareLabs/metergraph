@@ -270,6 +270,24 @@ models:
         batch_output_per_mtok: 2.50
         source_url: https://platform.claude.com/docs/en/about-claude/pricing
 
+  - canonical_id: anthropic/claude-sonnet-4.6
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-sonnet-4-6, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-sonnet-4.6, channel: anthropic-api}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-02-17"
+        input_per_mtok: 3.00
+        output_per_mtok: 15.00
+        cache_read_per_mtok: 0.30
+        cache_write_5m_per_mtok: 3.75
+        cache_write_1h_per_mtok: 6.00
+        batch_input_per_mtok: 1.50
+        batch_output_per_mtok: 7.50
+        source_url: https://platform.claude.com/docs/en/about-claude/pricing
+
   - canonical_id: google/gemini-3-pro
     publisher: google
     aliases:
