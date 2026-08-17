@@ -32,7 +32,17 @@ export METERGRAPH_INGEST_URL=http://localhost:8787
 export METERGRAPH_APP_TOKEN=dev-token
 ```
 
-Dashboard: http://localhost:8787 (enter the same token). No API keys needed to try it — run `MG_TOKEN=dev-token python scripts/seed_demo.py` to send demo traffic.
+Dashboard: http://localhost:8787 (enter the same token). No provider API key is
+needed to try it — the demo wraps local OpenAI-, Anthropic-, and Google-shaped
+clients with the published SDK:
+
+```bash
+python -m pip install 'metergraph>=0.4,<1'
+MG_TOKEN=dev-token python scripts/seed_demo.py
+```
+
+The demo performs the same SDK 0.4+ session exchange and batched ingestion as
+an instrumented application; it does not construct ingest payloads directly.
 
 ## Packages
 
