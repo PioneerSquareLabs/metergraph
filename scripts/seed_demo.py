@@ -143,10 +143,11 @@ def run_profile(client, provider, name, route, model, input_range, output_range)
         )
 
     instrumented_call.__name__ = name
-    if route:
-        with metergraph.route(route):
-            return instrumented_call()
-    return instrumented_call()
+    with metergraph.track(name, module="demo"):
+        if route:
+            with metergraph.route(route):
+                return instrumented_call()
+        return instrumented_call()
 
 
 def main() -> None:

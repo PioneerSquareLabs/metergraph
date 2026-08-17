@@ -103,3 +103,12 @@ def test_demo_uses_sdk_0_4_session_exchange_before_ingest(tmp_path, collector):
     assert rows
     assert {row["sdk_version"] for row in rows} == {version("metergraph")}
     assert {row["provider"] for row in rows} == {"openai", "anthropic", "google"}
+    assert {row["func"] for row in rows} == {
+        "audit_line_items",
+        "classify_ticket",
+        "deep_audit",
+        "draft_reply",
+        "parse_receipt",
+        "summarize_invoice",
+        "summarize_thread",
+    }
