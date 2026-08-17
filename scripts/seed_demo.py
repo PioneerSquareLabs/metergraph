@@ -1,103 +1,215 @@
-"""Seed demo traffic into a Metergraph server over the plain ingest API.
+"""Seed demo traffic through the MeterGraph Python SDK.
 
-No SDK required. Usage:
+No provider API key is required: the SDK wraps a local OpenAI-shaped fake.
+Usage:
 
-    MG_URL=http://localhost:8787 MG_TOKEN=dev-token python scripts/seed_demo.py [days]
+    MG_URL=http://localhost:8787 MG_TOKEN=dev-token python scripts/seed_demo.py [multiplier]
 """
 
-import json
 import os
 import random
 import sys
-import urllib.request
-from datetime import datetime, timedelta, timezone
+import time
+import uuid
+
+try:
+    import metergraph
+except ImportError as exc:
+    raise SystemExit(
+        "The demo requires the MeterGraph SDK. Install it with "
+        "`python -m pip install 'metergraph>=0.4,<1'`."
+    ) from exc
+
 
 URL = os.environ.get("MG_URL", "http://localhost:8787")
 TOKEN = os.environ.get("MG_TOKEN", "dev-token")
-DAYS = int(sys.argv[1]) if len(sys.argv) > 1 else 7
+MULTIPLIER = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 
 random.seed(7)
-NOW = datetime.now(timezone.utc)
 
 PROFILES = [
-    # func, module, route, provider, model, calls/day, input range, output range, error rate
-    ("app.billing:summarize_invoice", "app.billing", "invoice-summarizer",
-     "openai", "gpt-5.6-luna", 9, (2000, 9000), (300, 900), 0.01),
-    ("app.billing:audit_line_items", "app.billing", "invoice-summarizer",
-     "openai", "gpt-5.6-terra", 3, (6000, 20000), (500, 1500), 0.02),
-    ("support.classify_ticket", "app.support", "ticket-classifier",
-     "anthropic", "claude-haiku-4-5", 12, (800, 3000), (100, 400), 0.03),
-    ("support.draft_reply", "app.support", "reply-drafter",
-     "anthropic", "claude-sonnet-5", 5, (3000, 12000), (400, 1200), 0.05),
-    ("extraction.parse_receipt", "app.extraction", "receipt-parser",
-     "google", "gemini-2.5-flash", 8, (500, 2500), (150, 600), 0.02),
-    ("extraction.deep_audit", "app.extraction", "receipt-parser",
-     "google", "gemini-3-pro", 2, (5000, 30000), (800, 2500), 0.04),
-    ("research.summarize_thread", "app.research", None,
-     "openai", "ft:gpt-4o-mini:acme", 2, (1500, 5000), (200, 700), 0.02),
+    # function, module, route, provider, model, calls, input/output ranges, errors
+    (
+        "app.billing:summarize_invoice", "app.billing", "invoice-summarizer",
+        "openai", "gpt-5.6-luna", 9, (2000, 9000), (300, 900), 0.01,
+    ),
+    (
+        "app.billing:audit_line_items", "app.billing", "invoice-summarizer",
+        "openai", "gpt-5.6-terra", 3, (6000, 20000), (500, 1500), 0.02,
+    ),
+    (
+        "support.classify_ticket", "app.support", "ticket-classifier",
+        "anthropic", "claude-haiku-4-5", 12, (800, 3000), (100, 400), 0.03,
+    ),
+    (
+        "support.draft_reply", "app.support", "reply-drafter",
+        "anthropic", "claude-sonnet-5", 5, (3000, 12000), (400, 1200), 0.05,
+    ),
+    (
+        "extraction.parse_receipt", "app.extraction", "receipt-parser",
+        "google", "gemini-2.5-flash", 8, (500, 2500), (150, 600), 0.02,
+    ),
+    (
+        "extraction.deep_audit", "app.extraction", "receipt-parser",
+        "google", "gemini-3-pro", 2, (5000, 30000), (800, 2500), 0.04,
+    ),
+    (
+        "research.summarize_thread", "app.research", None,
+        "openai", "ft:gpt-4o-mini:acme", 2, (1500, 5000), (200, 700), 0.02,
+    ),
 ]
 
 
-def build_rows() -> list[dict]:
-    rows = []
-    for day in range(DAYS, -1, -1):
-        day_start = (NOW - timedelta(days=day)).replace(
-            minute=0, second=0, microsecond=0
-        )
-        daily_scale = 0.6 + 0.55 * random.random() + (0.35 if day in (2, 3) else 0)
-        for func, module, route, provider, model, weight, in_r, out_r, err in PROFILES:
-            for _ in range(max(1, int(weight * daily_scale))):
-                ts = day_start + timedelta(
-                    hours=random.randint(8, 22), minutes=random.randint(0, 59)
-                )
-                if ts > NOW:
-                    ts = NOW - timedelta(minutes=random.randint(1, 300))
-                failed = random.random() < err
-                in_tok = random.randint(*in_r)
-                row = {
-                    "ts": ts.isoformat(),
-                    "func": func,
-                    "module": module,
-                    "provider": provider,
-                    "model": model,
-                    "endpoint": "chat.completions",
-                    "input_tokens": in_tok,
-                    "output_tokens": 0 if failed else random.randint(*out_r),
-                    "cache_read_tokens": int(in_tok * random.choice([0, 0, 0.3, 0.6])),
-                    "reasoning_tokens": random.randint(50, 400) if "pro" in model else 0,
-                    "latency_ms": random.randint(400, 6000),
-                    "ttft_ms": random.randint(150, 900),
-                    "status": "error" if failed else "stop",
-                    "error": failed,
-                    "error_type": "APIError" if failed else None,
-                    "stream": random.random() < 0.4,
-                    "session_id": f"sess-{random.randint(1, 40)}",
-                    "template_hash": "th" + func[-6:],
-                    "tags": {"team": module.split(".")[-1]},
-                    "environment": "production",
-                    "sdk": "python",
-                    "sdk_version": "0.2.0",
+class DemoCompletions:
+    def create(self, *, model, messages, demo_input_tokens, demo_output_tokens):
+        return {
+            "id": f"chatcmpl-demo-{uuid.uuid4().hex[:12]}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": model,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Demo response"},
+                    "finish_reason": "stop",
                 }
-                if route:
-                    row["route"] = route
-                rows.append(row)
-    return rows
+            ],
+            "usage": {
+                "prompt_tokens": demo_input_tokens,
+                "completion_tokens": demo_output_tokens,
+                "total_tokens": demo_input_tokens + demo_output_tokens,
+            },
+        }
+
+
+class DemoChat:
+    def __init__(self):
+        self.completions = DemoCompletions()
+
+
+class DemoOpenAI:
+    def __init__(self):
+        self.chat = DemoChat()
+
+
+class DemoAnthropicMessages:
+    def create(self, *, model, messages, demo_input_tokens, demo_output_tokens):
+        return {
+            "id": f"msg-demo-{uuid.uuid4().hex[:12]}",
+            "type": "message",
+            "role": "assistant",
+            "model": model,
+            "content": [{"type": "text", "text": "Demo response"}],
+            "stop_reason": "end_turn",
+            "usage": {
+                "input_tokens": demo_input_tokens,
+                "output_tokens": demo_output_tokens,
+            },
+        }
+
+
+class DemoAnthropic:
+    def __init__(self):
+        self.messages = DemoAnthropicMessages()
+
+
+class DemoGoogleModels:
+    def generate_content(
+        self, *, model, contents, demo_input_tokens, demo_output_tokens
+    ):
+        return {
+            "response_id": f"gemini-demo-{uuid.uuid4().hex[:12]}",
+            "model_version": model,
+            "candidates": [
+                {
+                    "content": {
+                        "role": "model",
+                        "parts": [{"text": "Demo response"}],
+                    },
+                    "finish_reason": "STOP",
+                }
+            ],
+            "usage_metadata": {
+                "prompt_token_count": demo_input_tokens,
+                "candidates_token_count": demo_output_tokens,
+                "total_token_count": demo_input_tokens + demo_output_tokens,
+            },
+        }
+
+
+class DemoGoogle:
+    def __init__(self):
+        self.models = DemoGoogleModels()
+
+
+def run_profile(
+    client, provider, name, module, route, model, input_range, output_range
+):
+    def instrumented_call():
+        common = {
+            "model": model,
+            "demo_input_tokens": random.randint(*input_range),
+            "demo_output_tokens": random.randint(*output_range),
+        }
+        if provider == "openai":
+            return client.chat.completions.create(
+                messages=[{"role": "user", "content": "Generate one demo response."}],
+                **common,
+            )
+        if provider == "anthropic":
+            return client.messages.create(
+                messages=[{"role": "user", "content": "Generate one demo response."}],
+                **common,
+            )
+        return client.models.generate_content(
+            contents="Generate one demo response.", **common
+        )
+
+    instrumented_call.__name__ = name
+    with metergraph.track(name, module=module):
+        if route:
+            with metergraph.route(route):
+                return instrumented_call()
+        return instrumented_call()
 
 
 def main() -> None:
-    rows = build_rows()
-    body = json.dumps({"schema_version": 1, "rows": rows}).encode()
-    request = urllib.request.Request(
-        f"{URL}/v1/ingest",
-        data=body,
-        headers={
-            "Authorization": f"Bearer {TOKEN}",
-            "Content-Type": "application/json",
-        },
+    if MULTIPLIER < 1:
+        raise SystemExit("multiplier must be at least 1")
+    metergraph.init(
+        token=TOKEN,
+        ingest_url=URL,
+        capture_text=False,
+        app_root=os.getcwd(),
+        environment="demo",
     )
-    with urllib.request.urlopen(request) as response:
-        print(response.status, response.read().decode())
-    print(f"sent {len(rows)} rows to {URL}")
+    clients = {
+        "openai": metergraph.wrap(DemoOpenAI(), provider="openai"),
+        "anthropic": metergraph.wrap(DemoAnthropic(), provider="anthropic"),
+        "google": metergraph.wrap(DemoGoogle(), provider="google"),
+    }
+    sent = 0
+    try:
+        with metergraph.trace("self-hosted-demo"):
+            for profile in PROFILES:
+                name, module, route, provider, model, calls, in_range, out_range, _ = profile
+                for _ in range(calls * MULTIPLIER):
+                    run_profile(
+                        clients[provider],
+                        provider,
+                        name,
+                        module,
+                        route,
+                        model,
+                        in_range,
+                        out_range,
+                    )
+                    sent += 1
+        if not metergraph.flush(timeout=10):
+            raise RuntimeError("MeterGraph SDK did not flush demo traffic")
+    finally:
+        metergraph.shutdown()
+    print(f"sent {sent} SDK-instrumented demo calls to {URL}")
 
 
 if __name__ == "__main__":

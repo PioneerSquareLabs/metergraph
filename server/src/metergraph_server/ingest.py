@@ -13,8 +13,9 @@ from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from . import db
-from .auth import require_token
+from .auth import authenticated_app_token, require_ingest_token
 from .catalog import CatalogSnapshot
+from .sessions import issue_session_token
 
 router = APIRouter()
 
@@ -234,7 +235,41 @@ def _decode_body(body: bytes, encoding: str | None, limit: int) -> dict:
     return payload
 
 
-@router.post("/v1/ingest", status_code=202, dependencies=[Depends(require_token)])
+@router.post("/v1/ingest/sessions", status_code=201)
+async def create_ingest_session(
+    request: Request,
+    app_token: str = Depends(authenticated_app_token),
+):
+    payload = _decode_body(
+        await request.body(),
+        request.headers.get("content-encoding"),
+        _max_body_bytes(),
+    )
+    repository = payload.get("repository")
+    sdk_version = payload.get("sdk_version")
+    if payload.get("protocol_version") != 2:
+        raise HTTPException(400, "unsupported SDK ingestion request")
+    if not isinstance(repository, str) or not repository.strip():
+        raise HTTPException(400, "repository must be a non-empty string")
+    if len(repository.strip()) > 512:
+        raise HTTPException(400, "repository must be <= 512 characters")
+    if not isinstance(sdk_version, str) or not sdk_version.strip():
+        raise HTTPException(400, "sdk_version must be a non-empty string")
+    if len(sdk_version.strip()) > 64:
+        raise HTTPException(400, "sdk_version must be <= 64 characters")
+
+    session_token, expires_at = issue_session_token(
+        app_token, repository.strip()
+    )
+    return {
+        "session_token": session_token,
+        "expires_at": expires_at.isoformat().replace("+00:00", "Z"),
+    }
+
+
+@router.post(
+    "/v1/ingest", status_code=202, dependencies=[Depends(require_ingest_token)]
+)
 async def ingest(request: Request):
     payload = _decode_body(
         await request.body(),

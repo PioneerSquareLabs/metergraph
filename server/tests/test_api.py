@@ -78,6 +78,29 @@ def test_ingest_requires_token(client):
     assert bad.status_code == 401
 
 
+def test_sdk_0_4_session_exchange_and_ingest_roundtrip(client):
+    session = client.post(
+        "/v1/ingest/sessions",
+        json={
+            "protocol_version": 2,
+            "repository": "github.com/acme/widgets",
+            "sdk_version": "0.4.0",
+        },
+        headers=AUTH,
+    )
+    assert session.status_code == 201
+    session_token = session.json()["session_token"]
+
+    response = client.post(
+        "/v1/ingest",
+        json={"schema_version": 1, "rows": _rows()[:1]},
+        headers={"Authorization": f"Bearer {session_token}"},
+    )
+
+    assert response.status_code == 202
+    assert response.json() == {"accepted": 1, "ignored": 0}
+
+
 def test_ingest_and_usage_roundtrip(client):
     response = client.post(
         "/v1/ingest",
