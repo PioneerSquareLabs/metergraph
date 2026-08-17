@@ -144,12 +144,20 @@ class CatalogSnapshot:
 
         rules = {**price.rules, **alias.rules}
         billable_input = input_count
+        deducted_input = 0
         if rules.get("input_includes_cache_read"):
             if cache_read_count > input_count:
                 reasons.append("cache_read_exceeds_input")
-                billable_input = 0
+                deducted_input = input_count
             else:
-                billable_input -= cache_read_count
+                deducted_input += cache_read_count
+        if rules.get("input_includes_cache_write"):
+            if cache_write_count > input_count - deducted_input:
+                reasons.append("cache_write_exceeds_input")
+                deducted_input = input_count
+            else:
+                deducted_input += cache_write_count
+        billable_input -= deducted_input
 
         input_rate = price.input_per_mtok
         output_rate = price.output_per_mtok

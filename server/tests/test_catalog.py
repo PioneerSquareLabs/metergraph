@@ -31,6 +31,130 @@ def test_openai_cache_read_included_in_input():
     assert result.cost_usd == Decimal("0.05") + Decimal("0.005")
 
 
+def test_gateway_luna_price_drop_does_not_reprice_history():
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model="openai/gpt-5.6-luna",
+        at=_at("2026-07-15"),
+        input_tokens=100_000,
+        output_tokens=100_000,
+    )
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.70")
+
+
+@pytest.mark.parametrize(
+    ("provider", "model", "expected_canonical", "expected_channel", "expected_cost"),
+    [
+        (
+            "openai",
+            "gpt-5.6-luna",
+            "openai/gpt-5.6-luna",
+            "openai-api",
+            Decimal("0.14"),
+        ),
+        (
+            "openai",
+            "openai/gpt-5.6-luna",
+            "openai/gpt-5.6-luna",
+            "vercel-ai-gateway",
+            Decimal("0.14"),
+        ),
+        (
+            "anthropic",
+            "claude-haiku-4-5",
+            "anthropic/claude-haiku-4.5",
+            "anthropic-api",
+            Decimal("0.60"),
+        ),
+        (
+            "anthropic",
+            "anthropic/claude-haiku-4.5",
+            "anthropic/claude-haiku-4.5",
+            "vercel-ai-gateway",
+            Decimal("0.60"),
+        ),
+        (
+            "anthropic",
+            "claude-opus-5",
+            "anthropic/claude-opus-5",
+            "anthropic-api",
+            Decimal("3.00"),
+        ),
+        (
+            "anthropic",
+            "anthropic/claude-opus-5",
+            "anthropic/claude-opus-5",
+            "vercel-ai-gateway",
+            Decimal("3.00"),
+        ),
+        (
+            "openai",
+            "gpt-5.4-mini",
+            "openai/gpt-5.4-mini",
+            "openai-api",
+            Decimal("0.525"),
+        ),
+        (
+            "openai",
+            "openai/gpt-5.4-mini",
+            "openai/gpt-5.4-mini",
+            "vercel-ai-gateway",
+            Decimal("0.525"),
+        ),
+        (
+            "google",
+            "google/gemma-4-26b-a4b-it",
+            "google/gemma-4-26b-a4b-it",
+            "vercel-ai-gateway",
+            Decimal("0.075"),
+        ),
+        (
+            "nvidia",
+            "nvidia/nemotron-3-super-120b-a12b",
+            "nvidia/nemotron-3-super-120b-a12b",
+            "vercel-ai-gateway",
+            Decimal("0.080"),
+        ),
+        (
+            "meta",
+            "meta/muse-spark-1.1",
+            "meta/muse-spark-1.1",
+            "vercel-ai-gateway",
+            Decimal("0.550"),
+        ),
+    ],
+)
+def test_design_partner_models_are_priced(
+    provider, model, expected_canonical, expected_channel, expected_cost
+):
+    result = SNAPSHOT.cost(
+        provider=provider,
+        model=model,
+        at=_at("2026-08-17"),
+        input_tokens=100_000,
+        output_tokens=100_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == expected_canonical
+    assert f":{expected_channel}:" in result.price_id
+    assert result.cost_usd == expected_cost
+
+
+def test_gateway_input_excludes_cache_reads_and_writes():
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model="openai/gpt-5.6-luna",
+        at=_at("2026-08-17"),
+        input_tokens=200_000,
+        output_tokens=0,
+        cache_read_tokens=40_000,
+        cache_write_tokens=60_000,
+    )
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.03580000")
+
+
 def test_gpt_4o_mini_is_priced():
     result = SNAPSHOT.cost(
         provider="openai",
