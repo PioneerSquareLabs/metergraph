@@ -42,6 +42,10 @@ def test_session_token_rejects_expiry_tampering_and_other_app_tokens():
     )
 
 
+def test_session_token_rejects_a_non_object_payload():
+    assert not is_valid_session_token("mgs1.W10.eA", ["app-secret"])
+
+
 def test_session_token_authentication_is_limited_to_ingest(monkeypatch):
     monkeypatch.setenv("MG_TOKENS", "app-secret")
     token, _ = issue_session_token("app-secret", "github.com/acme/widgets")

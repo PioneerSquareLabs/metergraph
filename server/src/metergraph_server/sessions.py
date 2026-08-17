@@ -71,6 +71,8 @@ def is_valid_session_token(
             return False
         payload = json.loads(_decode(encoded_payload))
         signature = _decode(encoded_signature)
+        if not isinstance(payload, dict):
+            return False
         expires_at = payload.get("exp")
         repository = payload.get("repository")
         if (

@@ -104,11 +104,25 @@ def test_demo_uses_sdk_0_4_session_exchange_before_ingest(tmp_path, collector):
     assert {row["sdk_version"] for row in rows} == {version("metergraph")}
     assert {row["provider"] for row in rows} == {"openai", "anthropic", "google"}
     assert {row["func"] for row in rows} == {
-        "audit_line_items",
-        "classify_ticket",
-        "deep_audit",
-        "draft_reply",
-        "parse_receipt",
-        "summarize_invoice",
-        "summarize_thread",
+        "app.billing:audit_line_items",
+        "app.billing:summarize_invoice",
+        "extraction.deep_audit",
+        "extraction.parse_receipt",
+        "research.summarize_thread",
+        "support.classify_ticket",
+        "support.draft_reply",
     }
+    assert {row["module"] for row in rows} == {
+        "app.billing",
+        "app.extraction",
+        "app.research",
+        "app.support",
+    }
+    assert {row.get("route") for row in rows} == {
+        None,
+        "invoice-summarizer",
+        "receipt-parser",
+        "reply-drafter",
+        "ticket-classifier",
+    }
+    assert all(row.get("trace_id") for row in rows)

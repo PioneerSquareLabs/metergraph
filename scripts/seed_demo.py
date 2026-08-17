@@ -28,14 +28,35 @@ MULTIPLIER = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 random.seed(7)
 
 PROFILES = [
-    # function, route, provider, model, calls, input range, output range, error rate
-    ("summarize_invoice", "invoice-summarizer", "openai", "gpt-5.6-luna", 9, (2000, 9000), (300, 900), 0.01),
-    ("audit_line_items", "invoice-summarizer", "openai", "gpt-5.6-terra", 3, (6000, 20000), (500, 1500), 0.02),
-    ("classify_ticket", "ticket-classifier", "anthropic", "claude-haiku-4-5", 12, (800, 3000), (100, 400), 0.03),
-    ("draft_reply", "reply-drafter", "anthropic", "claude-sonnet-5", 5, (3000, 12000), (400, 1200), 0.05),
-    ("parse_receipt", "receipt-parser", "google", "gemini-2.5-flash", 8, (500, 2500), (150, 600), 0.02),
-    ("deep_audit", "receipt-parser", "google", "gemini-3-pro", 2, (5000, 30000), (800, 2500), 0.04),
-    ("summarize_thread", None, "openai", "ft:gpt-4o-mini:acme", 2, (1500, 5000), (200, 700), 0.02),
+    # function, module, route, provider, model, calls, input/output ranges, errors
+    (
+        "app.billing:summarize_invoice", "app.billing", "invoice-summarizer",
+        "openai", "gpt-5.6-luna", 9, (2000, 9000), (300, 900), 0.01,
+    ),
+    (
+        "app.billing:audit_line_items", "app.billing", "invoice-summarizer",
+        "openai", "gpt-5.6-terra", 3, (6000, 20000), (500, 1500), 0.02,
+    ),
+    (
+        "support.classify_ticket", "app.support", "ticket-classifier",
+        "anthropic", "claude-haiku-4-5", 12, (800, 3000), (100, 400), 0.03,
+    ),
+    (
+        "support.draft_reply", "app.support", "reply-drafter",
+        "anthropic", "claude-sonnet-5", 5, (3000, 12000), (400, 1200), 0.05,
+    ),
+    (
+        "extraction.parse_receipt", "app.extraction", "receipt-parser",
+        "google", "gemini-2.5-flash", 8, (500, 2500), (150, 600), 0.02,
+    ),
+    (
+        "extraction.deep_audit", "app.extraction", "receipt-parser",
+        "google", "gemini-3-pro", 2, (5000, 30000), (800, 2500), 0.04,
+    ),
+    (
+        "research.summarize_thread", "app.research", None,
+        "openai", "ft:gpt-4o-mini:acme", 2, (1500, 5000), (200, 700), 0.02,
+    ),
 ]
 
 
@@ -121,7 +142,9 @@ class DemoGoogle:
         self.models = DemoGoogleModels()
 
 
-def run_profile(client, provider, name, route, model, input_range, output_range):
+def run_profile(
+    client, provider, name, module, route, model, input_range, output_range
+):
     def instrumented_call():
         common = {
             "model": model,
@@ -143,7 +166,7 @@ def run_profile(client, provider, name, route, model, input_range, output_range)
         )
 
     instrumented_call.__name__ = name
-    with metergraph.track(name, module="demo"):
+    with metergraph.track(name, module=module):
         if route:
             with metergraph.route(route):
                 return instrumented_call()
@@ -168,12 +191,14 @@ def main() -> None:
     sent = 0
     try:
         with metergraph.trace("self-hosted-demo"):
-            for name, route, provider, model, calls, in_range, out_range, _error in PROFILES:
+            for profile in PROFILES:
+                name, module, route, provider, model, calls, in_range, out_range, _ = profile
                 for _ in range(calls * MULTIPLIER):
                     run_profile(
                         clients[provider],
                         provider,
                         name,
+                        module,
                         route,
                         model,
                         in_range,
