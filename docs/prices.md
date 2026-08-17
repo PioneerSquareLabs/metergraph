@@ -28,6 +28,7 @@ models:
 
 `rules` options:
 - `input_includes_cache_read: true` — provider reports cached tokens inside `input_tokens` (OpenAI); cache reads are deducted from billable input.
+- `input_includes_cache_write: true` — provider reports cache-write tokens inside `input_tokens` (Vercel AI Gateway); cache writes are deducted before their cache rate is applied.
 - `long_context: {threshold, input_multiplier, output_multiplier}` — surcharge above a prompt-size threshold (OpenAI GPT-5.6, Gemini Pro).
 - `uncaptured_fees: true` — provider charges fees tokens can't express; rows are marked `partial`.
 
