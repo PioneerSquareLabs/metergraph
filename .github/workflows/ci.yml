@@ -59,7 +59,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e server
+      - run: pip install -e "server[dev]"
       - name: Start server
         run: |
           uvicorn metergraph_server.main:app --port 8787 &
@@ -67,7 +67,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://metergraph:metergraph@localhost:5432/metergraph
           MG_TOKENS: ci-token
-      - name: Seed demo traffic over the wire API
+      - name: Seed demo traffic through the published SDK
         run: python scripts/seed_demo.py 3
         env:
           MG_URL: http://localhost:8787
