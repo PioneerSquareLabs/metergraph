@@ -6,7 +6,12 @@ import Table from '../components/Table.jsx'
 import Sparkline from '../components/Sparkline.jsx'
 import BarChart from '../components/BarChart.jsx'
 import HBarChart from '../components/HBarChart.jsx'
-import { callFinishReason, callHealth } from '../call-status.js'
+import {
+  callFinishReason,
+  callFinishReasonLabel,
+  callHealth,
+  callHealthLabel,
+} from '../call-status.js'
 
 function FunctionDetail({ func, query }) {
   const deps = [func, query.from, query.to, query.environment, query.includeUntagged]
@@ -82,11 +87,11 @@ function FunctionDetail({ func, query }) {
             render: (c) => {
               const health = callHealth(c)
               return health === 'error' ? (
-                <span className="pill err">{c.error_type || 'error'}</span>
+                <span className="pill err">{callHealthLabel(c)}</span>
               ) : health === 'ok' ? (
-                <span className="pill ok">ok</span>
+                <span className="pill ok">{callHealthLabel(c)}</span>
               ) : (
-                <span className="muted">unset</span>
+                <span className="muted">{callHealthLabel(c)}</span>
               )
             },
           },
@@ -94,7 +99,13 @@ function FunctionDetail({ func, query }) {
             key: 'finish_reason',
             label: 'Finish reason',
             sort: (c) => callFinishReason(c) || '',
-            render: (c) => callFinishReason(c) || <span className="muted">—</span>,
+            render: (c) => callFinishReasonLabel(c) || <span className="muted">—</span>,
+          },
+          {
+            key: 'error_type',
+            label: 'Error type',
+            sort: (c) => c.error_type || '',
+            render: (c) => c.error_type || <span className="muted">—</span>,
           },
         ]}
       />

@@ -16,3 +16,24 @@ export function callFinishReason(call) {
   const legacy = String(call.status || '').toLowerCase().replaceAll('_', '-')
   return FINISH_REASONS.has(legacy) ? legacy : null
 }
+
+const FINISH_REASON_LABELS = {
+  stop: 'Completed',
+  length: 'Token limit',
+  'content-filter': 'Content filtered',
+  'tool-calls': 'Tool requested',
+  error: 'Provider error',
+  other: 'Other',
+}
+
+export function callFinishReasonLabel(call) {
+  const reason = callFinishReason(call)
+  return reason ? FINISH_REASON_LABELS[reason] || reason : null
+}
+
+export function callHealthLabel(call) {
+  const health = callHealth(call)
+  if (health === 'error') return 'Error'
+  if (health === 'ok') return 'OK'
+  return 'No error'
+}

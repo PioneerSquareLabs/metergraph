@@ -4,7 +4,12 @@ import test from 'node:test'
 import { buildSearchParams } from '../src/api.js'
 import { buildEnvironmentQuery, environmentKey } from '../src/environment-selection.js'
 import { mockApi } from '../src/mock.js'
-import { callFinishReason, callHealth } from '../src/call-status.js'
+import {
+  callFinishReason,
+  callFinishReasonLabel,
+  callHealth,
+  callHealthLabel,
+} from '../src/call-status.js'
 
 test('serializes every selected environment and an explicit untagged choice', () => {
   const params = buildSearchParams({
@@ -49,6 +54,16 @@ test('model finish reasons are never presented as operational health', () => {
   assert.equal(callHealth({ status: 'tool-calls' }), 'unset')
   assert.equal(callFinishReason({ status: 'tool-calls' }), 'tool-calls')
   assert.equal(callHealth({ status_code: 'error', error_type: 'timeout' }), 'error')
+})
+
+test('presents telemetry status values as plain-language dashboard labels', () => {
+  assert.equal(callFinishReasonLabel({ finish_reason: 'stop' }), 'Completed')
+  assert.equal(callFinishReasonLabel({ finish_reason: 'tool-calls' }), 'Tool requested')
+  assert.equal(callFinishReasonLabel({ finish_reason: 'length' }), 'Token limit')
+  assert.equal(callFinishReasonLabel({ finish_reason: 'content-filter' }), 'Content filtered')
+  assert.equal(callHealthLabel({ status_code: 'unset' }), 'No error')
+  assert.equal(callHealthLabel({ status_code: 'ok' }), 'OK')
+  assert.equal(callHealthLabel({ status_code: 'error', error_type: 'DemoTimeout' }), 'Error')
 })
 
 test('mock mode exposes the status and finish-reason customer scenario', async () => {
