@@ -139,6 +139,58 @@ def test_ingest_and_usage_roundtrip(client):
     assert by_func["app.support:classify"]["reported_calls"] == 0
 
 
+def test_environment_options_and_multi_selection_include_untagged(client):
+    rows = []
+    for index, environment in enumerate(("demo", "prod", None)):
+        row = dict(_rows()[0])
+        row["func"] = f"environment.choice:{index}"
+        if environment is not None:
+            row["environment"] = environment
+        rows.append(row)
+    assert client.post("/v1/ingest", json={"rows": rows}, headers=AUTH).status_code == 202
+
+    window = {
+        "from": "2026-07-15T00:00:00+00:00",
+        "to": "2026-07-16T00:00:00+00:00",
+    }
+    options = client.get("/v1/environments", params=window, headers=AUTH).json()["items"]
+    assert options == [
+        {"value": "demo", "calls": 1},
+        {"value": "prod", "calls": 1},
+        {"value": None, "calls": 1},
+    ]
+
+    selected = client.get(
+        "/v1/usage",
+        params=[
+            ("group_by", "func"),
+            ("from", window["from"]),
+            ("to", window["to"]),
+            ("environment", "prod"),
+            ("include_untagged", "true"),
+        ],
+        headers=AUTH,
+    ).json()["items"]
+    assert {item["key"] for item in selected} == {
+        "environment.choice:1",
+        "environment.choice:2",
+    }
+
+    legacy_exact = client.get(
+        "/v1/usage",
+        params={**window, "group_by": "func", "environment": "demo"},
+        headers=AUTH,
+    ).json()["items"]
+    assert [item["key"] for item in legacy_exact] == ["environment.choice:0"]
+
+    none_selected = client.get(
+        "/v1/usage",
+        params={**window, "include_untagged": "false"},
+        headers=AUTH,
+    ).json()["items"]
+    assert none_selected == []
+
+
 def test_content_never_reaches_database(client):
     client.post("/v1/ingest", json={"rows": _rows()}, headers=AUTH)
     import psycopg

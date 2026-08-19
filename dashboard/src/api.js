@@ -27,6 +27,17 @@ export class ApiError extends Error {
   }
 }
 
+export function buildSearchParams(params) {
+  const qs = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    const values = Array.isArray(value) ? value : [value]
+    for (const item of values) {
+      if (item !== undefined && item !== null && item !== '') qs.append(key, item)
+    }
+  }
+  return qs
+}
+
 /**
  * Fetch a /v1 endpoint with the bearer token. Params with empty/null values
  * are omitted. On 401 the stored token is cleared and an "mg:unauthorized"
@@ -38,10 +49,7 @@ export async function api(path, params = {}) {
     return mockApi(path, params)
   }
 
-  const qs = new URLSearchParams()
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null && value !== '') qs.set(key, value)
-  }
+  const qs = buildSearchParams(params)
   const url = qs.toString() ? `${path}?${qs}` : path
 
   const res = await fetch(url, {

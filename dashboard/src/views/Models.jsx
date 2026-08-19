@@ -16,17 +16,29 @@ function reasoningShare(r) {
 }
 
 export default function Models({ query }) {
-  const deps = [query.from, query.to, query.environment]
+  const deps = [query.from, query.to, query.environment, query.includeUntagged]
   const [selected, setSelected] = useState(consumeHashSelection)
   useEffect(() => clearHashSelection(), [])
   const usage = useApi(
     () =>
-      api('/v1/usage', { group_by: 'model', from: query.from, to: query.to, environment: query.environment }),
+      api('/v1/usage', {
+        group_by: 'model',
+        from: query.from,
+        to: query.to,
+        environment: query.environment,
+        include_untagged: query.includeUntagged,
+      }),
     deps,
   )
   const providers = useApi(
     () =>
-      api('/v1/usage', { group_by: 'provider', from: query.from, to: query.to, environment: query.environment }),
+      api('/v1/usage', {
+        group_by: 'provider',
+        from: query.from,
+        to: query.to,
+        environment: query.environment,
+        include_untagged: query.includeUntagged,
+      }),
     deps,
   )
   const catalog = useApi(() => api('/v1/catalog'), [])

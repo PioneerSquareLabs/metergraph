@@ -69,6 +69,22 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .control label { display: block; margin-bottom: 6px; color: var(--ink-45); font: 500 9.5px var(--mono); text-transform: uppercase; letter-spacing: 0.1em; }
 .control input { display: block; min-width: 110px; padding: 8px 11px; color: var(--ink); border: 1px solid var(--ink-12); border-radius: 8px; background: var(--card); font-size: 13px; }
 .control input::placeholder { color: var(--ink-45); }
+.environment-select { position: relative; min-width: 190px; }
+.environment-select summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 35px; padding: 8px 11px; border: 1px solid var(--ink-12); border-radius: 8px; background: var(--card); color: var(--ink-70); font-size: 13px; cursor: pointer; list-style: none; }
+.environment-select summary::-webkit-details-marker { display: none; }
+.environment-select summary::after { content: '▾'; color: var(--ink-45); font-size: 11px; }
+.environment-select[open] summary { border-color: var(--emerald); box-shadow: 0 0 0 2px var(--emerald-soft); }
+.environment-select[open] summary::after { transform: rotate(180deg); }
+.environment-menu { position: absolute; z-index: 50; top: calc(100% + 7px); right: 0; width: 260px; padding: 8px; border: 1px solid var(--ink-12); border-radius: 10px; background: var(--card); box-shadow: 0 16px 35px rgba(11, 18, 32, 0.18); }
+.environment-actions { display: flex; justify-content: space-between; gap: 8px; padding: 2px 3px 8px; border-bottom: 1px solid var(--ink-08); }
+.environment-actions button { padding: 5px 6px; border: 0; background: none; color: var(--emerald-deep); font: 500 10px var(--mono); cursor: pointer; }
+.environment-actions button:hover { text-decoration: underline; }
+.environment-option { display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; margin: 0 !important; padding: 9px 7px; border-radius: 6px; color: var(--ink-70) !important; font: 400 12px var(--display) !important; text-transform: none !important; letter-spacing: 0 !important; cursor: pointer; }
+.environment-option:hover { background: var(--paper); }
+.environment-option input { min-width: 0; margin: 0; padding: 0; accent-color: var(--emerald); }
+.environment-option span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.environment-option small { color: var(--ink-45); font: 400 10px var(--mono); }
+.environment-message { margin: 8px 6px; color: var(--ink-45); font-size: 11px; }
 .preset-group { display: flex; border: 1px solid var(--ink-12); border-radius: 8px; background: var(--card); overflow: hidden; }
 .preset-group button { padding: 8px 12px; border: 0; border-right: 1px solid var(--ink-08); background: transparent; color: var(--ink-70); font: 500 10.5px var(--mono); text-transform: uppercase; cursor: pointer; }
 .preset-group button:last-child { border-right: 0; }
@@ -78,7 +94,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* ---------- page ---------- */
 .page { width: 100%; max-width: 1320px; margin: 0 auto; padding: 34px 48px 30px; }
 .page footer { margin-top: 18px; color: var(--ink-45); font: 400 10px var(--mono); text-align: right; }
-
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
 .metric { min-height: 138px; padding: 22px; border: 1px solid var(--ink-12); border-radius: var(--radius); background: var(--card); position: relative; overflow: hidden; box-shadow: 0 1px 2px rgba(11, 18, 32, 0.05); }
 .metric::after { content: ''; position: absolute; width: 80px; height: 80px; right: -35px; top: -35px; border: 1px solid var(--ink-12); border-radius: 50%; }
