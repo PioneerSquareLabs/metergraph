@@ -3,7 +3,6 @@ const FINISH_REASONS = new Set([
   'length',
   'content-filter',
   'tool-calls',
-  'error',
   'other',
 ])
 

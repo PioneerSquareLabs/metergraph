@@ -50,3 +50,20 @@ test('model finish reasons are never presented as operational health', () => {
   assert.equal(callFinishReason({ status: 'tool-calls' }), 'tool-calls')
   assert.equal(callHealth({ status_code: 'error', error_type: 'timeout' }), 'error')
 })
+
+test('mock mode exposes the status and finish-reason customer scenario', async () => {
+  const { items } = await mockApi('/v1/calls', {
+    func: 'demo.agent:status_lifecycle',
+    environment: ['demo'],
+    include_untagged: false,
+  })
+
+  assert.deepEqual(
+    items.map((call) => [callHealth(call), callFinishReason(call), call.error_type]),
+    [
+      ['unset', 'tool-calls', null],
+      ['unset', 'stop', null],
+      ['error', null, 'timeout'],
+    ],
+  )
+})
