@@ -157,11 +157,8 @@ def test_demo_uses_sdk_0_4_session_exchange_before_ingest(tmp_path, collector):
     }
     assert all(row.get("trace_id") for row in rows)
     status_rows = [row for row in rows if row.get("route") == "status-finish-demo"]
-    assert {
-        (row.get("status_code"), row.get("finish_reason"), row.get("error_type"))
-        for row in status_rows
-    } == {
-        ("unset", "tool-calls", None),
-        ("unset", "stop", None),
-        ("error", None, "DemoTimeout"),
+    assert {(row.get("status"), row.get("error_type")) for row in status_rows} == {
+        ("tool_calls", None),
+        ("stop", None),
+        ("error", "DemoTimeout"),
     }
