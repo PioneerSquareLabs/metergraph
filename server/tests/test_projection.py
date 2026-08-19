@@ -46,6 +46,57 @@ def test_projection_maps_and_prices():
     assert values["cost_usd"] is not None and values["cost_usd"] > 0
     assert values["reasoning_tokens"] == 10
     assert values["trace_id"] == "a" * 32
+    assert values["status"] == "stop"
+    assert values["status_code"] == "unset"
+    assert values["finish_reason"] == "stop"
+    assert values["finish_reason_raw"] is None
+
+
+def test_projection_separates_explicit_status_and_finish_reason():
+    values = dict(zip(COLUMNS, project_row(_row(
+        status="tool-calls",
+        status_code="unset",
+        finish_reason="tool-calls",
+        finish_reason_raw="tool_use",
+        error=False,
+    ), SNAPSHOT)))
+    assert values["status"] == "tool-calls"
+    assert values["status_code"] == "unset"
+    assert values["finish_reason"] == "tool-calls"
+    assert values["finish_reason_raw"] == "tool_use"
+
+
+def test_projection_maps_legacy_errors_to_otel_status():
+    values = dict(zip(COLUMNS, project_row(_row(
+        status="error", error=True, error_type="ProviderError"
+    ), SNAPSHOT)))
+    assert values["status_code"] == "error"
+    assert values["finish_reason"] is None
+
+
+def test_projection_treats_in_band_provider_failure_as_error():
+    values = dict(zip(COLUMNS, project_row(_row(
+        status="failed",
+        status_code="unset",
+        finish_reason="error",
+        finish_reason_raw="failed",
+        error=False,
+    ), SNAPSHOT)))
+    assert values["status_code"] == "error"
+    assert values["finish_reason"] == "error"
+    assert values["error"] is True
+
+
+def test_projection_drops_redundant_or_orphan_raw_finish_reasons():
+    redundant = dict(zip(COLUMNS, project_row(_row(
+        finish_reason="stop", finish_reason_raw="stop"
+    ), SNAPSHOT)))
+    orphan = dict(zip(COLUMNS, project_row(_row(
+        status=None, finish_reason="not-valid", finish_reason_raw="provider-secret"
+    ), SNAPSHOT)))
+    assert redundant["finish_reason_raw"] is None
+    assert orphan["finish_reason"] is None
+    assert orphan["finish_reason_raw"] is None
 
 
 def test_content_fields_never_survive():

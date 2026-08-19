@@ -125,8 +125,17 @@ for (const row of rows) {
   assert.equal(row.sdk_version, installedSDKVersion);
   assert.equal(row.trace_id, traceId);
   assert.equal(row.session_id, sessionId);
+  assert.equal(row.status_code, "unset");
+  assert.equal(row.error_type, null);
   assert.equal(row.cost_status, "priced");
   assert.ok(row.cost_usd > 0);
 }
+const byRequestId = Object.fromEntries(rows.map((row) => [row.request_id, row]));
+assert.equal(byRequestId["latest-sdk-tool-response"].status, "tool-calls");
+assert.equal(byRequestId["latest-sdk-tool-response"].finish_reason, "tool-calls");
+assert.equal(byRequestId["latest-sdk-tool-response"].finish_reason_raw, "tool_use");
+assert.equal(byRequestId["latest-sdk-smoke-response"].status, "stop");
+assert.equal(byRequestId["latest-sdk-smoke-response"].finish_reason, "stop");
+assert.equal(byRequestId["latest-sdk-smoke-response"].finish_reason_raw, "end_turn");
 
 console.log("latest SDK / latest server E2E passed");

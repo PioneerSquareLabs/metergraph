@@ -136,6 +136,7 @@ def test_demo_uses_sdk_0_4_session_exchange_before_ingest(tmp_path, collector):
         "extraction.deep_audit",
         "extraction.parse_receipt",
         "research.summarize_thread",
+        "demo.agent:status_lifecycle",
         "support.classify_ticket",
         "support.draft_reply",
     }
@@ -144,12 +145,20 @@ def test_demo_uses_sdk_0_4_session_exchange_before_ingest(tmp_path, collector):
         "app.extraction",
         "app.research",
         "app.support",
+        "demo.agent",
     }
     assert {row.get("route") for row in rows} == {
         None,
         "invoice-summarizer",
         "receipt-parser",
         "reply-drafter",
+        "status-finish-demo",
         "ticket-classifier",
     }
     assert all(row.get("trace_id") for row in rows)
+    status_rows = [row for row in rows if row.get("route") == "status-finish-demo"]
+    assert {(row.get("status"), row.get("error_type")) for row in status_rows} == {
+        ("tool_calls", None),
+        ("stop", None),
+        ("error", "DemoTimeout"),
+    }

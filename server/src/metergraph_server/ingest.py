@@ -39,6 +39,9 @@ COLUMNS = (
     "latency_ms",
     "ttft_ms",
     "status",
+    "status_code",
+    "finish_reason",
+    "finish_reason_raw",
     "error",
     "error_type",
     "stream",
@@ -138,6 +141,46 @@ def _tags(value) -> str | None:
     return json.dumps(kept) if kept else None
 
 
+def _normalized_finish_reason(value) -> str | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    normalized = "-".join(value.strip().lower().replace("_", "-").split())
+    aliases = {
+        "end-turn": "stop",
+        "stop-sequence": "stop",
+        "completed": "stop",
+        "succeeded": "stop",
+        "max-tokens": "length",
+        "max-output-tokens": "length",
+        "safety": "content-filter",
+        "blocked": "content-filter",
+        "tool-use": "tool-calls",
+        "function-call": "tool-calls",
+        "failed": "error",
+        "unknown": "other",
+    }
+    normalized = aliases.get(normalized, normalized)
+    return normalized if normalized in {
+        "stop", "length", "content-filter", "tool-calls", "error", "other"
+    } else None
+
+
+def _status_fields(row: dict) -> tuple[str, str | None, str | None]:
+    legacy_status = _text(row.get("status"))
+    status_code = row.get("status_code")
+    if status_code not in {"unset", "ok", "error"}:
+        status_code = "error" if row.get("error") is True or legacy_status == "error" else "unset"
+    finish_reason = _normalized_finish_reason(row.get("finish_reason"))
+    if finish_reason is None and legacy_status not in {"error", "success", "abandoned"}:
+        finish_reason = _normalized_finish_reason(legacy_status)
+    if finish_reason == "error":
+        status_code = "error"
+    finish_reason_raw = _text(row.get("finish_reason_raw"))
+    if not finish_reason or not finish_reason_raw or finish_reason_raw == finish_reason:
+        finish_reason_raw = None
+    return status_code, finish_reason, finish_reason_raw
+
+
 def project_row(row: dict, catalog: CatalogSnapshot) -> tuple:
     """Map one wire row onto the calls columns; everything else is dropped."""
     ts = _timestamp(row.get("ts"))
@@ -151,6 +194,7 @@ def project_row(row: dict, catalog: CatalogSnapshot) -> tuple:
         cache_write_tokens=row.get("cache_write_tokens"),
         batch=row.get("batch") is True,
     )
+    status_code, finish_reason, finish_reason_raw = _status_fields(row)
     return (
         ts,
         _resolved_route(row),
@@ -171,7 +215,10 @@ def project_row(row: dict, catalog: CatalogSnapshot) -> tuple:
         _num(row.get("latency_ms"), int),
         _num(row.get("ttft_ms"), int),
         _text(row.get("status")),
-        _bool(row.get("error")),
+        status_code,
+        finish_reason,
+        finish_reason_raw,
+        status_code == "error",
         _text(row.get("error_type")),
         _bool(row.get("stream")),
         _bool(row.get("batch")),

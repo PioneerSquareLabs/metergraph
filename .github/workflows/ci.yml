@@ -92,6 +92,25 @@ jobs:
         env:
           MG_URL: http://localhost:8787
           MG_TOKEN: ci-token
+      - name: Assert demo separates health from finish reason
+        run: |
+          curl -sS -H "Authorization: Bearer ci-token" \
+            "http://localhost:8787/v1/calls?func=demo.agent%3Astatus_lifecycle" \
+            -o /tmp/status-demo.json
+          python3 - /tmp/status-demo.json <<'EOF'
+          import json, sys
+          with open(sys.argv[1]) as handle:
+              rows = json.load(handle)["items"]
+          observed = {
+              (row["status_code"], row["finish_reason"], row["error_type"])
+              for row in rows
+          }
+          assert observed == {
+              ("unset", "tool-calls", None),
+              ("unset", "stop", None),
+              ("error", None, "DemoTimeout"),
+          }, observed
+          EOF
       - name: Capture through latest TypeScript SDK
         run: node smoke.mjs
         working-directory: server/tests/e2e/typescript-sdk

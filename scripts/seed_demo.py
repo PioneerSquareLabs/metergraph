@@ -27,6 +27,10 @@ MULTIPLIER = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 
 random.seed(7)
 
+
+class DemoTimeout(TimeoutError):
+    pass
+
 PROFILES = [
     # function, module, route, provider, model, calls, input/output ranges, errors
     (
@@ -61,7 +65,26 @@ PROFILES = [
 
 
 class DemoCompletions:
-    def create(self, *, model, messages, demo_input_tokens, demo_output_tokens):
+    def create(
+        self, *, model, messages, demo_input_tokens, demo_output_tokens,
+        demo_finish_reason="stop", demo_timeout=False,
+    ):
+        if demo_timeout:
+            raise DemoTimeout("Demo provider timeout")
+        message = {"role": "assistant", "content": "Demo response"}
+        if demo_finish_reason == "tool_calls":
+            message = {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [{
+                    "id": "call_demo_status",
+                    "type": "function",
+                    "function": {
+                        "name": "lookup_account",
+                        "arguments": '{"account_id":"acct-demo"}',
+                    },
+                }],
+            }
         return {
             "id": f"chatcmpl-demo-{uuid.uuid4().hex[:12]}",
             "object": "chat.completion",
@@ -70,8 +93,8 @@ class DemoCompletions:
             "choices": [
                 {
                     "index": 0,
-                    "message": {"role": "assistant", "content": "Demo response"},
-                    "finish_reason": "stop",
+                    "message": message,
+                    "finish_reason": demo_finish_reason,
                 }
             ],
             "usage": {
@@ -173,6 +196,19 @@ def run_profile(
         return instrumented_call()
 
 
+def run_status_demo(client, *, finish_reason="stop", timeout=False):
+    with metergraph.track("demo.agent:status_lifecycle", module="demo.agent"):
+        with metergraph.route("status-finish-demo"):
+            return client.chat.completions.create(
+                model="gpt-5.6-luna",
+                messages=[{"role": "user", "content": "Run one agent step."}],
+                demo_input_tokens=900,
+                demo_output_tokens=120,
+                demo_finish_reason=finish_reason,
+                demo_timeout=timeout,
+            )
+
+
 def main() -> None:
     if MULTIPLIER < 1:
         raise SystemExit("multiplier must be at least 1")
@@ -205,6 +241,15 @@ def main() -> None:
                         out_range,
                     )
                     sent += 1
+            run_status_demo(clients["openai"], finish_reason="tool_calls")
+            sent += 1
+            run_status_demo(clients["openai"], finish_reason="stop")
+            sent += 1
+            try:
+                run_status_demo(clients["openai"], timeout=True)
+            except DemoTimeout:
+                pass
+            sent += 1
         if not metergraph.flush(timeout=10):
             raise RuntimeError("MeterGraph SDK did not flush demo traffic")
     finally:

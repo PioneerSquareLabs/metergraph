@@ -23,6 +23,7 @@ function mulberry32(seed) {
 }
 
 const FUNCS = [
+  { func: 'demo.agent:status_lifecycle', module: 'demo.agent', route: 'status-finish-demo', model: 'gpt-4.1-mini', weight: 0.2 },
   { func: 'billing.summarize_invoice', module: 'billing', route: 'invoice-summary', model: 'claude-sonnet-4-5', weight: 9 },
   { func: 'support.triage_ticket', module: 'support', route: 'ticket-triage', model: 'gpt-4.1-mini', weight: 7 },
   { func: 'search.rerank_results', module: 'search', route: 'template:9f2c41d7a0b8', model: 'gemini-2.5-flash', weight: 6 },
@@ -283,6 +284,62 @@ function mockCalls(params) {
   const limit = Math.min(Number(params.limit) || 50, 200)
   const environments = selectedEnvironments(params)
   if (environments?.length === 0) return { items: [] }
+  if (params.func === 'demo.agent:status_lifecycle') {
+    if (environments !== null && !environments.includes('demo')) return { items: [] }
+    const before = params.before ? new Date(params.before) : new Date()
+    const base = {
+      func: 'demo.agent:status_lifecycle',
+      module: 'demo.agent',
+      route: 'status-finish-demo',
+      provider: 'openai',
+      model: 'gpt-4.1-mini',
+      input_tokens: 900,
+      output_tokens: 120,
+      cache_read_tokens: 0,
+      reasoning_tokens: 0,
+      cost_usd: 0.00084,
+      cost_status: 'priced',
+      latency_ms: 640,
+      stream: false,
+      environment: 'demo',
+    }
+    return { items: [
+      {
+        ...base,
+        ts: new Date(before.getTime() - 30000).toISOString(),
+        status: 'tool-calls',
+        status_code: 'unset',
+        finish_reason: 'tool-calls',
+        finish_reason_raw: 'tool_calls',
+        error: false,
+        error_type: null,
+        session_id: 'sess_demo_tool',
+      },
+      {
+        ...base,
+        ts: new Date(before.getTime() - 60000).toISOString(),
+        status: 'stop',
+        status_code: 'unset',
+        finish_reason: 'stop',
+        finish_reason_raw: null,
+        error: false,
+        error_type: null,
+        session_id: 'sess_demo_stop',
+      },
+      {
+        ...base,
+        ts: new Date(before.getTime() - 90000).toISOString(),
+        output_tokens: 0,
+        status: 'error',
+        status_code: 'error',
+        finish_reason: null,
+        finish_reason_raw: null,
+        error: true,
+        error_type: 'timeout',
+        session_id: 'sess_demo_timeout',
+      },
+    ] }
+  }
   let pool = FUNCS
   if (params.func) pool = pool.filter((f) => f.func === params.func)
   if (params.route) pool = pool.filter((f) => f.route === params.route)
@@ -312,7 +369,11 @@ function mockCalls(params) {
       cost_usd: m.unpriced ? 0 : +((input * 1.1 + output * 4.4) * (m.costPerCall / 4) * 0.001).toFixed(6),
       cost_status: m.unpriced ? 'unpriced' : 'priced',
       latency_ms: Math.round(300 + rng() * 2400),
-      status: failed ? 'error' : 'ok',
+      status: failed ? 'error' : 'stop',
+      status_code: failed ? 'error' : 'unset',
+      finish_reason: failed ? null : 'stop',
+      finish_reason_raw: null,
+      error: failed,
       error_type: failed ? (rng() < 0.5 ? 'rate_limit' : 'timeout') : null,
       stream: rng() < 0.4,
       session_id: 'sess_' + Math.floor(rng() * 1e8).toString(16),
