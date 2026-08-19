@@ -42,17 +42,17 @@ MG_URL=http://localhost:8787 MG_TOKEN=<one of MG_TOKENS> python scripts/seed_dem
 ```
 
 Seeded calls use the `demo` environment. In the dashboard, apply the
-`demo` environment filter to inspect only synthetic traffic, or select a
-production environment to exclude demo rows from operational totals. The
-active environment is shown above every dashboard view.
+`demo` environment filter to inspect only synthetic traffic. Select **Hide
+demo** to keep production and untagged traffic while excluding synthetic rows.
+The active environment selection is shown above every dashboard view.
 
 ## API
 
 - `POST /v1/ingest/sessions` — SDK 0.4+ app-token exchange. Returns a short-lived session token for repository-aware ingestion.
 - `POST /v1/ingest` — SDK wire format (`{"schema_version":1,"rows":[...]}`), gzip-aware, returns 202. Accepts SDK session tokens and, for backward compatibility, configured app tokens. Content fields are stripped; `event_type: "outcome"` rows are accepted and ignored (hosted feature).
-- `GET /v1/usage?group_by=func|module|route|model|provider|day|hour&from=&to=&environment=` — aggregates
-- `GET /v1/usage/timeseries?group_by=func|route|model&bucket=hour|day&top=8` — chart series
-- `GET /v1/calls?func=&route=&limit=&before=` — recent metadata rows
+- `GET /v1/usage?group_by=func|module|route|model|provider|day|hour&from=&to=&environment=&exclude_environment=` — aggregates; exact and excluded environment filters are mutually exclusive
+- `GET /v1/usage/timeseries?group_by=func|route|model&bucket=hour|day&top=8&environment=&exclude_environment=` — chart series
+- `GET /v1/calls?func=&route=&limit=&before=&environment=&exclude_environment=` — recent metadata rows
 - `GET /v1/catalog` — loaded price catalog
 - `GET /v1/config` — empty canary config (hosted feature), stable ETag
 - `GET /healthz`

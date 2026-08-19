@@ -6,12 +6,18 @@ import Table from '../components/Table.jsx'
 import HBarChart from '../components/HBarChart.jsx'
 
 export default function Routes({ query }) {
-  const deps = [query.from, query.to, query.environment]
+  const deps = [query.from, query.to, query.environment, query.excludeEnvironment]
   const [selected, setSelected] = useState(consumeHashSelection)
   useEffect(() => clearHashSelection(), [])
   const usage = useApi(
     () =>
-      api('/v1/usage', { group_by: 'route', from: query.from, to: query.to, environment: query.environment }),
+      api('/v1/usage', {
+        group_by: 'route',
+        from: query.from,
+        to: query.to,
+        environment: query.environment,
+        exclude_environment: query.excludeEnvironment,
+      }),
     deps,
   )
 

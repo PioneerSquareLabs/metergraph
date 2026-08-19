@@ -8,7 +8,7 @@ import BarChart from '../components/BarChart.jsx'
 import HBarChart from '../components/HBarChart.jsx'
 
 function FunctionDetail({ func, query }) {
-  const deps = [func, query.from, query.to, query.environment]
+  const deps = [func, query.from, query.to, query.environment, query.excludeEnvironment]
   const ts = useApi(
     () =>
       api('/v1/usage/timeseries', {
@@ -18,10 +18,19 @@ function FunctionDetail({ func, query }) {
         from: query.from,
         to: query.to,
         environment: query.environment,
+        exclude_environment: query.excludeEnvironment,
       }),
     deps,
   )
-  const calls = useApi(() => api('/v1/calls', { limit: 20, func, environment: query.environment }), deps)
+  const calls = useApi(
+    () => api('/v1/calls', {
+      limit: 20,
+      func,
+      environment: query.environment,
+      exclude_environment: query.excludeEnvironment,
+    }),
+    deps,
+  )
 
   return (
     <>
@@ -84,13 +93,19 @@ function FunctionDetail({ func, query }) {
 }
 
 export default function Functions({ query }) {
-  const deps = [query.from, query.to, query.environment]
+  const deps = [query.from, query.to, query.environment, query.excludeEnvironment]
   const [selected, setSelected] = useState(consumeHashSelection)
   useEffect(() => clearHashSelection(), [])
 
   const usage = useApi(
     () =>
-      api('/v1/usage', { group_by: 'func', from: query.from, to: query.to, environment: query.environment }),
+      api('/v1/usage', {
+        group_by: 'func',
+        from: query.from,
+        to: query.to,
+        environment: query.environment,
+        exclude_environment: query.excludeEnvironment,
+      }),
     deps,
   )
   const ts = useApi(
@@ -102,6 +117,7 @@ export default function Functions({ query }) {
         to: query.to,
         top: 8,
         environment: query.environment,
+        exclude_environment: query.excludeEnvironment,
       }),
     deps,
   )

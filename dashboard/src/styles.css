@@ -72,6 +72,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .environment-filter { display: flex; gap: 6px; }
 .environment-filter button, .filter-status button { padding: 8px 10px; border: 1px solid var(--ink-12); border-radius: 8px; background: var(--card); color: var(--ink-70); font: 500 9.5px var(--mono); text-transform: uppercase; cursor: pointer; }
 .environment-filter button:hover, .filter-status button:hover { border-color: var(--emerald); color: var(--emerald-deep); }
+.checkbox-filter { display: flex !important; align-items: center; gap: 6px; margin: 7px 0 0 !important; color: var(--ink-70) !important; font-size: 10px !important; cursor: pointer; }
+.checkbox-filter input { min-width: 0; accent-color: var(--emerald); }
 .preset-group { display: flex; border: 1px solid var(--ink-12); border-radius: 8px; background: var(--card); overflow: hidden; }
 .preset-group button { padding: 8px 12px; border: 0; border-right: 1px solid var(--ink-08); background: transparent; color: var(--ink-70); font: 500 10.5px var(--mono); text-transform: uppercase; cursor: pointer; }
 .preset-group button:last-child { border-right: 0; }

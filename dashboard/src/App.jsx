@@ -38,6 +38,7 @@ export default function App() {
   const [customTo, setCustomTo] = useState(() => isoDate(new Date()))
   const [envInput, setEnvInput] = useState('')
   const [environment, setEnvironment] = useState('')
+  const [excludeDemo, setExcludeDemo] = useState(false)
 
   useEffect(() => {
     const onHash = () => setRoute(currentRoute())
@@ -77,10 +78,11 @@ export default function App() {
       from: from.toISOString(),
       to: to.toISOString(),
       environment,
+      excludeEnvironment: excludeDemo ? 'demo' : '',
       bucket,
       rangeLabel,
     }
-  }, [preset, customFrom, customTo, environment])
+  }, [preset, customFrom, customTo, environment, excludeDemo])
 
   if (!authed) {
     return (
@@ -146,6 +148,7 @@ export default function App() {
               onSubmit={(e) => {
                 e.preventDefault()
                 setEnvironment(envInput.trim())
+                setExcludeDemo(false)
               }}
             >
               <input
@@ -157,6 +160,20 @@ export default function App() {
               />
               <button type="submit">Apply</button>
             </form>
+            <label className="checkbox-filter">
+              <input
+                type="checkbox"
+                checked={excludeDemo}
+                onChange={(e) => {
+                  setExcludeDemo(e.target.checked)
+                  if (e.target.checked) {
+                    setEnvInput('')
+                    setEnvironment('')
+                  }
+                }}
+              />
+              Hide demo
+            </label>
           </div>
         </div>
       </header>
@@ -164,13 +181,14 @@ export default function App() {
       <main className="page">
         <div className="filter-status" role="status">
           <span>Environment</span>
-          <strong>{environment || 'All environments'}</strong>
-          {environment ? (
+          <strong>{excludeDemo ? 'All except demo' : environment || 'All environments'}</strong>
+          {environment || excludeDemo ? (
             <button
               type="button"
               onClick={() => {
                 setEnvInput('')
                 setEnvironment('')
+                setExcludeDemo(false)
               }}
             >
               Clear
