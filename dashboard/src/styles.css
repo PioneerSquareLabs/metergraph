@@ -69,6 +69,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .control label { display: block; margin-bottom: 6px; color: var(--ink-45); font: 500 9.5px var(--mono); text-transform: uppercase; letter-spacing: 0.1em; }
 .control input { display: block; min-width: 110px; padding: 8px 11px; color: var(--ink); border: 1px solid var(--ink-12); border-radius: 8px; background: var(--card); font-size: 13px; }
 .control input::placeholder { color: var(--ink-45); }
+.environment-filter { display: flex; gap: 6px; }
+.environment-filter button, .filter-status button { padding: 8px 10px; border: 1px solid var(--ink-12); border-radius: 8px; background: var(--card); color: var(--ink-70); font: 500 9.5px var(--mono); text-transform: uppercase; cursor: pointer; }
+.environment-filter button:hover, .filter-status button:hover { border-color: var(--emerald); color: var(--emerald-deep); }
 .preset-group { display: flex; border: 1px solid var(--ink-12); border-radius: 8px; background: var(--card); overflow: hidden; }
 .preset-group button { padding: 8px 12px; border: 0; border-right: 1px solid var(--ink-08); background: transparent; color: var(--ink-70); font: 500 10.5px var(--mono); text-transform: uppercase; cursor: pointer; }
 .preset-group button:last-child { border-right: 0; }
@@ -78,6 +81,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* ---------- page ---------- */
 .page { width: 100%; max-width: 1320px; margin: 0 auto; padding: 34px 48px 30px; }
 .page footer { margin-top: 18px; color: var(--ink-45); font: 400 10px var(--mono); text-align: right; }
+.filter-status { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; color: var(--ink-70); font-size: 12px; }
+.filter-status span { color: var(--ink-45); font: 500 9.5px var(--mono); text-transform: uppercase; letter-spacing: 0.1em; }
+.filter-status strong { padding: 5px 9px; border: 1px solid rgba(16, 185, 129, 0.35); border-radius: 999px; background: var(--emerald-soft); color: var(--emerald-deep); font: 500 10.5px var(--mono); }
+.filter-status button { padding: 5px 8px; }
 
 .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
 .metric { min-height: 138px; padding: 22px; border: 1px solid var(--ink-12); border-radius: var(--radius); background: var(--card); position: relative; overflow: hidden; box-shadow: 0 1px 2px rgba(11, 18, 32, 0.05); }

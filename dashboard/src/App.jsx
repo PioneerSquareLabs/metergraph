@@ -141,21 +141,42 @@ export default function App() {
           ) : null}
           <div className="control">
             <label>Environment</label>
-            <input
-              type="text"
-              placeholder="all"
-              value={envInput}
-              onChange={(e) => setEnvInput(e.target.value)}
-              onBlur={() => setEnvironment(envInput.trim())}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') setEnvironment(envInput.trim())
+            <form
+              className="environment-filter"
+              onSubmit={(e) => {
+                e.preventDefault()
+                setEnvironment(envInput.trim())
               }}
-            />
+            >
+              <input
+                aria-label="Environment name"
+                type="text"
+                placeholder="all"
+                value={envInput}
+                onChange={(e) => setEnvInput(e.target.value)}
+              />
+              <button type="submit">Apply</button>
+            </form>
           </div>
         </div>
       </header>
 
       <main className="page">
+        <div className="filter-status" role="status">
+          <span>Environment</span>
+          <strong>{environment || 'All environments'}</strong>
+          {environment ? (
+            <button
+              type="button"
+              onClick={() => {
+                setEnvInput('')
+                setEnvironment('')
+              }}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
         <View query={query} />
         <footer>
           metergraph-dashboard 0.1.0{isMock() ? ' · mock data (mg_mock=1)' : ''}

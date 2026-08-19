@@ -41,6 +41,11 @@ python -m pip install 'metergraph>=0.4,<1'
 MG_URL=http://localhost:8787 MG_TOKEN=<one of MG_TOKENS> python scripts/seed_demo.py
 ```
 
+Seeded calls use the `demo` environment. In the dashboard, apply the
+`demo` environment filter to inspect only synthetic traffic, or select a
+production environment to exclude demo rows from operational totals. The
+active environment is shown above every dashboard view.
+
 ## API
 
 - `POST /v1/ingest/sessions` — SDK 0.4+ app-token exchange. Returns a short-lived session token for repository-aware ingestion.
