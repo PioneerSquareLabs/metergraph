@@ -69,8 +69,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: PioneerSquareLabs/metergraphsdk
-          # Linked status/finish-reason SDK PR; switch back to main after merge.
-          ref: codex/status-finish-reason
+          ref: main
           path: .latest-metergraphsdk
       - name: Pack latest TypeScript SDK
         run: |
@@ -78,8 +77,8 @@ jobs:
           mkdir -p /tmp/metergraph-sdk-package
           npm pack --pack-destination /tmp/metergraph-sdk-package
         working-directory: .latest-metergraphsdk/typescript
-      - name: Install packed SDK smoke fixture
-        run: npm install --ignore-scripts --no-save ai@7.0.55 /tmp/metergraph-sdk-package/metergraph-*.tgz
+      - name: Install packed SDK smoke fixture with AI SDK 6
+        run: npm install --ignore-scripts --no-save ai@6.0.116 /tmp/metergraph-sdk-package/metergraph-*.tgz
         working-directory: server/tests/e2e/typescript-sdk
       - name: Start server
         run: |
