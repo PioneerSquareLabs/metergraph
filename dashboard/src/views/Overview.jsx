@@ -7,7 +7,7 @@ import DonutChart from '../components/DonutChart.jsx'
 import HBarChart from '../components/HBarChart.jsx'
 
 export default function Overview({ query }) {
-  const deps = [query.from, query.to, query.environment, query.excludeEnvironment]
+  const deps = [query.from, query.to, query.environment, query.includeUntagged]
 
   const usage = useApi(
     () =>
@@ -16,7 +16,7 @@ export default function Overview({ query }) {
         from: query.from,
         to: query.to,
         environment: query.environment,
-        exclude_environment: query.excludeEnvironment,
+        include_untagged: query.includeUntagged,
       }),
     deps,
   )
@@ -27,7 +27,7 @@ export default function Overview({ query }) {
         from: query.from,
         to: query.to,
         environment: query.environment,
-        exclude_environment: query.excludeEnvironment,
+        include_untagged: query.includeUntagged,
       }),
     deps,
   )
@@ -38,7 +38,7 @@ export default function Overview({ query }) {
         from: query.from,
         to: query.to,
         environment: query.environment,
-        exclude_environment: query.excludeEnvironment,
+        include_untagged: query.includeUntagged,
       }),
     deps,
   )
@@ -51,7 +51,7 @@ export default function Overview({ query }) {
         to: query.to,
         top: 8,
         environment: query.environment,
-        exclude_environment: query.excludeEnvironment,
+        include_untagged: query.includeUntagged,
       }),
     deps,
   )

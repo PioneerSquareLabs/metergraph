@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+
+import { buildSearchParams } from '../src/api.js'
+import { buildEnvironmentQuery, environmentKey } from '../src/environment-selection.js'
+import { mockApi } from '../src/mock.js'
+
+test('serializes every selected environment and an explicit untagged choice', () => {
+  const params = buildSearchParams({
+    environment: ['demo', 'prod'],
+    include_untagged: false,
+    empty: '',
+  })
+
+  assert.deepEqual(params.getAll('environment'), ['demo', 'prod'])
+  assert.equal(params.get('include_untagged'), 'false')
+  assert.equal(params.has('empty'), false)
+})
+
+test('keeps an explicit empty environment selection when options change', () => {
+  assert.deepEqual(
+    buildEnvironmentQuery([{ value: 'demo', calls: 4 }], new Set()),
+    { environment: [], includeUntagged: false },
+  )
+})
+
+test('selects named and untagged environments independently', () => {
+  const options = [{ value: 'prod', calls: 4 }, { value: null, calls: 2 }]
+  const selected = new Set([environmentKey('prod'), environmentKey(null)])
+
+  assert.deepEqual(buildEnvironmentQuery(options, selected), {
+    environment: ['prod'],
+    includeUntagged: true,
+  })
+  assert.notEqual(environmentKey(null), environmentKey('__metergraph_untagged__'))
+})
+
+test('mock mode returns no traffic when no environments are selected', async () => {
+  const params = { environment: [], include_untagged: false }
+
+  assert.deepEqual(await mockApi('/v1/usage', params), { items: [] })
+  assert.deepEqual(await mockApi('/v1/calls', params), { items: [] })
+  assert.deepEqual((await mockApi('/v1/usage/timeseries', params)).series, [])
+})

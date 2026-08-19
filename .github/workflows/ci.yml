@@ -38,6 +38,8 @@ jobs:
           node-version: 22
       - run: npm install
         working-directory: dashboard
+      - run: npm test
+        working-directory: dashboard
       - run: npm run build
         working-directory: dashboard
 

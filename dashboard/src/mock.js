@@ -43,6 +43,12 @@ const MODELS = [
   { model: 'ft:gpt-4.1-mini:acme', provider: 'openai', weight: 1.2, costPerCall: 0, unpriced: true },
 ]
 
+const MOCK_ENVIRONMENTS = [
+  { value: 'demo', calls: 146 },
+  { value: 'production', calls: 1184 },
+  { value: null, calls: 27 },
+]
+
 function uniq(list) {
   return [...new Set(list)]
 }
@@ -89,10 +95,26 @@ function parseRange(params) {
   return { from, to, days: Math.max(1, Math.round(ms / 86400000)), ms }
 }
 
+function selectedEnvironments(params) {
+  const hasNamedSelection = Array.isArray(params.environment) || typeof params.environment === 'string'
+  const hasUntaggedSelection = params.include_untagged !== undefined
+  if (!hasNamedSelection && !hasUntaggedSelection) return null
+  const named = Array.isArray(params.environment)
+    ? params.environment
+    : params.environment
+      ? [params.environment]
+      : []
+  return params.include_untagged ? [...named, null] : named
+}
+
 function envScale(params) {
-  const env = (params.environment || '').trim()
-  if (!env || env === 'production' || env === 'prod') return 1
-  return 0.12
+  const selected = selectedEnvironments(params)
+  if (selected === null) return 1
+  const total = MOCK_ENVIRONMENTS.reduce((sum, item) => sum + item.calls, 0)
+  const selectedCalls = MOCK_ENVIRONMENTS
+    .filter((item) => selected.includes(item.value))
+    .reduce((sum, item) => sum + item.calls, 0)
+  return selectedCalls / total
 }
 
 function usageItem(key, weight, days, scale, meta) {
@@ -175,6 +197,7 @@ function rollup(items, keyOf) {
 function mockUsage(params) {
   const { days } = parseRange(params)
   const scale = envScale(params)
+  if (scale === 0) return { items: [] }
   const groupBy = params.group_by || 'func'
 
   // Provider rolls up from models; module/route roll up from functions.
@@ -220,6 +243,7 @@ function mockTimeseries(params) {
   const buckets = bucketsFor(params)
   const { days } = parseRange(params)
   const scale = envScale(params)
+  if (scale === 0) return { buckets, series: [] }
   const top = Number(params.top) || 8
   let keys = keysFor(params.group_by || 'model', days)
   if (params.func) keys = keys.filter((k) => k.key === params.func)
@@ -257,6 +281,8 @@ function mockTimeseries(params) {
 
 function mockCalls(params) {
   const limit = Math.min(Number(params.limit) || 50, 200)
+  const environments = selectedEnvironments(params)
+  if (environments?.length === 0) return { items: [] }
   let pool = FUNCS
   if (params.func) pool = pool.filter((f) => f.func === params.func)
   if (params.route) pool = pool.filter((f) => f.route === params.route)
@@ -290,7 +316,7 @@ function mockCalls(params) {
       error_type: failed ? (rng() < 0.5 ? 'rate_limit' : 'timeout') : null,
       stream: rng() < 0.4,
       session_id: 'sess_' + Math.floor(rng() * 1e8).toString(16),
-      environment: (params.environment || '').trim() || 'production',
+      environment: environments === null ? 'production' : environments[i % environments.length],
     })
     t -= Math.round(20000 + rng() * 900000)
   }
@@ -314,7 +340,9 @@ function mockCatalog() {
 
 export function mockApi(path, params = {}) {
   let result
-  if (path === '/v1/usage') result = mockUsage(params)
+  if (path === '/v1/environments') {
+    result = { items: MOCK_ENVIRONMENTS }
+  } else if (path === '/v1/usage') result = mockUsage(params)
   else if (path === '/v1/usage/timeseries') result = mockTimeseries(params)
   else if (path === '/v1/calls') result = mockCalls(params)
   else if (path === '/v1/catalog') result = mockCatalog()

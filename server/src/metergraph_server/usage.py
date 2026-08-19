@@ -40,22 +40,24 @@ def _window(
 
 
 def _filters(
-    environment: str | None,
-    exclude_environment: str | None,
+    environments: list[str] | None,
+    include_untagged: bool | None,
     route: str | None,
     model: str | None,
 ):
     clauses, params = [], []
-    if environment and exclude_environment:
-        raise HTTPException(
-            400, "environment and exclude_environment cannot be combined"
-        )
-    if environment:
-        clauses.append("environment = %s")
-        params.append(environment)
-    if exclude_environment:
-        clauses.append("(environment is null or environment <> %s)")
-        params.append(exclude_environment)
+    if environments is not None or include_untagged is not None:
+        environments = environments or []
+        if environments and include_untagged:
+            clauses.append("(environment = any(%s) or environment is null)")
+            params.append(environments)
+        elif environments:
+            clauses.append("environment = any(%s)")
+            params.append(environments)
+        elif include_untagged:
+            clauses.append("environment is null")
+        else:
+            clauses.append("false")
     if route:
         clauses.append("route = %s")
         params.append(route)
@@ -70,8 +72,8 @@ def usage(
     group_by: str = Query("func"),
     from_: str | None = Query(None, alias="from"),
     to: str | None = None,
-    environment: str | None = None,
-    exclude_environment: str | None = None,
+    environment: list[str] | None = Query(None),
+    include_untagged: bool | None = None,
     route: str | None = None,
     model: str | None = None,
 ):
@@ -79,7 +81,7 @@ def usage(
     if key is None:
         raise HTTPException(400, f"group_by must be one of {sorted(_GROUPS)}")
     start, end = _window(from_, to)
-    where, params = _filters(environment, exclude_environment, route, model)
+    where, params = _filters(environment, include_untagged, route, model)
     provider_col = (
         ", coalesce(provider, '(unknown)') as provider" if group_by == "model" else ""
     )
@@ -137,8 +139,8 @@ def timeseries(
     from_: str | None = Query(None, alias="from"),
     to: str | None = None,
     top: int = Query(8, ge=1, le=25),
-    environment: str | None = None,
-    exclude_environment: str | None = None,
+    environment: list[str] | None = Query(None),
+    include_untagged: bool | None = None,
     func_: str | None = Query(None, alias="func"),
 ):
     if group_by not in ("func", "route", "model"):
@@ -147,7 +149,7 @@ def timeseries(
     if step is None:
         raise HTTPException(400, "bucket must be hour or day")
     start, end = _window(from_, to, default_days=1 if bucket == "hour" else 7)
-    where, params = _filters(environment, exclude_environment, None, None)
+    where, params = _filters(environment, include_untagged, None, None)
     if func_:
         where += " and func = %s"
         params.append(func_)
@@ -199,16 +201,39 @@ def timeseries(
     return {"buckets": buckets, "series": series}
 
 
+@router.get("/v1/environments")
+def environments(
+    from_: str | None = Query(None, alias="from"),
+    to: str | None = None,
+):
+    start, end = _window(from_, to)
+    sql = """
+        select environment, count(*)
+        from calls
+        where ts >= %s and ts < %s
+        group by environment
+        order by environment nulls last
+    """
+    with db.pool().connection() as con:
+        rows = con.execute(sql, (start, end)).fetchall()
+    return {
+        "items": [
+            {"value": environment, "calls": calls}
+            for environment, calls in rows
+        ]
+    }
+
+
 @router.get("/v1/calls")
 def calls(
     limit: int = Query(50, ge=1, le=500),
     func_: str | None = Query(None, alias="func"),
     route: str | None = None,
     before: str | None = None,
-    environment: str | None = None,
-    exclude_environment: str | None = None,
+    environment: list[str] | None = Query(None),
+    include_untagged: bool | None = None,
 ):
-    where, params = _filters(environment, exclude_environment, None, None)
+    where, params = _filters(environment, include_untagged, None, None)
     if func_:
         where += " and func = %s"
         params.append(func_)

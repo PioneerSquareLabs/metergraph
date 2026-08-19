@@ -8,7 +8,7 @@ import BarChart from '../components/BarChart.jsx'
 import HBarChart from '../components/HBarChart.jsx'
 
 function FunctionDetail({ func, query }) {
-  const deps = [func, query.from, query.to, query.environment, query.excludeEnvironment]
+  const deps = [func, query.from, query.to, query.environment, query.includeUntagged]
   const ts = useApi(
     () =>
       api('/v1/usage/timeseries', {
@@ -18,7 +18,7 @@ function FunctionDetail({ func, query }) {
         from: query.from,
         to: query.to,
         environment: query.environment,
-        exclude_environment: query.excludeEnvironment,
+        include_untagged: query.includeUntagged,
       }),
     deps,
   )
@@ -27,7 +27,7 @@ function FunctionDetail({ func, query }) {
       limit: 20,
       func,
       environment: query.environment,
-      exclude_environment: query.excludeEnvironment,
+      include_untagged: query.includeUntagged,
     }),
     deps,
   )
@@ -93,7 +93,7 @@ function FunctionDetail({ func, query }) {
 }
 
 export default function Functions({ query }) {
-  const deps = [query.from, query.to, query.environment, query.excludeEnvironment]
+  const deps = [query.from, query.to, query.environment, query.includeUntagged]
   const [selected, setSelected] = useState(consumeHashSelection)
   useEffect(() => clearHashSelection(), [])
 
@@ -104,7 +104,7 @@ export default function Functions({ query }) {
         from: query.from,
         to: query.to,
         environment: query.environment,
-        exclude_environment: query.excludeEnvironment,
+        include_untagged: query.includeUntagged,
       }),
     deps,
   )
@@ -117,7 +117,7 @@ export default function Functions({ query }) {
         to: query.to,
         top: 8,
         environment: query.environment,
-        exclude_environment: query.excludeEnvironment,
+        include_untagged: query.includeUntagged,
       }),
     deps,
   )

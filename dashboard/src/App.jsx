@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getToken, isMock } from './api.js'
+import { api, getToken, isMock, useApi } from './api.js'
+import EnvironmentFilter from './components/EnvironmentFilter.jsx'
+import { buildEnvironmentQuery } from './environment-selection.js'
 import TokenGate from './components/TokenGate.jsx'
 import Overview from './views/Overview.jsx'
 import Functions from './views/Functions.jsx'
@@ -36,9 +38,7 @@ export default function App() {
   const [preset, setPreset] = useState('7d')
   const [customFrom, setCustomFrom] = useState(() => isoDate(new Date(Date.now() - 7 * 86400000)))
   const [customTo, setCustomTo] = useState(() => isoDate(new Date()))
-  const [envInput, setEnvInput] = useState('')
-  const [environment, setEnvironment] = useState('')
-  const [excludeDemo, setExcludeDemo] = useState(false)
+  const [environmentSelection, setEnvironmentSelection] = useState(null)
 
   useEffect(() => {
     const onHash = () => setRoute(currentRoute())
@@ -55,7 +55,7 @@ export default function App() {
     return () => window.removeEventListener('mg:unauthorized', onUnauthorized)
   }, [])
 
-  const query = useMemo(() => {
+  const windowQuery = useMemo(() => {
     const now = new Date()
     let from
     let to = now
@@ -77,12 +77,26 @@ export default function App() {
     return {
       from: from.toISOString(),
       to: to.toISOString(),
-      environment,
-      excludeEnvironment: excludeDemo ? 'demo' : '',
       bucket,
       rangeLabel,
     }
-  }, [preset, customFrom, customTo, environment, excludeDemo])
+  }, [preset, customFrom, customTo])
+
+  const environments = useApi(
+    () => authed
+      ? api('/v1/environments', { from: windowQuery.from, to: windowQuery.to })
+      : Promise.resolve({ items: [] }),
+    [authed, windowQuery.from, windowQuery.to],
+  )
+
+  const query = useMemo(() => {
+    const options = environments.data?.items || []
+    const filter = buildEnvironmentQuery(options, environmentSelection)
+    return {
+      ...windowQuery,
+      ...filter,
+    }
+  }, [windowQuery, environments.data, environmentSelection])
 
   if (!authed) {
     return (
@@ -143,58 +157,18 @@ export default function App() {
           ) : null}
           <div className="control">
             <label>Environment</label>
-            <form
-              className="environment-filter"
-              onSubmit={(e) => {
-                e.preventDefault()
-                setEnvironment(envInput.trim())
-                setExcludeDemo(false)
-              }}
-            >
-              <input
-                aria-label="Environment name"
-                type="text"
-                placeholder="all"
-                value={envInput}
-                onChange={(e) => setEnvInput(e.target.value)}
-              />
-              <button type="submit">Apply</button>
-            </form>
-            <label className="checkbox-filter">
-              <input
-                type="checkbox"
-                checked={excludeDemo}
-                onChange={(e) => {
-                  setExcludeDemo(e.target.checked)
-                  if (e.target.checked) {
-                    setEnvInput('')
-                    setEnvironment('')
-                  }
-                }}
-              />
-              Hide demo
-            </label>
+            <EnvironmentFilter
+              items={environments.data?.items || []}
+              selected={environmentSelection}
+              loading={environments.loading}
+              error={environments.error}
+              onChange={setEnvironmentSelection}
+            />
           </div>
         </div>
       </header>
 
       <main className="page">
-        <div className="filter-status" role="status">
-          <span>Environment</span>
-          <strong>{excludeDemo ? 'All except demo' : environment || 'All environments'}</strong>
-          {environment || excludeDemo ? (
-            <button
-              type="button"
-              onClick={() => {
-                setEnvInput('')
-                setEnvironment('')
-                setExcludeDemo(false)
-              }}
-            >
-              Clear
-            </button>
-          ) : null}
-        </div>
         <View query={query} />
         <footer>
           metergraph-dashboard 0.1.0{isMock() ? ' · mock data (mg_mock=1)' : ''}

@@ -16,7 +16,7 @@ function reasoningShare(r) {
 }
 
 export default function Models({ query }) {
-  const deps = [query.from, query.to, query.environment, query.excludeEnvironment]
+  const deps = [query.from, query.to, query.environment, query.includeUntagged]
   const [selected, setSelected] = useState(consumeHashSelection)
   useEffect(() => clearHashSelection(), [])
   const usage = useApi(
@@ -26,7 +26,7 @@ export default function Models({ query }) {
         from: query.from,
         to: query.to,
         environment: query.environment,
-        exclude_environment: query.excludeEnvironment,
+        include_untagged: query.includeUntagged,
       }),
     deps,
   )
@@ -37,7 +37,7 @@ export default function Models({ query }) {
         from: query.from,
         to: query.to,
         environment: query.environment,
-        exclude_environment: query.excludeEnvironment,
+        include_untagged: query.includeUntagged,
       }),
     deps,
   )
