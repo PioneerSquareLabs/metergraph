@@ -55,7 +55,7 @@ PROFILES = [
     ),
     (
         "research.summarize_thread", "app.research", None,
-        "openai", "ft:gpt-4o-mini:acme", 2, (1500, 5000), (200, 700), 0.02,
+        "openai", "gpt-4o-mini", 2, (1500, 5000), (200, 700), 0.02,
     ),
 ]
 

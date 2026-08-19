@@ -4,14 +4,41 @@ import os
 import subprocess
 import sys
 import threading
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib.util import module_from_spec, spec_from_file_location
 from importlib.metadata import version
 from pathlib import Path
 
 import pytest
 
+from metergraph_server.prices import load
+
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "seed_demo.py"
+
+
+def test_every_demo_profile_has_an_effective_catalog_price(monkeypatch):
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT)])
+    spec = spec_from_file_location("seed_demo", SCRIPT)
+    assert spec and spec.loader
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    _, _, catalog = load()
+
+    unpriced = []
+    for _, _, _, provider, model, *_ in module.PROFILES:
+        result = catalog.cost(
+            provider=provider,
+            model=model,
+            at=datetime.now(timezone.utc),
+            input_tokens=1,
+            output_tokens=1,
+        )
+        if result.status != "priced":
+            unpriced.append((provider, model, result.reasons))
+
+    assert unpriced == []
 
 
 @pytest.fixture()

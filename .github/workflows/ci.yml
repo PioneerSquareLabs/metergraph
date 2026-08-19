@@ -108,9 +108,7 @@ jobs:
               items = {i["key"]: i for i in json.load(handle)["items"]}
           assert "support.classify_ticket" in items, items.keys()
           assert "extraction.parse_receipt" in items, items.keys()
-          priced = [i for i in items.values() if i["unpriced_calls"] == 0]
-          assert priced and all(i["cost_usd"] > 0 for i in priced), items
-          unpriced = items.get("research.summarize_thread")
-          assert unpriced and unpriced["unpriced_calls"] == unpriced["calls"], unpriced
+          assert all(i["unpriced_calls"] == 0 for i in items.values()), items
+          assert all(i["cost_usd"] > 0 for i in items.values()), items
           print("e2e OK:", {k: round(v["cost_usd"], 4) for k, v in items.items()})
           EOF
