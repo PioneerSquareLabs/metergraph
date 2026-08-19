@@ -130,6 +130,8 @@ def test_ingest_and_usage_roundtrip(client):
     calls = client.get("/v1/calls", params={"func": "app.support:classify"}, headers=AUTH).json()["items"]
     assert len(calls) == 1
     assert calls[0]["error_type"] == "APIError"
+    assert calls[0]["status_code"] == "error"
+    assert calls[0]["finish_reason"] is None
     assert calls[0]["canonical_model"] == "google/gemini-2.5-flash"
     assert calls[0]["catalog_cost_usd"] == calls[0]["cost_usd"]
     assert calls[0]["catalog_price_id"]

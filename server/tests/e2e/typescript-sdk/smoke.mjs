@@ -67,6 +67,11 @@ assert.equal(row.input_tokens, 18);
 assert.equal(row.output_tokens, 10);
 assert.equal(row.environment, "latest-sdk-e2e");
 assert.equal(row.sdk, "typescript");
+assert.equal(row.status, "stop");
+assert.equal(row.status_code, "unset");
+assert.equal(row.finish_reason, "stop");
+assert.equal(row.finish_reason_raw, "end_turn");
+assert.equal(row.error_type, null);
 assert.equal(row.cost_status, "priced");
 assert.ok(row.cost_usd > 0);
 

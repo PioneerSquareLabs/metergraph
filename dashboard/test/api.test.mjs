@@ -4,6 +4,7 @@ import test from 'node:test'
 import { buildSearchParams } from '../src/api.js'
 import { buildEnvironmentQuery, environmentKey } from '../src/environment-selection.js'
 import { mockApi } from '../src/mock.js'
+import { callFinishReason, callHealth } from '../src/call-status.js'
 
 test('serializes every selected environment and an explicit untagged choice', () => {
   const params = buildSearchParams({
@@ -41,4 +42,11 @@ test('mock mode returns no traffic when no environments are selected', async () 
   assert.deepEqual(await mockApi('/v1/usage', params), { items: [] })
   assert.deepEqual(await mockApi('/v1/calls', params), { items: [] })
   assert.deepEqual((await mockApi('/v1/usage/timeseries', params)).series, [])
+})
+
+test('model finish reasons are never presented as operational health', () => {
+  assert.equal(callHealth({ status_code: 'unset', finish_reason: 'stop' }), 'unset')
+  assert.equal(callHealth({ status: 'tool-calls' }), 'unset')
+  assert.equal(callFinishReason({ status: 'tool-calls' }), 'tool-calls')
+  assert.equal(callHealth({ status_code: 'error', error_type: 'timeout' }), 'error')
 })

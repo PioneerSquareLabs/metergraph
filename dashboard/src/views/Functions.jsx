@@ -6,6 +6,7 @@ import Table from '../components/Table.jsx'
 import Sparkline from '../components/Sparkline.jsx'
 import BarChart from '../components/BarChart.jsx'
 import HBarChart from '../components/HBarChart.jsx'
+import { callFinishReason, callHealth } from '../call-status.js'
 
 function FunctionDetail({ func, query }) {
   const deps = [func, query.from, query.to, query.environment, query.includeUntagged]
@@ -53,7 +54,7 @@ function FunctionDetail({ func, query }) {
         rows={calls.data ? calls.data.items : null}
         rowKey={(c) => c.ts + c.session_id}
         emptyMessage="No calls recorded for this function in the selected range"
-        search={(c) => `${c.model || ''} ${c.status || ''} ${c.error_type || ''}`}
+        search={(c) => `${c.model || ''} ${callHealth(c)} ${callFinishReason(c) || ''} ${c.error_type || ''}`}
         searchPlaceholder="Search calls…"
         columns={[
           { key: 'ts', label: 'Time', sort: (c) => c.ts, render: (c) => fmtTs(c.ts) },
@@ -75,15 +76,25 @@ function FunctionDetail({ func, query }) {
           },
           { key: 'latency_ms', label: 'Latency', align: 'right', render: (c) => fmtMs(c.latency_ms) },
           {
-            key: 'status',
-            label: 'Status',
-            sort: (c) => (c.error ? 1 : 0),
-            render: (c) =>
-              c.error ? (
+            key: 'status_code',
+            label: 'Health',
+            sort: (c) => callHealth(c),
+            render: (c) => {
+              const health = callHealth(c)
+              return health === 'error' ? (
                 <span className="pill err">{c.error_type || 'error'}</span>
+              ) : health === 'ok' ? (
+                <span className="pill ok">ok</span>
               ) : (
-                <span className="pill ok">{c.status || 'ok'}</span>
-              ),
+                <span className="muted">unset</span>
+              )
+            },
+          },
+          {
+            key: 'finish_reason',
+            label: 'Finish reason',
+            sort: (c) => callFinishReason(c) || '',
+            render: (c) => callFinishReason(c) || <span className="muted">—</span>,
           },
         ]}
       />

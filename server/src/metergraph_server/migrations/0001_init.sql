@@ -21,6 +21,11 @@ create table calls (
     latency_ms integer,
     ttft_ms integer,
     status text,
+    status_code text check (
+        status_code is null or status_code in ('unset', 'ok', 'error')
+    ),
+    finish_reason text,
+    finish_reason_raw text,
     error boolean,
     error_type text,
     stream boolean,
