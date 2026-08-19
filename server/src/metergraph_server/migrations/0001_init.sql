@@ -26,6 +26,7 @@ create table calls (
     stream boolean,
     batch boolean,
     session_id text,
+    trace_id text,
     template_hash text,
     unit_name text,
     unit_count numeric(14, 4),

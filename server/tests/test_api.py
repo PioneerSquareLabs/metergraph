@@ -102,9 +102,20 @@ def test_sdk_0_4_session_exchange_and_ingest_roundtrip(client):
 
 
 def test_ingest_and_usage_roundtrip(client):
+    rows = _rows()
+    rows[0].update({
+        "session_id": "session-e2e",
+        "trace_id": "b" * 32,
+        "template_hash": "template-e2e",
+        "tool_calls": [{"name": "lookup_account", "arguments": {"id": "acct-1"}}],
+        "environment": "qualification",
+        "sdk": "typescript",
+        "sdk_version": "0.6.0",
+        "request_id": "request-e2e",
+    })
     response = client.post(
         "/v1/ingest",
-        json={"schema_version": 1, "rows": _rows()},
+        json={"schema_version": 1, "rows": rows},
         headers=AUTH,
     )
     assert response.status_code == 202
@@ -137,6 +148,18 @@ def test_ingest_and_usage_roundtrip(client):
     assert calls[0]["reported_cost_usd"] is None
     assert calls[0]["sdk"] == "typescript"
     assert by_func["app.support:classify"]["reported_calls"] == 0
+
+    qualified = client.get(
+        "/v1/calls", params={"route": "summarizer"}, headers=AUTH
+    ).json()["items"][0]
+    assert qualified["tool_names"] == ["lookup_account"]
+    assert qualified["template_hash"] == "template-e2e"
+    assert qualified["environment"] == "qualification"
+    assert qualified["sdk"] == "typescript"
+    assert qualified["sdk_version"] == "0.6.0"
+    assert qualified["request_id"] == "request-e2e"
+    assert qualified["trace_id"] == "b" * 32
+    assert qualified["session_id"] == "session-e2e"
 
 
 def test_environment_options_and_multi_selection_include_untagged(client):

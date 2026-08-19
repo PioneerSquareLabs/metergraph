@@ -24,6 +24,7 @@ def _row(**overrides) -> dict:
         "latency_ms": 812,
         "status": "stop",
         "session_id": "ticket-123",
+        "trace_id": "a" * 32,
         "template_hash": "abc123",
         "tags": {"team": "billing"},
         "environment": "production",
@@ -44,6 +45,7 @@ def test_projection_maps_and_prices():
     assert values["cost_status"] == "priced"
     assert values["cost_usd"] is not None and values["cost_usd"] > 0
     assert values["reasoning_tokens"] == 10
+    assert values["trace_id"] == "a" * 32
 
 
 def test_content_fields_never_survive():
