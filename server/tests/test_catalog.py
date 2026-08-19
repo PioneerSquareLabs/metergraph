@@ -197,23 +197,34 @@ def test_legacy_openai_models_are_priced(model, input_rate, output_rate):
     assert result.cost_usd == input_rate + output_rate
 
 
-def test_anthropic_effective_dating():
-    early = SNAPSHOT.cost(
-        provider="anthropic",
-        model="claude-sonnet-5",
-        at=_at("2026-07-15"),
+@pytest.mark.parametrize(
+    ("provider", "model", "region"),
+    [
+        ("anthropic", "claude-sonnet-5", "global"),
+        ("bedrock", "us.anthropic.claude-sonnet-5", "us-west-2"),
+    ],
+)
+@pytest.mark.parametrize(
+    "at",
+    [
+        "2026-08-31T23:59:59",
+        "2026-09-01T00:00:00",
+        "2026-09-02T00:00:00",
+    ],
+)
+def test_sonnet_5_cancelled_increase_never_takes_effect(
+    provider, model, region, at
+):
+    snapshot = prices.load(region=region)[2]
+    result = snapshot.cost(
+        provider=provider,
+        model=model,
+        at=_at(at),
         input_tokens=1_000_000,
-        output_tokens=0,
+        output_tokens=1_000_000,
     )
-    late = SNAPSHOT.cost(
-        provider="anthropic",
-        model="claude-sonnet-5",
-        at=_at("2026-09-02"),
-        input_tokens=1_000_000,
-        output_tokens=0,
-    )
-    assert early.cost_usd == Decimal("2")
-    assert late.cost_usd == Decimal("3")
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("12")
 
 
 def test_gemini_provider_synonym_and_long_context():
