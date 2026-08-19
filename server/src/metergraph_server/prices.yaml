@@ -6,7 +6,7 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-08-17"
+version: "2026-08-18"
 models:
   - canonical_id: openai/gpt-5.6-sol
     publisher: openai
@@ -303,7 +303,6 @@ models:
       - channel: anthropic-api
         region: global
         effective_from: "2026-06-30"
-        effective_to: "2026-09-01"
         input_per_mtok: 2.00
         output_per_mtok: 10.00
         cache_read_per_mtok: 0.20
@@ -311,22 +310,10 @@ models:
         cache_write_1h_per_mtok: 4.00
         batch_input_per_mtok: 1.00
         batch_output_per_mtok: 5.00
-        source_url: https://platform.claude.com/docs/en/about-claude/pricing
-      - channel: anthropic-api
-        region: global
-        effective_from: "2026-09-01"
-        input_per_mtok: 3.00
-        output_per_mtok: 15.00
-        cache_read_per_mtok: 0.30
-        cache_write_5m_per_mtok: 3.75
-        cache_write_1h_per_mtok: 6.00
-        batch_input_per_mtok: 1.50
-        batch_output_per_mtok: 7.50
         source_url: https://platform.claude.com/docs/en/about-claude/pricing
       - channel: aws-bedrock
         region: us-west-2
         effective_from: "2026-06-30"
-        effective_to: "2026-09-01"
         input_per_mtok: 2.00
         output_per_mtok: 10.00
         cache_read_per_mtok: 0.20
@@ -334,17 +321,6 @@ models:
         cache_write_1h_per_mtok: 4.00
         batch_input_per_mtok: 1.00
         batch_output_per_mtok: 5.00
-        source_url: https://aws.amazon.com/bedrock/pricing/
-      - channel: aws-bedrock
-        region: us-west-2
-        effective_from: "2026-09-01"
-        input_per_mtok: 3.00
-        output_per_mtok: 15.00
-        cache_read_per_mtok: 0.30
-        cache_write_5m_per_mtok: 3.75
-        cache_write_1h_per_mtok: 6.00
-        batch_input_per_mtok: 1.50
-        batch_output_per_mtok: 7.50
         source_url: https://aws.amazon.com/bedrock/pricing/
 
   - canonical_id: anthropic/claude-haiku-4.5
