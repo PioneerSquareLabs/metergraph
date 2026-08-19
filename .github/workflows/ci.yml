@@ -71,7 +71,7 @@ jobs:
           path: .latest-metergraphsdk
       - name: Pack latest TypeScript SDK
         run: |
-          npm ci
+          npm install
           mkdir -p /tmp/metergraph-sdk-package
           npm pack --pack-destination /tmp/metergraph-sdk-package
         working-directory: .latest-metergraphsdk/typescript
