@@ -253,7 +253,8 @@ def calls(
                reasoning_tokens, cost_usd, null::numeric as reported_cost_usd,
                cost_usd as catalog_cost_usd, price_id as catalog_price_id,
                array[]::text[] as catalog_reasons, cost_status, latency_ms, status,
-               error_type, stream, session_id, environment, sdk
+               error_type, stream, session_id, trace_id, template_hash,
+               tool_names, environment, sdk, sdk_version, request_id
         from calls
         where true{where}
         order by ts desc
@@ -266,7 +267,8 @@ def calls(
         "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens",
         "reasoning_tokens", "cost_usd", "reported_cost_usd", "catalog_cost_usd",
         "catalog_price_id", "catalog_reasons", "cost_status", "latency_ms", "status",
-        "error_type", "stream", "session_id", "environment", "sdk",
+        "error_type", "stream", "session_id", "trace_id", "template_hash",
+        "tool_names", "environment", "sdk", "sdk_version", "request_id",
     )
     items = []
     for row in rows:
@@ -277,6 +279,8 @@ def calls(
                 item[key] = float(item[key])
         if item["sdk"] == "js":
             item["sdk"] = "typescript"
+        if item["tool_names"] is not None:
+            item["tool_names"] = list(item["tool_names"])
         items.append(item)
     return {"items": items}
 
