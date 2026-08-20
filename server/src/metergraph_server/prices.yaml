@@ -6,7 +6,7 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-08-18"
+version: "2026-08-19"
 models:
   - canonical_id: openai/gpt-5.6-sol
     publisher: openai
@@ -136,6 +136,45 @@ models:
         output_per_mtok: 4.50
         cache_read_per_mtok: 0.075
         source_url: https://ai-gateway.vercel.sh/v1/models
+
+  - canonical_id: openai/gpt-5.4
+    publisher: openai
+    aliases:
+      - {provider: openai, alias: gpt-5.4, channel: openai-api}
+      - {provider: openai, alias: gpt-5.4-2026-03-05, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.4, channel: openai-api}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-03-05"
+        input_per_mtok: 2.50
+        output_per_mtok: 15.00
+        cache_read_per_mtok: 0.25
+        batch_input_per_mtok: 1.25
+        batch_output_per_mtok: 7.50
+        rules:
+          input_includes_cache_read: true
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://developers.openai.com/api/docs/models/gpt-5.4
+
+  - canonical_id: openai/gpt-5.4-nano
+    publisher: openai
+    aliases:
+      - {provider: openai, alias: gpt-5.4-nano, channel: openai-api}
+      - {provider: openai, alias: gpt-5.4-nano-2026-03-17, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.4-nano, channel: openai-api}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-03-17"
+        input_per_mtok: 0.20
+        output_per_mtok: 1.25
+        cache_read_per_mtok: 0.02
+        batch_input_per_mtok: 0.10
+        batch_output_per_mtok: 0.625
+        rules:
+          input_includes_cache_read: true
+        source_url: https://developers.openai.com/api/docs/models/gpt-5.4-nano
 
   - canonical_id: openai/gpt-4o-mini
     publisher: openai
@@ -292,6 +331,24 @@ models:
         cache_write_5m_per_mtok: 6.25
         source_url: https://ai-gateway.vercel.sh/v1/models
 
+  - canonical_id: anthropic/claude-opus-4.8
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-opus-4-8, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-4.8, channel: anthropic-api}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-05-28"
+        input_per_mtok: 5.00
+        output_per_mtok: 25.00
+        cache_read_per_mtok: 0.50
+        cache_write_5m_per_mtok: 6.25
+        cache_write_1h_per_mtok: 10.00
+        batch_input_per_mtok: 2.50
+        batch_output_per_mtok: 12.50
+        source_url: https://platform.claude.com/docs/en/about-claude/pricing
+
   - canonical_id: anthropic/claude-sonnet-5
     publisher: anthropic
     aliases:
@@ -389,6 +446,38 @@ models:
         rules:
           long_context: {threshold: 200000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://ai.google.dev/gemini-api/docs/pricing
+
+  - canonical_id: google/gemini-3.1-pro-preview
+    publisher: google
+    aliases:
+      - {provider: vertex-ai, alias: gemini-3.1-pro-preview, channel: google-vertex-ai}
+    prices:
+      - channel: google-vertex-ai
+        region: global
+        effective_from: "2026-02-19"
+        input_per_mtok: 2.00
+        output_per_mtok: 12.00
+        cache_read_per_mtok: 0.20
+        batch_input_per_mtok: 1.00
+        batch_output_per_mtok: 6.00
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
+
+  - canonical_id: google/gemini-3.5-flash
+    publisher: google
+    aliases:
+      - {provider: vertex-ai, alias: gemini-3.5-flash, channel: google-vertex-ai}
+    prices:
+      - channel: google-vertex-ai
+        region: global
+        effective_from: "2026-05-19"
+        input_per_mtok: 1.50
+        output_per_mtok: 9.00
+        cache_read_per_mtok: 0.15
+        batch_input_per_mtok: 0.75
+        batch_output_per_mtok: 4.50
+        source_url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
 
   - canonical_id: google/gemini-2.5-pro
     publisher: google
@@ -510,3 +599,65 @@ models:
         input_per_mtok: 0.62
         output_per_mtok: 1.85
         source_url: https://aws.amazon.com/bedrock/pricing/
+
+  - canonical_id: deepseek/v4-flash
+    publisher: deepseek
+    aliases:
+      - {provider: deepseek, alias: deepseek-v4-flash, channel: deepseek-api}
+    prices:
+      - channel: deepseek-api
+        region: global
+        effective_from: "2026-04-24"
+        input_per_mtok: 0.14
+        output_per_mtok: 0.28
+        cache_read_per_mtok: 0.0028
+        rules:
+          input_includes_cache_read: true
+        source_url: https://api-docs.deepseek.com/quick_start/pricing/
+
+  - canonical_id: deepseek/v4-pro
+    publisher: deepseek
+    aliases:
+      - {provider: deepseek, alias: deepseek-v4-pro, channel: deepseek-api}
+    prices:
+      - channel: deepseek-api
+        region: global
+        effective_from: "2026-04-24"
+        input_per_mtok: 0.435
+        output_per_mtok: 0.87
+        cache_read_per_mtok: 0.003625
+        rules:
+          input_includes_cache_read: true
+        source_url: https://api-docs.deepseek.com/quick_start/pricing/
+
+  - canonical_id: xai/grok-4.3
+    publisher: xai
+    aliases:
+      - {provider: x-ai, alias: grok-4.3, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.3-latest, channel: xai-api}
+      - {provider: x-ai, alias: grok-latest, channel: xai-api}
+    prices:
+      - channel: xai-api
+        region: global
+        effective_from: "2026-05-15"
+        input_per_mtok: 1.25
+        output_per_mtok: 2.50
+        cache_read_per_mtok: 0.20
+        rules:
+          input_includes_cache_read: true
+          long_context: {threshold: 200000, input_multiplier: 2, output_multiplier: 2}
+        source_url: https://docs.x.ai/developers/pricing
+
+  - canonical_id: perplexity/sonar
+    publisher: perplexity
+    aliases:
+      - {provider: perplexity-ai, alias: sonar, channel: perplexity-api}
+    prices:
+      - channel: perplexity-api
+        region: global
+        effective_from: "2025-04-18"
+        input_per_mtok: 1.00
+        output_per_mtok: 1.00
+        rules:
+          uncaptured_fees: true
+        source_url: https://docs.perplexity.ai/docs/getting-started/pricing

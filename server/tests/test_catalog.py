@@ -141,6 +141,123 @@ def test_design_partner_models_are_priced(
     assert result.cost_usd == expected_cost
 
 
+@pytest.mark.parametrize(
+    (
+        "provider",
+        "model",
+        "expected_canonical",
+        "expected_channel",
+        "expected_cost",
+        "expected_status",
+        "expected_reasons",
+    ),
+    [
+        (
+            "perplexity-ai",
+            "sonar",
+            "perplexity/sonar",
+            "perplexity-api",
+            Decimal("2.00"),
+            "partial",
+            ("uncaptured_fees",),
+        ),
+        (
+            "openai",
+            "gpt-5.4-nano",
+            "openai/gpt-5.4-nano",
+            "openai-api",
+            Decimal("1.45"),
+            "priced",
+            (),
+        ),
+        (
+            "vertex-ai",
+            "gemini-3.5-flash",
+            "google/gemini-3.5-flash",
+            "google-vertex-ai",
+            Decimal("10.50"),
+            "priced",
+            (),
+        ),
+        (
+            "openai",
+            "gpt-5.4",
+            "openai/gpt-5.4",
+            "openai-api",
+            Decimal("27.50"),
+            "priced",
+            (),
+        ),
+        (
+            "deepseek",
+            "deepseek-v4-flash",
+            "deepseek/v4-flash",
+            "deepseek-api",
+            Decimal("0.42"),
+            "priced",
+            (),
+        ),
+        (
+            "anthropic",
+            "claude-opus-4-8",
+            "anthropic/claude-opus-4.8",
+            "anthropic-api",
+            Decimal("30.00"),
+            "priced",
+            (),
+        ),
+        (
+            "x-ai",
+            "grok-4.3",
+            "xai/grok-4.3",
+            "xai-api",
+            Decimal("7.50"),
+            "priced",
+            (),
+        ),
+        (
+            "vertex-ai",
+            "gemini-3.1-pro-preview",
+            "google/gemini-3.1-pro-preview",
+            "google-vertex-ai",
+            Decimal("22.00"),
+            "priced",
+            (),
+        ),
+        (
+            "deepseek",
+            "deepseek-v4-pro",
+            "deepseek/v4-pro",
+            "deepseek-api",
+            Decimal("1.305"),
+            "priced",
+            (),
+        ),
+    ],
+)
+def test_observed_design_partner_models_are_priced(
+    provider,
+    model,
+    expected_canonical,
+    expected_channel,
+    expected_cost,
+    expected_status,
+    expected_reasons,
+):
+    result = SNAPSHOT.cost(
+        provider=provider,
+        model=model,
+        at=_at("2026-08-10"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    assert result.status == expected_status
+    assert result.canonical_model == expected_canonical
+    assert f":{expected_channel}:" in result.price_id
+    assert result.cost_usd == expected_cost
+    assert result.reasons == expected_reasons
+
+
 def test_gateway_input_excludes_cache_reads_and_writes():
     result = SNAPSHOT.cost(
         provider="openai",
