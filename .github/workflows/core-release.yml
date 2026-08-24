@@ -1,0 +1,28 @@
+name: Publish metergraph-core
+
+on:
+  push:
+    tags: ["core-v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      # Trusted publishing to PyPI via OIDC; no API token needed.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade build
+      - name: Build the core sdist and wheel
+        run: python -m build --outdir core/dist core
+      - name: Verify the prebuilt artifacts without rebuilding
+        run: python core/tests/package/verify_artifacts.py --no-build
+      - name: Publish exactly the verified artifacts
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: core/dist

@@ -1,6 +1,6 @@
 # Price catalog
 
-`server/src/metergraph_server/prices.yaml` is a versioned, effective-dated model price catalog. The server prices each call **at the call's timestamp**, so historical rows stay correct when prices change.
+`core/src/metergraph_core/data/prices.yaml` is a versioned, effective-dated model price catalog. It is the single public catalog, owned by the `metergraph-core` package and shared across MeterGraph systems. The server prices each call **at the call's timestamp**, so historical rows stay correct when prices change.
 
 ## Structure
 
@@ -44,4 +44,5 @@ Every stored call gets a `cost_status`:
 1. Never edit a historical entry — close its window with `effective_to` and add a new entry.
 2. Include a `source_url` for every price.
 3. Open a PR; CI validates structure, dates, and window overlaps.
-4. Self-hosters: mount an updated file with `MG_PRICES_PATH=/path/to/prices.yaml` — no rebuild needed.
+4. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
+5. Self-hosters: mount an updated file with `MG_PRICES_PATH=/path/to/prices.yaml` — no rebuild needed.

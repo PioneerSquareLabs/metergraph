@@ -16,7 +16,7 @@ def summarize_invoice(invoice):
     return client.chat.completions.create(model="gpt-5.6-luna", messages=[...])
 ```
 
-Every call is attributed to `yourapp.billing:summarize_invoice` and shows up in the dashboard priced from an effective-dated, community-maintained [price catalog](server/src/metergraph_server/prices.yaml).
+Every call is attributed to `yourapp.billing:summarize_invoice` and shows up in the dashboard priced from an effective-dated, community-maintained [price catalog](core/src/metergraph_core/data/prices.yaml).
 
 ## Quickstart (self-hosted)
 
@@ -49,7 +49,8 @@ an instrumented application; it does not construct ingest payloads directly.
 | Package | Where | What |
 |---|---|---|
 | `metergraph` (PyPI + npm) | [metergraphsdk](https://github.com/PioneerSquareLabs/metergraphsdk) | Zero-dependency capture SDKs for Python and TypeScript — OpenAI, Anthropic, and Gemini clients |
-| `metergraph-server` | [`server`](server) | FastAPI + Postgres ingest, price catalog, usage API |
+| `metergraph-core` (PyPI) | [`core`](core) | Reusable price catalog + deterministic pricing engine; the only copy of `prices.yaml`. Reused by other MeterGraph systems |
+| `metergraph-server` | [`server`](server) | FastAPI + Postgres ingest and usage API; prices traffic through `metergraph-core` |
 | dashboard | [`dashboard`](dashboard) | React SPA served by the server |
 
 ## How attribution works
@@ -70,12 +71,14 @@ Without `METERGRAPH_INGEST_URL`, the SDK points at Metergraph's hosted service, 
 
 ## Development
 
-The SDKs live in their own repo: [metergraphsdk](https://github.com/PioneerSquareLabs/metergraphsdk).
+The SDKs live in their own repo: [metergraphsdk](https://github.com/PioneerSquareLabs/metergraphsdk). Everything else — the server, dashboard, public catalog, and the reusable pricing core — lives in this one repository; you still clone a single server repo. The `metergraph-core` package is carved out so other MeterGraph systems can reuse the exact catalog and pricing behavior.
+
+Install the local core before the server so the server resolves its `metergraph-core` dependency from source, not a published release:
 
 ```bash
-# Server (needs Postgres)
-cd server && python -m venv .venv && .venv/bin/pip install -e ".[dev]"
-MG_TEST_DATABASE_URL=postgresql://localhost:5432/metergraph_test .venv/bin/pytest
+# Core + server (needs Postgres). Core must install first.
+python -m pip install -e './core[dev]' -e './server[dev]'
+MG_TEST_DATABASE_URL=postgresql://localhost:5432/metergraph_test pytest core/tests server/tests
 
 # Dashboard
 cd dashboard && npm install && npm run dev
@@ -83,7 +86,7 @@ cd dashboard && npm install && npm run dev
 
 ## Updating model prices
 
-Prices live in [`server/src/metergraph_server/prices.yaml`](server/src/metergraph_server/prices.yaml), effective-dated so history reprices correctly. To update: close the old window with `effective_to`, add a new entry with `effective_from` and a `source_url`, and open a PR. Self-hosters can mount a newer file with `MG_PRICES_PATH` without rebuilding. See [docs/prices.md](docs/prices.md).
+Prices live in [`core/src/metergraph_core/data/prices.yaml`](core/src/metergraph_core/data/prices.yaml) — the single public catalog, effective-dated so history reprices correctly. To update: close the old window with `effective_to`, add a new entry with `effective_from` and a `source_url`, and open a PR. A catalog change updates the declared catalog version and produces a patch release of `metergraph-core`. Self-hosters can still mount a newer file with `MG_PRICES_PATH` without rebuilding. See [docs/prices.md](docs/prices.md).
 
 ## License
 
