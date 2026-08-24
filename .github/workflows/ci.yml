@@ -28,6 +28,7 @@ jobs:
       - run: pytest core/tests server/tests -q
         env:
           MG_TEST_DATABASE_URL: postgresql://metergraph:metergraph@localhost:5432/metergraph_test
+      - run: python core/tests/package/verify_artifacts.py
 
   dashboard:
     runs-on: ubuntu-latest
