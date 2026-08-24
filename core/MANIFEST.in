@@ -1,0 +1,4 @@
+# Tests are not part of the distributed package. setuptools would otherwise
+# auto-include top-level test modules in the sdist; prune the whole tree so the
+# sdist matches the wheel and ships only the package and its bundled catalog.
+prune tests

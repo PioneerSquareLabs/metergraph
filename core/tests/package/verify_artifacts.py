@@ -96,6 +96,13 @@ def _check_metadata(fields: dict[str, str], source: str) -> None:
     )
 
 
+def _has_test_segment(path: str) -> bool:
+    segments = [segment for segment in path.split("/") if segment]
+    return "tests" in segments or any(
+        segment == "test" or segment.startswith("test_") for segment in segments
+    )
+
+
 def _verify_wheel(wheel: Path) -> None:
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
@@ -116,10 +123,8 @@ def _verify_wheel(wheel: Path) -> None:
             )
         # No test package must ride along into installs.
         for name in payload:
-            segments = name.split("/")
             _require(
-                "tests" not in segments
-                and not any(s == "test" or s.startswith("test_") for s in segments),
+                not _has_test_segment(name),
                 f"{wheel.name}: test artifact must not be packaged: {name!r}",
             )
         for module in REQUIRED_MODULES:
@@ -147,6 +152,16 @@ def _verify_sdist(sdist: Path) -> None:
         handle = archive.extractfile(top_pkg_info)
         _require(handle is not None, f"{sdist.name}: PKG-INFO not readable")
         _check_metadata(_parse_metadata(handle.read()), sdist.name)
+
+        # The sdist must exclude tests too, not just the wheel. Members are
+        # prefixed with the "<name>-<version>/" root directory; strip it before
+        # inspecting path segments.
+        for member in members:
+            _, _, relative = member.partition("/")
+            _require(
+                not _has_test_segment(relative),
+                f"{sdist.name}: test artifact must not be packaged: {member!r}",
+            )
 
         for module in REQUIRED_MODULES:
             _require(
