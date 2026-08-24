@@ -9,7 +9,7 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "psycopg[binary,pool]>=3.1",
-    "pyyaml>=6.0",
+    "metergraph-core>=0.1,<0.2",
 ]
 
 [project.optional-dependencies]
@@ -23,4 +23,4 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-metergraph_server = ["prices.yaml", "migrations/*.sql"]
+metergraph_server = ["migrations/*.sql"]

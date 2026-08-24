@@ -15,10 +15,11 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         db.migrate()
-        version, doc, snapshot = prices.load()
-        app.state.catalog = snapshot
-        app.state.catalog_doc = doc
-        app.state.catalog_version = version
+        loaded = prices.load_identity()
+        app.state.catalog = loaded.snapshot
+        app.state.catalog_doc = loaded.document
+        app.state.catalog_version = loaded.version
+        app.state.catalog_hash = loaded.content_hash
         yield
         db.close()
 
@@ -30,7 +31,11 @@ def create_app() -> FastAPI:
     def healthz():
         with db.pool().connection() as con:
             con.execute("select 1")
-        return {"ok": True, "catalog_version": app.state.catalog_version}
+        return {
+            "ok": True,
+            "catalog_version": app.state.catalog_version,
+            "catalog_hash": app.state.catalog_hash,
+        }
 
     @app.get("/v1/config")
     def config(if_none_match: str | None = Header(default=None)):

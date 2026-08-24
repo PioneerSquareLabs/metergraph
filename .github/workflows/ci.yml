@@ -24,8 +24,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e "server[dev]"
-      - run: pytest server/tests -q
+      - run: pip install -e "core[dev]" -e "server[dev]"
+      - run: pytest core/tests server/tests -q
         env:
           MG_TEST_DATABASE_URL: postgresql://metergraph:metergraph@localhost:5432/metergraph_test
 
@@ -64,7 +64,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: pip install -e "server[dev]"
+      - run: pip install -e "core[dev]" -e "server[dev]"
       - name: Check out latest MeterGraph SDK
         uses: actions/checkout@v4
         with:
