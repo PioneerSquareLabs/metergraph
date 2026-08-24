@@ -18,6 +18,119 @@ def _at(day: str) -> datetime:
 def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
+    assert LOADED.currency == "USD"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-08-24"
+
+
+def test_resolve_price_by_deployment_identity_and_channel():
+    resolved = SNAPSHOT.resolve_price(
+        model="  OPENAI/GPT-5.6-LUNA  ",
+        channel=" VERCEL-AI-GATEWAY ",
+        at=_at("2026-08-01"),
+    )
+
+    assert resolved is not None
+    assert resolved.canonical_model == "openai/gpt-5.6-luna"
+    assert resolved.price.id == (
+        "openai/gpt-5.6-luna:vercel-ai-gateway:global:2026-07-30"
+    )
+    assert resolved.price.input_per_mtok == Decimal("0.20")
+    assert resolved.price.source_url == "https://ai-gateway.vercel.sh/v1/models"
+    assert resolved.rules["input_includes_cache_read"] is True
+    with pytest.raises(TypeError):
+        resolved.rules["input_includes_cache_read"] = False
+    with pytest.raises(TypeError):
+        resolved.price.rules["long_context"] = {}
+
+
+def test_resolve_price_does_not_guess_another_channel():
+    assert SNAPSHOT.resolve_price(
+        model="openai/gpt-4o",
+        channel="vercel-ai-gateway",
+        at=_at("2026-08-01"),
+    ) is None
+
+
+@pytest.mark.parametrize(
+    "model,channel,input_rate,output_rate",
+    [
+        ("gpt-4o-mini", "openai-api", "0.15", "0.60"),
+        ("gpt-5.4-mini", "openai-api", "0.75", "4.50"),
+        ("claude-opus-4-8", "anthropic-api", "5.00", "25.00"),
+        ("claude-haiku-4-5", "anthropic-api", "1.00", "5.00"),
+        ("anthropic/claude-opus-5", "vercel-ai-gateway", "5.00", "25.00"),
+        ("anthropic/claude-sonnet-5", "vercel-ai-gateway", "2.00", "10.00"),
+        ("anthropic/claude-3-haiku", "vercel-ai-gateway", "0.25", "1.25"),
+        ("openai/gpt-5.6-sol", "vercel-ai-gateway", "5.00", "30.00"),
+        ("openai/gpt-5.6-luna", "vercel-ai-gateway", "0.20", "1.20"),
+        ("openai/gpt-5-mini", "vercel-ai-gateway", "0.25", "2.00"),
+        ("openai/gpt-5.6-terra", "vercel-ai-gateway", "2.00", "12.00"),
+        ("google/gemini-3.1-pro-preview", "vercel-ai-gateway", "2.00", "12.00"),
+        ("google/gemini-3.6-flash", "vercel-ai-gateway", "1.50", "7.50"),
+        ("google/gemma-4-31b-it", "vercel-ai-gateway", "0.14", "0.40"),
+        ("moonshotai/kimi-k3", "vercel-ai-gateway", "2.90", "14.00"),
+        ("minimax/minimax-m3", "vercel-ai-gateway", "0.30", "1.20"),
+        ("nvidia/nemotron-3-super-120b-a12b", "vercel-ai-gateway", "0.15", "0.65"),
+        ("deepseek/deepseek-v4-pro", "vercel-ai-gateway", "0.435", "0.87"),
+        ("deepseek/deepseek-v4-flash", "vercel-ai-gateway", "0.14", "0.28"),
+        ("fireworks:accounts/fireworks/models/glm-5p2", "fireworks-api", "1.40", "4.40"),
+        ("fireworks:accounts/fireworks/models/qwen3p7-plus", "fireworks-api", "0.40", "1.60"),
+        ("xai/grok-4.1-fast-reasoning", "vercel-ai-gateway", "0.20", "0.50"),
+    ],
+)
+def test_pipeline_catalog_compatibility(model, channel, input_rate, output_rate):
+    resolved = SNAPSHOT.resolve_price(
+        model=model,
+        channel=channel,
+        at=_at("2026-08-24"),
+    )
+
+    assert resolved is not None
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("currency", "EUR"), ("currency", None), ("pricing_verified_at", "soon"),
+     ("pricing_verified_at", None)],
+)
+def test_catalog_metadata_is_required_and_validated(field, value):
+    doc = {"version": "test", "currency": "USD", "pricing_verified_at": "2026-08-24", "models": []}
+    if value is None:
+        doc.pop(field)
+    else:
+        doc[field] = value
+
+    with pytest.raises(CatalogError):
+        parse_catalog(doc)
+
+
+def test_price_source_is_required():
+    doc = {
+        "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-08-24",
+        "models": [
+            {
+                "canonical_id": "example/model",
+                "aliases": [
+                    {"provider": "example", "alias": "model", "channel": "api"}
+                ],
+                "prices": [
+                    {
+                        "channel": "api",
+                        "effective_from": "2026-08-24",
+                        "input_per_mtok": 1,
+                        "output_per_mtok": 2,
+                    }
+                ],
+            }
+        ],
+    }
+
+    with pytest.raises(CatalogError, match="source_url"):
+        parse_catalog(doc)
 
 
 def test_openai_cache_read_included_in_input():
@@ -403,13 +516,25 @@ def test_batch_rates():
 def test_overlapping_windows_rejected():
     doc = {
         "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-08-24",
         "models": [
             {
                 "canonical_id": "x/y",
                 "aliases": [{"provider": "x", "alias": "y", "channel": "c"}],
                 "prices": [
-                    {"channel": "c", "effective_from": "2026-01-01", "input_per_mtok": 1},
-                    {"channel": "c", "effective_from": "2026-02-01", "input_per_mtok": 2},
+                    {
+                        "channel": "c",
+                        "effective_from": "2026-01-01",
+                        "input_per_mtok": 1,
+                        "source_url": "https://example.test/prices",
+                    },
+                    {
+                        "channel": "c",
+                        "effective_from": "2026-02-01",
+                        "input_per_mtok": 2,
+                        "source_url": "https://example.test/prices",
+                    },
                 ],
             }
         ],
@@ -425,6 +550,8 @@ def test_overlapping_windows_rejected():
 def test_duplicate_alias_rejected():
     doc = {
         "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-08-24",
         "models": [
             {
                 "canonical_id": "x/y",

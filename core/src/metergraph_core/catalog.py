@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from types import MappingProxyType
 from typing import Any, Mapping
 
 _MILLION = Decimal("1000000")
@@ -40,6 +41,7 @@ class Price:
     rules: Mapping[str, Any]
     effective_from: datetime
     effective_to: datetime | None
+    source_url: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +51,15 @@ class CostResult:
     cost_usd: Decimal | None
     status: str
     reasons: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedPrice:
+    """An effective price selected for a planned model deployment."""
+
+    canonical_model: str
+    price: Price
+    rules: Mapping[str, Any]
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -81,7 +92,21 @@ class CatalogSnapshot:
     ) -> None:
         self._aliases = dict(aliases)
         self._prices: dict[tuple[str, str], list[Price]] = {}
+        self._deployment_aliases: dict[tuple[str, str], Alias] = {}
         self._region = region.strip().lower()
+        for (_, observed_model), alias in aliases.items():
+            channel = alias.pricing_channel.strip().lower()
+            for model in (observed_model, alias.canonical_id):
+                key = (model.strip().lower(), channel)
+                existing = self._deployment_aliases.get(key)
+                if existing is not None and (
+                    existing.canonical_id != alias.canonical_id
+                    or dict(existing.rules) != dict(alias.rules)
+                ):
+                    raise ValueError(
+                        f"ambiguous deployment alias {model!r} for channel {channel!r}"
+                    )
+                self._deployment_aliases[key] = alias
         for price in prices:
             self._prices.setdefault((price.model_id, price.pricing_channel), []).append(
                 price
@@ -101,6 +126,30 @@ class CatalogSnapshot:
                 ):
                     return price
         return None
+
+    def resolve_price(
+        self, *, model: Any, channel: Any, at: datetime
+    ) -> ResolvedPrice | None:
+        """Resolve pricing for an explicitly selected model and channel.
+
+        This is intended for planners and evaluation pipelines that know the
+        deployment channel before making a provider call. It never falls back
+        to pricing from a different channel.
+        """
+
+        model_key = str(model or "").strip().lower()
+        channel_key = str(channel or "").strip().lower()
+        alias = self._deployment_aliases.get((model_key, channel_key))
+        if alias is None:
+            return None
+        price = self._price_for(alias, at)
+        if price is None:
+            return None
+        return ResolvedPrice(
+            canonical_model=alias.canonical_id,
+            price=price,
+            rules=MappingProxyType({**price.rules, **alias.rules}),
+        )
 
     def cost(
         self,

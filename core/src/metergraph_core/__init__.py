@@ -1,6 +1,6 @@
 """Reusable MeterGraph catalog and deterministic token-cost pricing core."""
 
-from .catalog import Alias, CatalogSnapshot, CostResult, Price
+from .catalog import Alias, CatalogSnapshot, CostResult, Price, ResolvedPrice
 from .loader import (
     CatalogError,
     LoadedCatalog,
@@ -15,6 +15,7 @@ __all__ = [
     "CostResult",
     "LoadedCatalog",
     "Price",
+    "ResolvedPrice",
     "load_catalog",
     "parse_catalog",
 ]

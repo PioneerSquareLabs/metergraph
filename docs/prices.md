@@ -5,7 +5,9 @@
 ## Structure
 
 ```yaml
-version: "2026-07-15"
+version: "2026-08-24"
+currency: USD
+pricing_verified_at: "2026-08-24"
 models:
   - canonical_id: anthropic/claude-sonnet-5
     publisher: anthropic
@@ -15,7 +17,6 @@ models:
       - channel: anthropic-api
         region: global            # matched against MG_REGION, then '*', then 'global'
         effective_from: "2026-06-30"
-        effective_to: "2026-09-01"   # omit for the open window
         input_per_mtok: 2.00
         output_per_mtok: 10.00
         cache_read_per_mtok: 0.20
@@ -31,6 +32,11 @@ models:
 - `input_includes_cache_write: true` — provider reports cache-write tokens inside `input_tokens` (Vercel AI Gateway); cache writes are deducted before their cache rate is applied.
 - `long_context: {threshold, input_multiplier, output_multiplier}` — surcharge above a prompt-size threshold (OpenAI GPT-5.6, Gemini Pro).
 - `uncaptured_fees: true` — provider charges fees tokens can't express; rows are marked `partial`.
+
+`currency` is required and currently limited to `USD`.
+`pricing_verified_at` is the ISO date when the catalog was last checked against
+the linked provider sources. A price's own effective window still controls
+historical selection.
 
 ## Cost status
 

@@ -2,8 +2,9 @@
 
 import hashlib
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import yaml
@@ -18,9 +19,19 @@ class CatalogError(ValueError):
     pass
 
 
+def _freeze(value: Any) -> Any:
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze(item) for item in value)
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class LoadedCatalog:
     version: str
+    currency: str
+    pricing_verified_at: date
     content_hash: str
     document: dict[str, Any]
     snapshot: CatalogSnapshot
@@ -36,6 +47,21 @@ def _date(value: Any, *, field: str, model: str) -> datetime:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
+def _catalog_metadata(document: dict[str, Any]) -> tuple[str, date]:
+    currency = str(document.get("currency") or "").strip().upper()
+    if currency != "USD":
+        raise CatalogError("prices document currency must be USD")
+    try:
+        pricing_verified_at = date.fromisoformat(
+            str(document.get("pricing_verified_at") or "")
+        )
+    except ValueError as exc:
+        raise CatalogError(
+            "prices document must have an ISO pricing_verified_at date"
+        ) from exc
+    return currency, pricing_verified_at
+
+
 def parse_catalog(
     document: Any,
 ) -> tuple[str, dict[tuple[str, str], Alias], list[Price]]:
@@ -44,6 +70,7 @@ def parse_catalog(
     version = str(document.get("version") or "")
     if not version:
         raise CatalogError("prices document must have a version")
+    _catalog_metadata(document)
     aliases: dict[tuple[str, str], Alias] = {}
     prices: list[Price] = []
     for entry in document["models"]:
@@ -66,7 +93,7 @@ def parse_catalog(
                     model_id=canonical,
                     canonical_id=canonical,
                     pricing_channel=channel,
-                    rules=alias.get("rules") or {},
+                    rules=_freeze(alias.get("rules") or {}),
                 )
         seen_windows: list[tuple[str, str, datetime, datetime | None]] = []
         for price in entry.get("prices") or []:
@@ -74,6 +101,8 @@ def parse_catalog(
             region = str(price.get("region") or "global")
             if not channel:
                 raise CatalogError(f"{canonical}: price entry needs channel")
+            if not str(price.get("source_url") or "").strip():
+                raise CatalogError(f"{canonical}: price entry needs source_url")
             effective_from = _date(
                 price.get("effective_from"), field="effective_from", model=canonical
             )
@@ -111,9 +140,10 @@ def parse_catalog(
                     ),
                     batch_input_per_mtok=_decimal(price.get("batch_input_per_mtok")),
                     batch_output_per_mtok=_decimal(price.get("batch_output_per_mtok")),
-                    rules=price.get("rules") or {},
+                    rules=_freeze(price.get("rules") or {}),
                     effective_from=effective_from,
                     effective_to=effective_to,
+                    source_url=str(price["source_url"]).strip(),
                 )
             )
     return version, aliases, prices
@@ -126,8 +156,11 @@ def load_catalog(
     content = resolved.read_bytes()
     document = yaml.safe_load(content)
     version, aliases, prices = parse_catalog(document)
+    currency, pricing_verified_at = _catalog_metadata(document)
     return LoadedCatalog(
         version=version,
+        currency=currency,
+        pricing_verified_at=pricing_verified_at,
         content_hash=hashlib.sha256(content).hexdigest(),
         document=document,
         snapshot=CatalogSnapshot(aliases, prices, region=region),

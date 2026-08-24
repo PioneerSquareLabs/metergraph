@@ -37,7 +37,7 @@ EXPECTED_VERSION = "0.1.0"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
-CATALOG_VERSION = "2026-08-19"
+CATALOG_VERSION = "2026-08-24"
 
 REQUIRED_MODULES = ("__init__.py", "catalog.py", "loader.py")
 
@@ -194,7 +194,18 @@ def _verify_isolated_install(wheel: Path) -> None:
 
         loaded = load_catalog()
         assert loaded.version == {CATALOG_VERSION!r}, loaded.version
+        assert loaded.currency == "USD", loaded.currency
+        assert loaded.pricing_verified_at.isoformat() == "2026-08-24"
         assert len(loaded.content_hash) == 64, loaded.content_hash
+        deployment = loaded.snapshot.resolve_price(
+            model="moonshotai/kimi-k3",
+            channel="vercel-ai-gateway",
+            at=datetime(2026, 8, 24, tzinfo=timezone.utc),
+        )
+        assert deployment is not None
+        assert str(deployment.price.input_per_mtok) == "2.9"
+        assert str(deployment.price.output_per_mtok) == "14.0"
+        assert deployment.price.source_url == "https://vercel.com/ai-gateway/models/kimi-k3/providers"
         result = loaded.snapshot.cost(
             provider="openai",
             model="gpt-5.4-mini",

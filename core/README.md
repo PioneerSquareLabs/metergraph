@@ -43,6 +43,34 @@ explicit `path` for tests or a self-hosted catalog replacement. The returned
 `content_hash` of the loaded bytes, the parsed `document`, and the immutable
 `snapshot` used for pricing.
 
+Planning and evaluation systems that know the deployment channel before making
+a call can resolve the exact effective price without emulating a provider
+response:
+
+```python
+price = catalog.snapshot.resolve_price(
+    model="openai/gpt-5.6-luna",
+    channel="vercel-ai-gateway",
+    at=datetime(2026, 8, 17, tzinfo=timezone.utc),
+)
+if price is not None:
+    print(
+        price.canonical_model,
+        price.price.id,
+        price.price.input_per_mtok,
+        price.price.source_url,
+    )
+```
+
+Resolution accepts canonical IDs and channel-scoped aliases, normalizes case
+and surrounding whitespace, applies the configured region fallback and
+effective-date windows, and returns `None` when no exact model/channel price
+exists. It never substitutes a direct-provider price for a gateway price.
+
+`LoadedCatalog.currency` is currently always `USD`, and
+`LoadedCatalog.pricing_verified_at` records when the bundled catalog was last
+checked against its linked provider sources.
+
 ## Public API
 
 ```python
@@ -53,6 +81,7 @@ from metergraph_core import (
     CostResult,
     LoadedCatalog,
     Price,
+    ResolvedPrice,
     load_catalog,
     parse_catalog,
 )
