@@ -6,9 +6,11 @@ RUN npm install && npm run build
 
 FROM python:3.12-slim
 WORKDIR /app
+COPY core/pyproject.toml core/README.md ./core/
+COPY core/src ./core/src
 COPY server/pyproject.toml ./server/
 COPY server/src ./server/src
-RUN pip install --no-cache-dir ./server
+RUN pip install --no-cache-dir ./core ./server
 COPY --from=dashboard /build/dist /app/static
 ENV MG_DASHBOARD_DIST=/app/static
 EXPOSE 8787

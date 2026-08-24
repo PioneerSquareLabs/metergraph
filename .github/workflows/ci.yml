@@ -24,10 +24,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e "server[dev]"
-      - run: pytest server/tests -q
+      - run: pip install -e "core[dev]" -e "server[dev]"
+      - run: pytest core/tests server/tests -q
         env:
           MG_TEST_DATABASE_URL: postgresql://metergraph:metergraph@localhost:5432/metergraph_test
+      - run: python core/tests/package/verify_artifacts.py
+      - run: python server/tests/package/verify_server_artifacts.py
 
   dashboard:
     runs-on: ubuntu-latest
@@ -42,6 +44,20 @@ jobs:
         working-directory: dashboard
       - run: npm run build
         working-directory: dashboard
+
+  docker:
+    # Gates that the server image installs the in-repo core before the server,
+    # so a clean checkout never depends on an already-published core version.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          push: false
+          load: false
 
   e2e:
     runs-on: ubuntu-latest
@@ -64,7 +80,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: pip install -e "server[dev]"
+      - run: pip install -e "core[dev]" -e "server[dev]"
       - name: Check out latest MeterGraph SDK
         uses: actions/checkout@v4
         with:

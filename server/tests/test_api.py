@@ -242,3 +242,11 @@ def test_config_etag(client):
     etag = first.headers["ETag"]
     second = client.get("/v1/config", headers={"If-None-Match": etag})
     assert second.status_code == 304
+
+
+def test_healthz_reports_catalog_identity(client):
+    response = client.get("/healthz")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert response.json()["catalog_version"] == "2026-08-24"
+    assert len(response.json()["catalog_hash"]) == 64
