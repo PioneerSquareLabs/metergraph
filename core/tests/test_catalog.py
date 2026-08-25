@@ -51,6 +51,20 @@ def test_resolve_price_does_not_guess_another_channel():
     ) is None
 
 
+def test_gemini_direct_price_changes_on_its_effective_date():
+    before = SNAPSHOT.resolve_price(
+        model="gemini-3.6-flash", channel="google-api", at=_at("2026-08-19")
+    )
+    after = SNAPSHOT.resolve_price(
+        model="gemini-3.6-flash", channel="google-api", at=_at("2026-08-20")
+    )
+
+    assert before is not None
+    assert after is not None
+    assert before.price.input_per_mtok == Decimal("1.50")
+    assert after.price.input_per_mtok == Decimal("0.75")
+
+
 @pytest.mark.parametrize(
     "model,channel,input_rate,output_rate",
     [
@@ -63,9 +77,11 @@ def test_resolve_price_does_not_guess_another_channel():
         ("anthropic/claude-3-haiku", "vercel-ai-gateway", "0.25", "1.25"),
         ("openai/gpt-5.6-sol", "vercel-ai-gateway", "5.00", "30.00"),
         ("openai/gpt-5.6-luna", "vercel-ai-gateway", "0.20", "1.20"),
+        ("gpt-5-mini", "openai-api", "0.25", "2.00"),
         ("openai/gpt-5-mini", "vercel-ai-gateway", "0.25", "2.00"),
         ("openai/gpt-5.6-terra", "vercel-ai-gateway", "2.00", "12.00"),
         ("google/gemini-3.1-pro-preview", "vercel-ai-gateway", "2.00", "12.00"),
+        ("gemini-3.6-flash", "google-api", "0.75", "3.75"),
         ("google/gemini-3.6-flash", "vercel-ai-gateway", "1.50", "7.50"),
         ("google/gemini-3.7-flash", "vercel-ai-gateway", "0.75", "3.75"),
         ("google/gemma-4-31b-it", "vercel-ai-gateway", "0.14", "0.40"),
