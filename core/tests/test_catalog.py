@@ -19,7 +19,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-08-24"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-08-25"
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
@@ -67,7 +67,11 @@ def test_resolve_price_does_not_guess_another_channel():
         ("openai/gpt-5.6-terra", "vercel-ai-gateway", "2.00", "12.00"),
         ("google/gemini-3.1-pro-preview", "vercel-ai-gateway", "2.00", "12.00"),
         ("google/gemini-3.6-flash", "vercel-ai-gateway", "1.50", "7.50"),
+        ("google/gemini-3.7-flash", "vercel-ai-gateway", "0.75", "3.75"),
         ("google/gemma-4-31b-it", "vercel-ai-gateway", "0.14", "0.40"),
+        ("meta/muse-glimmer-30b", "vercel-ai-gateway", "0.35", "1.50"),
+        ("thinkingmachines/inkling", "vercel-ai-gateway", "1.00", "4.05"),
+        ("zai/glm-5.2", "vercel-ai-gateway", "0.80", "2.55"),
         ("moonshotai/kimi-k3", "vercel-ai-gateway", "2.90", "14.00"),
         ("minimax/minimax-m3", "vercel-ai-gateway", "0.30", "1.20"),
         ("nvidia/nemotron-3-super-120b-a12b", "vercel-ai-gateway", "0.15", "0.65"),
@@ -82,7 +86,7 @@ def test_pipeline_catalog_compatibility(model, channel, input_rate, output_rate)
     resolved = SNAPSHOT.resolve_price(
         model=model,
         channel=channel,
-        at=_at("2026-08-24"),
+        at=_at("2026-08-25"),
     )
 
     assert resolved is not None

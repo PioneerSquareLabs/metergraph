@@ -6,7 +6,7 @@ from metergraph_core import load_catalog
 
 def test_bundled_catalog_has_identity_and_prices_a_call():
     loaded = load_catalog()
-    assert loaded.version == "2026-08-24"
+    assert loaded.version == "2026-08-25"
     assert len(loaded.content_hash) == 64
     result = loaded.snapshot.cost(
         provider="openai",
