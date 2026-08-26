@@ -33,13 +33,13 @@ CORE_DIR = Path(__file__).resolve().parents[2]  # core/
 DIST_DIR = CORE_DIR / "dist"
 
 EXPECTED_NAME = "metergraph-core"
-EXPECTED_VERSION = "0.1.4"
+EXPECTED_VERSION = "0.2.0"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
 CATALOG_VERSION = "2026-08-25"
 
-REQUIRED_MODULES = ("__init__.py", "catalog.py", "loader.py")
+REQUIRED_MODULES = ("__init__.py", "billing.py", "catalog.py", "loader.py")
 
 
 class VerifyError(AssertionError):
@@ -187,7 +187,13 @@ def _verify_isolated_install(wheel: Path) -> None:
         from datetime import datetime, timezone
 
         import metergraph_core
-        from metergraph_core import load_catalog
+        from metergraph_core import (
+            CostResult,
+            load_catalog,
+            normalize_gateway_evidence,
+            resolve_billing,
+        )
+        from decimal import Decimal
 
         source = getattr(metergraph_core, "__file__", "")
         assert "site-packages" in source, source
@@ -216,6 +222,17 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert result.price_id == {GOLDEN_PRICE_ID!r}, result.price_id
         assert str(result.cost_usd) == {GOLDEN_COST!r}, result.cost_usd
         assert result.status == "priced", result.status
+        decision = resolve_billing(
+            CostResult(None, None, None, "unpriced", ("unknown_model",)),
+            normalize_gateway_evidence({{
+                "gateway": "openrouter",
+                "endpoint": "chat.completions",
+                "reported_cost_usd": "0.00482",
+                "reported_cost_source": "openrouter.usage.cost",
+            }}),
+        )
+        assert decision.cost_usd == Decimal("0.00482"), decision
+        assert decision.cost_provenance == "gateway_reported", decision
         print("GOLDEN", result.cost_usd)
         """
     )
