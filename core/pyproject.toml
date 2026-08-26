@@ -1,7 +1,7 @@
 [project]
 name = "metergraph-core"
-version = "0.1.5"
-description = "Reusable MeterGraph catalog and deterministic token-cost pricing engine"
+version = "0.2.1"
+description = "Reusable MeterGraph catalog and deterministic billing engine"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"

@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from metergraph_core import normalize_gateway_evidence, resolve_billing
 
 from . import db
 from .auth import authenticated_app_token, require_ingest_token
@@ -194,6 +195,7 @@ def project_row(row: dict, catalog: CatalogSnapshot) -> tuple:
         cache_write_tokens=row.get("cache_write_tokens"),
         batch=row.get("batch") is True,
     )
+    billing = resolve_billing(enrichment, normalize_gateway_evidence(row))
     status_code, finish_reason, finish_reason_raw = _status_fields(row)
     return (
         ts,
@@ -209,9 +211,9 @@ def project_row(row: dict, catalog: CatalogSnapshot) -> tuple:
         _num(row.get("cache_read_tokens"), int),
         _num(row.get("cache_write_tokens"), int),
         _num(row.get("reasoning_tokens"), int),
-        enrichment.cost_usd,
-        enrichment.price_id,
-        enrichment.status,
+        billing.cost_usd,
+        billing.catalog_price_id,
+        billing.cost_status,
         _num(row.get("latency_ms"), int),
         _num(row.get("ttft_ms"), int),
         _text(row.get("status")),

@@ -1,13 +1,14 @@
 # metergraph-core
 
-Reusable catalog and deterministic token-cost pricing engine for MeterGraph.
+Reusable catalog and deterministic billing engine for MeterGraph.
 
 `metergraph-core` owns the public effective-dated model catalog and the pricing
 logic shared across MeterGraph systems: catalog parsing and validation, provider
 and model alias resolution, channel and region selection, input/output/cache/
 batch/long-context pricing rules, deterministic cost calculation with reason
 codes, stable logical price identifiers, and catalog version and content-hash
-reporting.
+reporting. It also owns the pure decision that selects a qualified
+gateway-reported charge or a catalog estimate as the effective call cost.
 
 It does not own HTTP routes, database access, migrations, authentication,
 tenancy, ingest, dashboard code, or any hosted-only concern, and it never reads
@@ -71,19 +72,51 @@ exists. It never substitutes a direct-provider price for a gateway price.
 `LoadedCatalog.pricing_verified_at` records when the bundled catalog was last
 checked against its linked provider sources.
 
+## Billing evidence
+
+Servers can pass content-blind, already-extracted gateway fields through the
+shared trust boundary and combine them with a catalog result:
+
+```python
+from metergraph_core import normalize_gateway_evidence, resolve_billing
+
+evidence = normalize_gateway_evidence({
+    "gateway": "openrouter",
+    "endpoint": "chat.completions",
+    "reported_cost_usd": "0.00482",
+    "reported_cost_source": "openrouter.usage.cost",
+})
+decision = resolve_billing(result, evidence)
+print(decision.cost_usd, decision.cost_provenance)
+```
+
+The initial qualified contract is OpenRouter Chat Completions. A finite,
+non-negative `openrouter.usage.cost` value, including zero, takes precedence
+over a catalog estimate. The decision retains both values and never adds the
+separately reported upstream inference cost to the OpenRouter account charge.
+Unsupported or malformed evidence falls back to the catalog result.
+
+The billing module validates only gateway, endpoint, fixed source names, and
+decimal cost values. It does not inspect provider response content or own SDK
+capture, HTTP, timestamps, trace context, persistence, or tenant behavior.
+
 ## Public API
 
 ```python
 from metergraph_core import (
     Alias,
+    BillingDecision,
     CatalogError,
     CatalogSnapshot,
     CostResult,
+    GatewayBillingEvidence,
     LoadedCatalog,
     Price,
     ResolvedPrice,
     load_catalog,
+    normalize_gateway_evidence,
     parse_catalog,
+    resolve_billing,
 )
 ```
 
