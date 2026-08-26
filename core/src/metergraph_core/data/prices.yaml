@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-08-25"
+version: "2026-08-26"
 currency: USD
-pricing_verified_at: "2026-08-25"
+pricing_verified_at: "2026-08-26"
 models:
   - canonical_id: openai/gpt-5.6-sol
     publisher: openai
@@ -975,3 +975,39 @@ models:
         output_per_mtok: 0.50
         cache_read_per_mtok: 0.05
         source_url: https://vercel.com/ai-gateway/models/grok-4.1-fast-reasoning/providers
+
+# Retrieval prices: USD per 1,000 counted operations (completed searches, tool
+# calls, executed grounding queries), billed on the provider's direct channel.
+# These sit alongside the model-token catalog above but are priced per unit, not
+# per token. Effective-dated like model prices: keep superseded entries and close
+# them with `effective_to` rather than editing in place. A $0 fee is an explicit
+# priced zero, not the absence of a price.
+retrieval:
+  - channel: anthropic-api
+    operation: web_search
+    region: global
+    unit: completed_search
+    per_1k_usd: 10.00
+    effective_from: "2026-08-26"
+    source_url: https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-search-tool
+  - channel: anthropic-api
+    operation: web_fetch
+    region: global
+    unit: tool_call
+    per_1k_usd: 0.00
+    effective_from: "2026-08-26"
+    source_url: https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/web-fetch-tool
+  - channel: openai-api
+    operation: web_search
+    region: global
+    unit: tool_call
+    per_1k_usd: 10.00
+    effective_from: "2026-08-26"
+    source_url: https://platform.openai.com/docs/pricing
+  - channel: google-api
+    operation: google_search_grounding
+    region: global
+    unit: executed_query
+    per_1k_usd: 14.00
+    effective_from: "2026-08-26"
+    source_url: https://ai.google.dev/gemini-api/docs/pricing

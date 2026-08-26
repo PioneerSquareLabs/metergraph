@@ -33,13 +33,21 @@ CORE_DIR = Path(__file__).resolve().parents[2]  # core/
 DIST_DIR = CORE_DIR / "dist"
 
 EXPECTED_NAME = "metergraph-core"
-EXPECTED_VERSION = "0.2.1"
+EXPECTED_VERSION = "0.2.2"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
-CATALOG_VERSION = "2026-08-25"
+GOLDEN_RETRIEVAL_COST = "14.00000000"
+GOLDEN_RETRIEVAL_PRICE_ID = "google-api:google_search_grounding:global:2026-08-26"
+CATALOG_VERSION = "2026-08-26"
 
-REQUIRED_MODULES = ("__init__.py", "billing.py", "catalog.py", "loader.py")
+REQUIRED_MODULES = (
+    "__init__.py",
+    "billing.py",
+    "catalog.py",
+    "loader.py",
+    "retrieval.py",
+)
 
 
 class VerifyError(AssertionError):
@@ -189,6 +197,7 @@ def _verify_isolated_install(wheel: Path) -> None:
         import metergraph_core
         from metergraph_core import (
             CostResult,
+            RetrievalCostResult,
             load_catalog,
             normalize_gateway_evidence,
             resolve_billing,
@@ -201,7 +210,7 @@ def _verify_isolated_install(wheel: Path) -> None:
         loaded = load_catalog()
         assert loaded.version == {CATALOG_VERSION!r}, loaded.version
         assert loaded.currency == "USD", loaded.currency
-        assert loaded.pricing_verified_at.isoformat() == "2026-08-25"
+        assert loaded.pricing_verified_at.isoformat() == {CATALOG_VERSION!r}
         assert len(loaded.content_hash) == 64, loaded.content_hash
         deployment = loaded.snapshot.resolve_price(
             model="moonshotai/kimi-k3",
@@ -222,6 +231,24 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert result.price_id == {GOLDEN_PRICE_ID!r}, result.price_id
         assert str(result.cost_usd) == {GOLDEN_COST!r}, result.cost_usd
         assert result.status == "priced", result.status
+        retrieval = loaded.price_retrieval(
+            channel="google-api",
+            operation="google_search_grounding",
+            units=1000,
+            at=datetime(2026, 8, 26, tzinfo=timezone.utc),
+        )
+        assert isinstance(retrieval, RetrievalCostResult), retrieval
+        assert retrieval.status == "priced", retrieval.status
+        assert retrieval.price_id == {GOLDEN_RETRIEVAL_PRICE_ID!r}, retrieval.price_id
+        assert str(retrieval.cost_usd) == {GOLDEN_RETRIEVAL_COST!r}, retrieval.cost_usd
+        unpriced = loaded.price_retrieval(
+            channel="google-api",
+            operation="google_search_grounding",
+            units=-1,
+            at=datetime(2026, 8, 26, tzinfo=timezone.utc),
+        )
+        assert unpriced.status == "unpriced", unpriced
+        assert unpriced.cost_usd is None, unpriced
         decision = resolve_billing(
             CostResult(None, None, None, "unpriced", ("unknown_model",)),
             normalize_gateway_evidence({{

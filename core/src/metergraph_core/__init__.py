@@ -19,6 +19,12 @@ from .loader import (
     LoadedCatalog,
     load_catalog,
     parse_catalog,
+    parse_retrieval,
+)
+from .retrieval import (
+    RetrievalCatalog,
+    RetrievalCostResult,
+    RetrievalPrice,
 )
 
 __all__ = [
@@ -31,9 +37,13 @@ __all__ = [
     "GatewayBillingEvidence",
     "Price",
     "ResolvedPrice",
+    "RetrievalCatalog",
+    "RetrievalCostResult",
+    "RetrievalPrice",
     "direct_channel_for_provider",
     "load_catalog",
     "normalize_gateway_evidence",
     "parse_catalog",
+    "parse_retrieval",
     "resolve_billing",
 ]

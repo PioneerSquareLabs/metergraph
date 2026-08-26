@@ -17,6 +17,7 @@ from .catalog import (
     _decimal,
     _normalize_provider,
 )
+from .retrieval import RetrievalCatalog, RetrievalCostResult, RetrievalPrice
 
 DEFAULT_CATALOG_PATH = Path(__file__).parent / "data" / "prices.yaml"
 _PROVIDER_SYNONYMS = {"bedrock": ("aws-bedrock", "aws")}
@@ -72,6 +73,7 @@ class LoadedCatalog:
     document: dict[str, Any]
     snapshot: CatalogSnapshot
     canonical_ids: Mapping[tuple[str, str], str]
+    retrieval: RetrievalCatalog
 
     def canonical_model_id(self, provider: str, model_id: str) -> str:
         """Resolve a captured provider-native model id to its canonical id,
@@ -111,6 +113,26 @@ class LoadedCatalog:
             cache_read_tokens=cache_read_tokens,
             cache_write_tokens=cache_write_tokens,
             batch=batch,
+        )
+
+    def price_retrieval(
+        self,
+        *,
+        channel: Any,
+        operation: Any,
+        units: Any,
+        at: Any,
+        region: Any = "global",
+    ) -> RetrievalCostResult:
+        """Price a retrieval operation (searches, tool calls, grounded queries)
+        by counted unit. See :meth:`RetrievalCatalog.price`. This is kept
+        distinct from :meth:`price`, which costs model-token usage."""
+        return self.retrieval.price(
+            channel=channel,
+            operation=operation,
+            units=units,
+            at=at,
+            region=region,
         )
 
 
@@ -228,6 +250,79 @@ def parse_catalog(
     return version, aliases, prices
 
 
+def parse_retrieval(document: Any) -> list[RetrievalPrice]:
+    """Parse the optional top-level ``retrieval`` list into effective-dated
+    per-1,000-unit prices, applying the same effective-date validation as the
+    token catalog (ISO dates, ``effective_to`` after ``effective_from``, no
+    overlapping windows per channel/operation/region). A per-unit rate must be
+    present and non-negative. An absent ``retrieval`` key yields no prices."""
+    if not isinstance(document, dict):
+        raise CatalogError("prices document must be a mapping")
+    entries = document.get("retrieval")
+    if entries is None:
+        return []
+    if not isinstance(entries, list):
+        raise CatalogError("prices document retrieval must be a list")
+    prices: list[RetrievalPrice] = []
+    seen_windows: list[tuple[str, str, str, datetime, datetime | None]] = []
+    for entry in entries:
+        channel = str(entry.get("channel") or "").strip().lower()
+        operation = str(entry.get("operation") or "").strip().lower()
+        region = str(entry.get("region") or "global")
+        unit = str(entry.get("unit") or "").strip()
+        if not channel or not operation:
+            raise CatalogError("retrieval entry needs channel/operation")
+        label = f"{channel}/{operation}"
+        if not unit:
+            raise CatalogError(f"{label}: retrieval entry needs a unit")
+        if not str(entry.get("source_url") or "").strip():
+            raise CatalogError(f"{label}: retrieval entry needs source_url")
+        per_1k_usd = _decimal(entry.get("per_1k_usd"))
+        if per_1k_usd is None or per_1k_usd < 0:
+            raise CatalogError(
+                f"{label}: retrieval entry needs a non-negative per_1k_usd"
+            )
+        effective_from = _date(
+            entry.get("effective_from"), field="effective_from", model=label
+        )
+        effective_to = (
+            _date(entry.get("effective_to"), field="effective_to", model=label)
+            if entry.get("effective_to") is not None
+            else None
+        )
+        if effective_to is not None and effective_to <= effective_from:
+            raise CatalogError(f"{label}: effective_to before effective_from")
+        for other in seen_windows:
+            other_channel, other_operation, other_region, other_from, other_to = other
+            if (other_channel, other_operation, other_region) != (
+                channel,
+                operation,
+                region,
+            ):
+                continue
+            if (effective_to is None or other_from < effective_to) and (
+                other_to is None or effective_from < other_to
+            ):
+                raise CatalogError(
+                    f"{label}: overlapping {region} retrieval price windows"
+                )
+        seen_windows.append((channel, operation, region, effective_from, effective_to))
+        prices.append(
+            RetrievalPrice(
+                id=f"{channel}:{operation}:{region}:{effective_from.date()}",
+                channel=channel,
+                operation=operation,
+                region=region,
+                unit=unit,
+                per_1k_usd=per_1k_usd,
+                effective_from=effective_from,
+                effective_to=effective_to,
+                source_url=str(entry["source_url"]).strip(),
+            )
+        )
+    return prices
+
+
 def load_catalog(
     path: str | Path | None = None, *, region: str = "global"
 ) -> LoadedCatalog:
@@ -244,4 +339,5 @@ def load_catalog(
         document=document,
         snapshot=CatalogSnapshot(aliases, prices, region=region),
         canonical_ids=_canonical_index(document),
+        retrieval=RetrievalCatalog(parse_retrieval(document)),
     )
