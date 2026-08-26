@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 
 from metergraph_server import prices
 from metergraph_server.ingest import COLUMNS, project_row
@@ -130,6 +131,44 @@ def test_unknown_model_lands_unpriced():
     values = dict(zip(COLUMNS, project_row(_row(model="mystery-1"), SNAPSHOT)))
     assert values["cost_status"] == "unpriced"
     assert values["cost_usd"] is None
+
+
+def test_qualified_openrouter_reported_cost_wins_over_catalog():
+    values = dict(zip(COLUMNS, project_row(_row(
+        gateway="openrouter",
+        reported_cost_usd="0.00042",
+        reported_cost_source="openrouter.usage.cost",
+    ), SNAPSHOT)))
+
+    assert values["cost_usd"] == Decimal("0.00042")
+    assert values["cost_status"] == "priced"
+    assert values["price_id"] is not None
+
+
+def test_qualified_openrouter_reported_cost_prices_unknown_model():
+    values = dict(zip(COLUMNS, project_row(_row(
+        model="unknown/openrouter-model",
+        gateway="openrouter",
+        reported_cost_usd="0.00042",
+        reported_cost_source="openrouter.usage.cost",
+    ), SNAPSHOT)))
+
+    assert values["cost_usd"] == Decimal("0.00042")
+    assert values["cost_status"] == "priced"
+    assert values["price_id"] is None
+
+
+def test_invalid_openrouter_reported_cost_falls_back_to_catalog():
+    expected = dict(zip(COLUMNS, project_row(_row(), SNAPSHOT)))
+    values = dict(zip(COLUMNS, project_row(_row(
+        gateway="openrouter",
+        reported_cost_usd=-1,
+        reported_cost_source="openrouter.usage.cost",
+    ), SNAPSHOT)))
+
+    assert values["cost_usd"] == expected["cost_usd"]
+    assert values["cost_status"] == expected["cost_status"]
+    assert values["price_id"] == expected["price_id"]
 
 
 def test_malformed_values_are_tolerated():

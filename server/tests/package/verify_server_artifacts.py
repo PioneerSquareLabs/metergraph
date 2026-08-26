@@ -6,7 +6,7 @@ dependency and work against the *built* core wheel. This script:
 
 1. builds (or, with ``--no-build``, reuses) the core wheel and the server wheel;
 2. asserts the server wheel's ``Requires-Dist`` names ``metergraph-core`` with
-   the intended ``>=0.1,<0.2`` range;
+   the intended ``>=0.2,<0.3`` range;
 3. installs the built core and server wheels into a throwaway virtualenv with
    their normal third-party dependencies resolved and no source tree visible;
    and
@@ -36,7 +36,7 @@ CORE_DIST = CORE_DIR / "dist"
 SERVER_DIST = SERVER_DIR / "dist"
 
 CORE_DISTRIBUTION = "metergraph-core"
-EXPECTED_CORE_SPECIFIERS = {">=0.1", "<0.2"}
+EXPECTED_CORE_SPECIFIERS = {">=0.2", "<0.3"}
 
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
