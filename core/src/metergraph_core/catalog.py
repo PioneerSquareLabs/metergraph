@@ -69,6 +69,7 @@ class Alias:
     canonical_id: str
     pricing_channel: str
     rules: Mapping[str, Any]
+    publisher: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -269,6 +270,34 @@ class CatalogSnapshot:
                 ):
                     return price
         return None
+
+    def infer_direct_channel(self, model: Any) -> str | None:
+        """Return the sole direct billing channel known for ``model``.
+
+        This supports captures that preserve a model identity but omit the
+        source provider. It uses the catalog's canonical model publisher and
+        returns ``None`` whenever model identity or direct channel is
+        ambiguous.
+        """
+        if not isinstance(model, str) or not model.strip():
+            return None
+        model_key = model.strip().lower()
+        canonical_ids = {
+            alias.canonical_id
+            for (known_model, _channel), alias in self._deployment_aliases.items()
+            if known_model == model_key
+        }
+        if len(canonical_ids) != 1:
+            return None
+        channels: set[str] = set()
+        for canonical_id in canonical_ids:
+            for alias in self._deployment_aliases.values():
+                if alias.canonical_id != canonical_id:
+                    continue
+                channel = direct_channel_for_provider(alias.publisher)
+                if channel is not None and (canonical_id, channel) in self._prices:
+                    channels.add(channel)
+        return next(iter(channels)) if len(channels) == 1 else None
 
     def resolve_price(
         self, *, model: Any, channel: Any, at: datetime

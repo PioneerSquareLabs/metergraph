@@ -258,6 +258,21 @@ def test_direct_channel_for_provider_maps_known_and_rejects_unknown():
     assert direct_channel_for_provider(123) is None
 
 
+def test_catalog_infers_a_unique_direct_channel_from_model_identity():
+    catalog = load_catalog()
+
+    assert catalog.infer_direct_channel("claude-opus-5") == "anthropic-api"
+    assert catalog.infer_direct_channel("openai/gpt-5.6-luna") == "openai-api"
+    assert catalog.infer_direct_channel("google/gemini-3.6-flash") == "google-api"
+
+
+def test_catalog_does_not_infer_ambiguous_or_unknown_model_identity(tmp_path):
+    catalog = _catalog(tmp_path)
+
+    assert catalog.infer_direct_channel("shared-name") is None
+    assert catalog.infer_direct_channel("mystery-model") is None
+
+
 def test_installed_catalog_prices_openai_direct_end_to_end():
     # No path -> the metergraph-core bundled catalog. Structural assertions only
     # so shipped price numbers stay free to change.
