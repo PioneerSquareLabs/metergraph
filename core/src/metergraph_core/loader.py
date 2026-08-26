@@ -5,11 +5,18 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Mapping
 
 import yaml
 
-from .catalog import Alias, CatalogSnapshot, Price, _decimal
+from .catalog import (
+    Alias,
+    CatalogSnapshot,
+    CostResult,
+    Price,
+    _decimal,
+    _normalize_provider,
+)
 
 DEFAULT_CATALOG_PATH = Path(__file__).parent / "data" / "prices.yaml"
 _PROVIDER_SYNONYMS = {"bedrock": ("aws-bedrock", "aws")}
@@ -27,6 +34,35 @@ def _freeze(value: Any) -> Any:
     return value
 
 
+def _canonical_index(document: dict[str, Any]) -> dict[tuple[str, str], str]:
+    """Map every ``(provider, name)`` -- for each declared alias and, under the
+    providers that publish it, the canonical id itself -- to its canonical id,
+    dropping any pair that would resolve ambiguously. Qualifying by provider
+    lets a capture path canonicalize a name two providers share (each to its own
+    canonical) while still never guessing when the provider is unknown."""
+    index: dict[tuple[str, str], str] = {}
+    ambiguous: set[tuple[str, str]] = set()
+    for entry in document.get("models", []):
+        canonical = str(entry["canonical_id"])
+        providers: set[str] = set()
+        pairs: list[tuple[str, str]] = []
+        for alias in entry.get("aliases") or []:
+            provider = str(alias.get("provider") or "").strip().lower()
+            if not provider:
+                continue
+            providers.add(provider)
+            pairs.append((provider, str(alias["alias"])))
+        for provider in providers:
+            pairs.append((provider, canonical))
+        for key in pairs:
+            if index.get(key, canonical) != canonical:
+                ambiguous.add(key)
+            index[key] = canonical
+    for key in ambiguous:
+        index.pop(key, None)
+    return index
+
+
 @dataclass(frozen=True, slots=True)
 class LoadedCatalog:
     version: str
@@ -35,6 +71,43 @@ class LoadedCatalog:
     content_hash: str
     document: dict[str, Any]
     snapshot: CatalogSnapshot
+    canonical_ids: Mapping[tuple[str, str], str]
+
+    def canonical_model_id(self, provider: str, model_id: str) -> str:
+        """Resolve a captured provider-native model id to its canonical id,
+        using the known source ``provider`` to disambiguate names shared across
+        providers. An unknown provider, unknown id, or non-string input is left
+        unchanged so none is ever misattributed."""
+        if not isinstance(model_id, str) or not isinstance(provider, str):
+            return model_id
+        return self.canonical_ids.get(
+            (_normalize_provider(provider), model_id), model_id
+        )
+
+    def price(
+        self,
+        *,
+        model: Any,
+        channel: Any,
+        at: Any,
+        input_tokens: Any,
+        output_tokens: Any,
+        cache_read_tokens: Any = None,
+        cache_write_tokens: Any = None,
+        batch: bool = False,
+    ) -> CostResult:
+        """Price an observed deployment channel-exactly. See
+        :meth:`CatalogSnapshot.price_deployment`."""
+        return self.snapshot.price_deployment(
+            model=model,
+            channel=channel,
+            at=at,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            cache_read_tokens=cache_read_tokens,
+            cache_write_tokens=cache_write_tokens,
+            batch=batch,
+        )
 
 
 def _date(value: Any, *, field: str, model: str) -> datetime:
@@ -164,4 +237,5 @@ def load_catalog(
         content_hash=hashlib.sha256(content).hexdigest(),
         document=document,
         snapshot=CatalogSnapshot(aliases, prices, region=region),
+        canonical_ids=_canonical_index(document),
     )
