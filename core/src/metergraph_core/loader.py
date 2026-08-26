@@ -84,6 +84,10 @@ class LoadedCatalog:
             (_normalize_provider(provider), model_id), model_id
         )
 
+    def infer_direct_channel(self, model: Any) -> str | None:
+        """Infer a direct pricing channel only when the catalog is unambiguous."""
+        return self.snapshot.infer_direct_channel(model)
+
     def price(
         self,
         *,
@@ -150,6 +154,7 @@ def parse_catalog(
         canonical = str(entry.get("canonical_id") or "")
         if not canonical:
             raise CatalogError("model entry missing canonical_id")
+        publisher = str(entry.get("publisher") or "").strip().lower() or None
         for alias in entry.get("aliases") or []:
             provider = str(alias.get("provider") or "").lower()
             name = str(alias.get("alias") or "").lower()
@@ -167,6 +172,7 @@ def parse_catalog(
                     canonical_id=canonical,
                     pricing_channel=channel,
                     rules=_freeze(alias.get("rules") or {}),
+                    publisher=publisher,
                 )
         seen_windows: list[tuple[str, str, datetime, datetime | None]] = []
         for price in entry.get("prices") or []:
