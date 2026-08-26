@@ -40,7 +40,7 @@ EXPECTED_CORE_SPECIFIERS = {">=0.1", "<0.2"}
 
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
-CATALOG_VERSION = "2026-08-24"
+CATALOG_VERSION = "2026-08-25"
 
 
 class VerifyError(AssertionError):
