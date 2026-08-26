@@ -251,6 +251,7 @@ def test_direct_channel_for_provider_maps_known_and_rejects_unknown():
     assert direct_channel_for_provider("vertex-ai") == "google-vertex-ai"
     assert direct_channel_for_provider("bedrock") == "aws-bedrock"
     assert direct_channel_for_provider("anthropic") == "anthropic-api"
+    assert direct_channel_for_provider("vercel") == "vercel-ai-gateway"
     # A provider with no direct channel defined -- caller keeps it unpriced.
     assert direct_channel_for_provider("mystery") is None
     assert direct_channel_for_provider(None) is None

@@ -25,6 +25,7 @@ _DIRECT_CHANNEL_BY_PROVIDER = {
     "anthropic": "anthropic-api",
     "openai": "openai-api",
     "google": "google-api",
+    "vercel": "vercel-ai-gateway",
     "vertex-ai": "google-vertex-ai",
     "fireworks": "fireworks-api",
     "bedrock": "aws-bedrock",
