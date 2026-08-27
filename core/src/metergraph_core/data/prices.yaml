@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-08-26"
+version: "2026-08-27"
 currency: USD
-pricing_verified_at: "2026-08-26"
+pricing_verified_at: "2026-08-27"
 models:
   - canonical_id: openai/gpt-5.6-sol
     publisher: openai
@@ -20,6 +20,7 @@ models:
         alias: openai/gpt-5.6-sol
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: bedrock, alias: us.openai.gpt-5.6-sol, channel: aws-bedrock}
     prices:
       - channel: openai-api
         region: global
@@ -44,6 +45,16 @@ models:
         rules:
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://vercel.com/ai-gateway/models/gpt-5.6-sol/providers
+      - channel: aws-bedrock
+        region: us-west-2
+        effective_from: "2026-08-17"
+        input_per_mtok: 5.50
+        output_per_mtok: 33.00
+        cache_read_per_mtok: 0.55
+        cache_write_5m_per_mtok: 6.875
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-56-sol.html
 
   - canonical_id: openai/gpt-5.6-terra
     publisher: openai
@@ -53,6 +64,7 @@ models:
         alias: openai/gpt-5.6-terra
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: bedrock, alias: us.openai.gpt-5.6-terra, channel: aws-bedrock}
     prices:
       - channel: openai-api
         region: global
@@ -77,6 +89,16 @@ models:
         rules:
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://vercel.com/ai-gateway/models/gpt-5.6-terra/providers
+      - channel: aws-bedrock
+        region: us-west-2
+        effective_from: "2026-08-17"
+        input_per_mtok: 2.20
+        output_per_mtok: 13.20
+        cache_read_per_mtok: 0.22
+        cache_write_5m_per_mtok: 2.75
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-56-terra.html
 
   - canonical_id: openai/gpt-5.6-luna
     publisher: openai
@@ -86,6 +108,7 @@ models:
         alias: openai/gpt-5.6-luna
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: bedrock, alias: us.openai.gpt-5.6-luna, channel: aws-bedrock}
     prices:
       - channel: openai-api
         region: global
@@ -125,6 +148,16 @@ models:
         rules:
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: aws-bedrock
+        region: us-west-2
+        effective_from: "2026-08-17"
+        input_per_mtok: 0.22
+        output_per_mtok: 1.32
+        cache_read_per_mtok: 0.022
+        cache_write_5m_per_mtok: 0.275
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-56-luna.html
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-07-30"
@@ -598,6 +631,18 @@ models:
         cache_read_per_mtok: 0.015
         source_url: https://ai-gateway.vercel.sh/v1/models
 
+  - canonical_id: google/gemma-3-27b-it
+    publisher: google
+    aliases:
+      - {provider: bedrock, alias: google.gemma-3-27b-it, channel: aws-bedrock}
+    prices:
+      - channel: aws-bedrock
+        region: us-west-2
+        effective_from: "2026-08-27"
+        input_per_mtok: 0.23
+        output_per_mtok: 0.38
+        source_url: https://aws.amazon.com/bedrock/pricing/
+
   - canonical_id: nvidia/nemotron-3-super-120b-a12b
     publisher: nvidia
     aliases:
@@ -651,6 +696,18 @@ models:
         effective_from: "2026-07-14"
         input_per_mtok: 0.62
         output_per_mtok: 1.85
+        source_url: https://aws.amazon.com/bedrock/pricing/
+
+  - canonical_id: deepseek/v3.1
+    publisher: deepseek
+    aliases:
+      - {provider: bedrock, alias: deepseek.v3-v1:0, channel: aws-bedrock}
+    prices:
+      - channel: aws-bedrock
+        region: us-west-2
+        effective_from: "2026-08-27"
+        input_per_mtok: 0.58
+        output_per_mtok: 1.68
         source_url: https://aws.amazon.com/bedrock/pricing/
 
   - canonical_id: deepseek/v4-flash
@@ -903,6 +960,18 @@ models:
         output_per_mtok: 14.00
         cache_read_per_mtok: 0.29
         source_url: https://vercel.com/ai-gateway/models/kimi-k3/providers
+
+  - canonical_id: moonshotai/kimi-k2.5
+    publisher: moonshotai
+    aliases:
+      - {provider: bedrock, alias: moonshotai.kimi-k2.5, channel: aws-bedrock}
+    prices:
+      - channel: aws-bedrock
+        region: us-west-2
+        effective_from: "2026-08-27"
+        input_per_mtok: 0.60
+        output_per_mtok: 3.00
+        source_url: https://aws.amazon.com/bedrock/pricing/
 
   - canonical_id: minimax/minimax-m3
     publisher: minimax
