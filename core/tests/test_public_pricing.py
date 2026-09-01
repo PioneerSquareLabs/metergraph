@@ -304,3 +304,17 @@ def test_installed_catalog_prices_gemini_31_pro_on_direct_google_api():
         "google/gemini-3.1-pro-preview:google-api:global:2026-02-19"
     )
     assert priced.cost_usd == Decimal("0.00800000")
+
+
+def test_installed_catalog_does_not_price_retired_gemini_3_pro_after_shutdown():
+    catalog = load_catalog()
+    priced = catalog.price(
+        model="gemini-3-pro-preview",
+        channel="google-api",
+        at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        input_tokens=1000,
+        output_tokens=500,
+    )
+
+    assert priced.status == "unpriced"
+    assert priced.cost_usd is None

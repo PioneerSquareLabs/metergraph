@@ -511,6 +511,7 @@ models:
       - channel: google-api
         region: global
         effective_from: "2025-11-18"
+        effective_to: "2026-03-09"
         input_per_mtok: 2.00
         output_per_mtok: 12.00
         cache_read_per_mtok: 0.20
