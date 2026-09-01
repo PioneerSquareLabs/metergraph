@@ -286,3 +286,21 @@ def test_installed_catalog_prices_openai_direct_end_to_end():
     assert priced.canonical_model == "openai/gpt-5.6-sol"
     assert priced.price_id
     assert priced.cost_usd is not None and priced.cost_usd > 0
+
+
+def test_installed_catalog_prices_gemini_31_pro_on_direct_google_api():
+    catalog = load_catalog()
+    priced = catalog.price(
+        model="gemini-3.1-pro-preview",
+        channel="google-api",
+        at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        input_tokens=1000,
+        output_tokens=500,
+    )
+
+    assert priced.status == "priced"
+    assert priced.canonical_model == "google/gemini-3.1-pro-preview"
+    assert priced.price_id == (
+        "google/gemini-3.1-pro-preview:google-api:global:2026-02-19"
+    )
+    assert priced.cost_usd == Decimal("0.00800000")
