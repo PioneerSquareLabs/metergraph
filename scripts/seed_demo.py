@@ -55,7 +55,7 @@ PROFILES = [
     ),
     (
         "extraction.deep_audit", "app.extraction", "receipt-parser",
-        "google", "gemini-3-pro", 2, (5000, 30000), (800, 2500), 0.04,
+        "google", "gemini-3.1-pro-preview", 2, (5000, 30000), (800, 2500), 0.04,
     ),
     (
         "research.summarize_thread", "app.research", None,
