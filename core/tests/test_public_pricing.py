@@ -318,3 +318,29 @@ def test_installed_catalog_does_not_price_retired_gemini_3_pro_after_shutdown():
 
     assert priced.status == "unpriced"
     assert priced.cost_usd is None
+
+
+def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api():
+    catalog = load_catalog()
+
+    assert (
+        catalog.canonical_model_id("anthropic", "anthropic/claude-sonnet-4.5")
+        == "anthropic/claude-sonnet-4.5"
+    )
+
+    priced = catalog.price(
+        model="anthropic/claude-sonnet-4.5",
+        channel="anthropic-api",
+        at=datetime(2025, 10, 1, tzinfo=timezone.utc),
+        input_tokens=1000,
+        output_tokens=500,
+        cache_read_tokens=200,
+        cache_write_tokens=100,
+    )
+    assert priced.status == "priced"
+    assert priced.canonical_model == "anthropic/claude-sonnet-4.5"
+    assert (
+        priced.price_id
+        == "anthropic/claude-sonnet-4.5:anthropic-api:global:2025-09-29"
+    )
+    assert priced.cost_usd == Decimal("0.01093500")
