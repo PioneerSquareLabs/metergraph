@@ -637,3 +637,82 @@ def test_malformed_catalog_rejected():
         parse_catalog({"models": []})
     with pytest.raises(CatalogError):
         parse_catalog({"version": "test"})
+
+
+def _gateway(model: str, day: str):
+    return SNAPSHOT.resolve_price(
+        model=model, channel="vercel-ai-gateway", at=_at(day)
+    )
+
+
+# Closing a window (not editing it) leaves resolution at <= 2026-09-01 unchanged.
+@pytest.mark.parametrize(
+    ("model", "prior_input", "input_rate", "output_rate", "cache_read"),
+    [
+        ("openai/gpt-5.6-sol", "5.00", "2.00", "10.00", "0.20"),
+        ("deepseek/deepseek-v4-flash", "0.14", "0.13", "0.26", "0.028"),
+        ("deepseek/deepseek-v4-pro", "0.435", "0.66", "1.98", "0.022"),
+        ("moonshotai/kimi-k3", "2.90", "3.00", "15.00", "0.30"),
+    ],
+)
+def test_vercel_gateway_corrections_preserve_prior_window(
+    model, prior_input, input_rate, output_rate, cache_read
+):
+    prior = _gateway(model, "2026-09-01")
+    corrected = _gateway(model, "2026-09-02")
+    assert prior is not None and corrected is not None
+    assert prior.price.input_per_mtok == Decimal(prior_input)
+    assert corrected.price.input_per_mtok == Decimal(input_rate)
+    assert corrected.price.output_per_mtok == Decimal(output_rate)
+    assert corrected.price.cache_read_per_mtok == Decimal(cache_read)
+
+
+def test_gpt56_sol_direct_and_gateway_channels_price_independently():
+    direct = SNAPSHOT.resolve_price(
+        model="gpt-5.6-sol", channel="openai-api", at=_at("2026-09-02")
+    )
+    gateway = _gateway("openai/gpt-5.6-sol", "2026-09-02")
+    assert direct is not None and gateway is not None
+    assert direct.price.input_per_mtok == Decimal("4.00")
+    assert gateway.price.input_per_mtok == Decimal("2.00")
+    assert gateway.price.cache_write_5m_per_mtok == Decimal("2.50")
+    # Gateway's top-level rate is provider-dependent; the direct rate is exact.
+    assert gateway.price.rules.get("varies_by_provider") is True
+    assert "varies_by_provider" not in direct.price.rules
+
+
+def test_gpt56_sol_direct_correction_effective_2026_08_21_keeps_long_context():
+    before = SNAPSHOT.resolve_price(
+        model="gpt-5.6-sol", channel="openai-api", at=_at("2026-08-20")
+    )
+    after = SNAPSHOT.resolve_price(
+        model="gpt-5.6-sol", channel="openai-api", at=_at("2026-08-21")
+    )
+    assert before is not None and after is not None
+    assert before.price.input_per_mtok == Decimal("5.00")
+    assert after.price.input_per_mtok == Decimal("4.00")
+    assert after.price.cache_read_per_mtok == Decimal("0.40")
+    assert after.price.cache_write_5m_per_mtok == Decimal("5.00")
+    long_context = SNAPSHOT.cost(
+        provider="openai", model="gpt-5.6-sol", at=_at("2026-08-21"),
+        input_tokens=300_000, output_tokens=1_000,
+    )
+    expected = (
+        Decimal(300_000) * Decimal("4.00") * 2 / Decimal(1_000_000)
+        + Decimal(1_000) * Decimal("20.00") * Decimal("1.5") / Decimal(1_000_000)
+    )
+    assert long_context.cost_usd == expected.quantize(Decimal("0.00000001"))
+
+
+def test_gemini36_flash_gateway_promo_reverts_on_2027_boundary():
+    prior = _gateway("google/gemini-3.6-flash", "2026-09-01")
+    promo = _gateway("google/gemini-3.6-flash", "2026-12-31")
+    standard = _gateway("google/gemini-3.6-flash", "2027-01-01")
+    assert prior is not None and promo is not None and standard is not None
+    assert prior.price.input_per_mtok == Decimal("1.50")
+    assert promo.price.input_per_mtok == Decimal("0.75")
+    assert promo.price.output_per_mtok == Decimal("3.75")
+    assert promo.price.cache_read_per_mtok == Decimal("0.075")
+    # effective_to is exclusive: the standard rate resumes on 2027-01-01.
+    assert standard.price.input_per_mtok == Decimal("1.50")
+    assert standard.price.cache_read_per_mtok == Decimal("0.15")
