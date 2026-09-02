@@ -320,6 +320,37 @@ def test_installed_catalog_does_not_price_retired_gemini_3_pro_after_shutdown():
     assert priced.cost_usd is None
 
 
+_AT_NANO = datetime(2026, 3, 17, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize("channel", ["openai-api", "vercel-ai-gateway"])
+def test_installed_catalog_prices_gpt_5_4_nano_on_both_channels(channel):
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model="openai/gpt-5.4-nano", channel=channel, at=_AT_NANO,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "openai/gpt-5.4-nano"
+    assert resolved.price_id == f"openai/gpt-5.4-nano:{channel}:global:2026-03-17"
+    assert resolved.cost_usd == Decimal("1.45000000")
+
+    output_only = catalog.price(
+        model="openai/gpt-5.4-nano", channel=channel, at=_AT_NANO,
+        input_tokens=0, output_tokens=1_000_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("1.25000000")
+
+    cached = catalog.price(
+        model="openai/gpt-5.4-nano", channel=channel, at=_AT_NANO,
+        input_tokens=1_000_000, output_tokens=0, cache_read_tokens=1_000_000,
+    )
+    assert cached.status == "priced"
+    assert cached.cost_usd == Decimal("0.02000000")
+
+
 def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api():
     catalog = load_catalog()
 
