@@ -1059,6 +1059,40 @@ models:
         cache_read_per_mtok: 0.05
         source_url: https://vercel.com/ai-gateway/models/grok-4.1-fast-reasoning/providers
 
+  # Vercel now serves the Grok creator namespace as spacexai/*; canonical ids
+  # stay xai/* (publisher). Non-reasoning shares the fast-reasoning launch rate.
+  - canonical_id: xai/grok-4.1-fast-non-reasoning
+    publisher: xai
+    aliases:
+      - provider: xai
+        alias: spacexai/grok-4.1-fast-non-reasoning
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-11-19"
+        input_per_mtok: 0.20
+        output_per_mtok: 0.50
+        cache_read_per_mtok: 0.05
+        source_url: https://vercel.com/ai-gateway/models/grok-4.1-fast-non-reasoning/providers
+
+  - canonical_id: xai/grok-4.6
+    publisher: xai
+    aliases:
+      - provider: xai
+        alias: spacexai/grok-4.6
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-08-01"
+        input_per_mtok: 2.00
+        output_per_mtok: 6.00
+        cache_read_per_mtok: 0.50
+        source_url: https://vercel.com/ai-gateway/models/grok-4.6/providers
+
 # Retrieval prices: USD per 1,000 counted operations (completed searches, tool
 # calls, executed grounding queries), billed on the provider's direct channel.
 # These sit alongside the model-token catalog above but are priced per unit, not
