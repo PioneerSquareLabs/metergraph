@@ -39,7 +39,7 @@ GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
 GOLDEN_RETRIEVAL_COST = "14.00000000"
 GOLDEN_RETRIEVAL_PRICE_ID = "google-api:google_search_grounding:global:2026-08-26"
-CATALOG_VERSION = "2026-09-01"
+CATALOG_VERSION = "2026-09-02"
 
 REQUIRED_MODULES = (
     "__init__.py",

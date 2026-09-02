@@ -19,7 +19,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-09-01"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-09-02"
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
@@ -96,6 +96,9 @@ def test_gemini_direct_price_changes_on_its_effective_date():
         ("fireworks:accounts/fireworks/models/glm-5p2", "fireworks-api", "1.40", "4.40"),
         ("fireworks:accounts/fireworks/models/qwen3p7-plus", "fireworks-api", "0.40", "1.60"),
         ("xai/grok-4.1-fast-reasoning", "vercel-ai-gateway", "0.20", "0.50"),
+        # Vercel's current Grok creator namespace (spacexai/*).
+        ("spacexai/grok-4.1-fast-non-reasoning", "vercel-ai-gateway", "0.20", "0.50"),
+        ("spacexai/grok-4.6", "vercel-ai-gateway", "2.00", "6.00"),
     ],
 )
 def test_pipeline_catalog_compatibility(model, channel, input_rate, output_rate):
@@ -108,6 +111,48 @@ def test_pipeline_catalog_compatibility(model, channel, input_rate, output_rate)
     assert resolved is not None
     assert resolved.price.input_per_mtok == Decimal(input_rate)
     assert resolved.price.output_per_mtok == Decimal(output_rate)
+
+
+def test_current_spacexai_grok_identities_resolve_at_vercel_prices():
+    at = _at("2026-08-25")
+
+    non_reasoning = SNAPSHOT.resolve_price(
+        model="spacexai/grok-4.1-fast-non-reasoning",
+        channel="vercel-ai-gateway",
+        at=at,
+    )
+    assert non_reasoning is not None
+    assert non_reasoning.canonical_model == "xai/grok-4.1-fast-non-reasoning"
+    assert non_reasoning.price.input_per_mtok == Decimal("0.20")
+    assert non_reasoning.price.output_per_mtok == Decimal("0.50")
+    assert non_reasoning.price.cache_read_per_mtok == Decimal("0.05")
+    assert non_reasoning.rules["input_includes_cache_read"] is True
+
+    grok46 = SNAPSHOT.resolve_price(
+        model="spacexai/grok-4.6", channel="vercel-ai-gateway", at=at
+    )
+    assert grok46 is not None
+    assert grok46.canonical_model == "xai/grok-4.6"
+    assert grok46.price.id == "xai/grok-4.6:vercel-ai-gateway:global:2026-08-01"
+    assert grok46.price.input_per_mtok == Decimal("2.00")
+    assert grok46.price.output_per_mtok == Decimal("6.00")
+    assert grok46.price.cache_read_per_mtok == Decimal("0.50")
+    assert grok46.price.source_url.endswith("/grok-4.6/providers")
+
+    # The historical xai/* reasoning identity is unchanged and stays distinct.
+    reasoning = SNAPSHOT.resolve_price(
+        model="xai/grok-4.1-fast-reasoning", channel="vercel-ai-gateway", at=at
+    )
+    assert reasoning is not None
+    assert reasoning.canonical_model == "xai/grok-4.1-fast-reasoning"
+    assert reasoning.price.input_per_mtok == Decimal("0.20")
+
+    # Temporal accuracy: grok-4.6 has no price before its 2026-08-01 launch.
+    assert SNAPSHOT.resolve_price(
+        model="spacexai/grok-4.6",
+        channel="vercel-ai-gateway",
+        at=_at("2026-07-31"),
+    ) is None
 
 
 @pytest.mark.parametrize(
