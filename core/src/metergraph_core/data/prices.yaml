@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-09-01"
+version: "2026-09-02"
 currency: USD
-pricing_verified_at: "2026-09-01"
+pricing_verified_at: "2026-09-02"
 models:
   - canonical_id: openai/gpt-5.6-sol
     publisher: openai

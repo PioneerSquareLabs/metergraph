@@ -19,7 +19,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-09-01"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-09-02"
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
