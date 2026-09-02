@@ -25,6 +25,7 @@ models:
       - channel: openai-api
         region: global
         effective_from: "2026-07-09"
+        effective_to: "2026-08-21"
         input_per_mtok: 5.00
         output_per_mtok: 30.00
         cache_read_per_mtok: 0.50
@@ -35,9 +36,24 @@ models:
           input_includes_cache_read: true
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://developers.openai.com/api/docs/models/gpt-5.6-sol
+      # OpenAI's 2026-08-21 update cut the direct rate; cache write stays 1.25x input.
+      - channel: openai-api
+        region: global
+        effective_from: "2026-08-21"
+        input_per_mtok: 4.00
+        output_per_mtok: 20.00
+        cache_read_per_mtok: 0.40
+        cache_write_5m_per_mtok: 5.00
+        batch_input_per_mtok: 2.00
+        batch_output_per_mtok: 10.00
+        rules:
+          input_includes_cache_read: true
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://developers.openai.com/api/docs/models/gpt-5.6-sol
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-07-09"
+        effective_to: "2026-09-02"
         input_per_mtok: 5.00
         output_per_mtok: 30.00
         cache_read_per_mtok: 0.50
@@ -45,6 +61,18 @@ models:
         rules:
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://vercel.com/ai-gateway/models/gpt-5.6-sol/providers
+      # Vercel's top-level Gateway rate is indicative and varies by provider.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-02"
+        input_per_mtok: 2.00
+        output_per_mtok: 10.00
+        cache_read_per_mtok: 0.20
+        cache_write_5m_per_mtok: 2.50
+        rules:
+          varies_by_provider: true
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: aws-bedrock
         region: us-west-2
         effective_from: "2026-08-17"
@@ -764,9 +792,17 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-04-24"
+        effective_to: "2026-09-02"
         input_per_mtok: 0.14
         output_per_mtok: 0.28
         cache_read_per_mtok: 0.0028
+        source_url: https://vercel.com/ai-gateway/models/deepseek-v4-flash/providers
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-02"
+        input_per_mtok: 0.13
+        output_per_mtok: 0.26
+        cache_read_per_mtok: 0.028
         source_url: https://vercel.com/ai-gateway/models/deepseek-v4-flash/providers
 
   - canonical_id: deepseek/v4-pro
@@ -790,9 +826,17 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-04-24"
+        effective_to: "2026-09-02"
         input_per_mtok: 0.435
         output_per_mtok: 0.87
         cache_read_per_mtok: 0.003625
+        source_url: https://vercel.com/ai-gateway/models/deepseek-v4-pro/providers
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-02"
+        input_per_mtok: 0.66
+        output_per_mtok: 1.98
+        cache_read_per_mtok: 0.022
         source_url: https://vercel.com/ai-gateway/models/deepseek-v4-pro/providers
 
   - canonical_id: xai/grok-4.3
@@ -897,6 +941,23 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-07-21"
+        effective_to: "2026-09-02"
+        input_per_mtok: 1.50
+        output_per_mtok: 7.50
+        cache_read_per_mtok: 0.15
+        source_url: https://vercel.com/ai-gateway/models/gemini-3.6-flash/providers
+      # Vercel Gateway promotional rate; reverts to the standard rate 2027-01-01.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-02"
+        effective_to: "2027-01-01"
+        input_per_mtok: 0.75
+        output_per_mtok: 3.75
+        cache_read_per_mtok: 0.075
+        source_url: https://vercel.com/ai-gateway/models/gemini-3.6-flash/providers
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2027-01-01"
         input_per_mtok: 1.50
         output_per_mtok: 7.50
         cache_read_per_mtok: 0.15
@@ -989,9 +1050,17 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-07-16"
+        effective_to: "2026-09-02"
         input_per_mtok: 2.90
         output_per_mtok: 14.00
         cache_read_per_mtok: 0.29
+        source_url: https://vercel.com/ai-gateway/models/kimi-k3/providers
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-02"
+        input_per_mtok: 3.00
+        output_per_mtok: 15.00
+        cache_read_per_mtok: 0.30
         source_url: https://vercel.com/ai-gateway/models/kimi-k3/providers
 
   - canonical_id: moonshotai/kimi-k2.5
