@@ -393,6 +393,38 @@ def test_installed_catalog_prices_gemini_2_5_flash_on_both_channels(channel, cac
     assert cached.cost_usd == Decimal(cache_read_cost)
 
 
+_AT_OPUS_48 = datetime(2026, 8, 20, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,channel",
+    # The provider-qualified id is the gateway's naming, the dashed id is
+    # Anthropic's own -- matching every other Claude model in the catalog.
+    [("claude-opus-4-8", "anthropic-api"),
+     ("anthropic/claude-opus-4.8", "vercel-ai-gateway")],
+)
+def test_installed_catalog_prices_claude_opus_4_8_on_both_channels(model, channel):
+    """The gateway carries the same rates as Anthropic direct, but needs its
+    own window: without one, gateway-routed Opus 4.8 calls resolve unpriced."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_OPUS_48,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "anthropic/claude-opus-4.8"
+    assert resolved.price_id == f"anthropic/claude-opus-4.8:{channel}:global:2026-05-28"
+    assert resolved.cost_usd == Decimal("30.00000000")
+
+    output_only = catalog.price(
+        model=model, channel=channel, at=_AT_OPUS_48,
+        input_tokens=0, output_tokens=1_000_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("25.00000000")
+
+
 def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api():
     catalog = load_catalog()
 
