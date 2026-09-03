@@ -351,6 +351,48 @@ def test_installed_catalog_prices_gpt_5_4_nano_on_both_channels(channel):
     assert cached.cost_usd == Decimal("0.02000000")
 
 
+_AT_GEMINI_25_FLASH = datetime(2026, 8, 20, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "channel,cache_read_cost",
+    # google-api bills cache reads on top of full input; the gateway alias sets
+    # input_includes_cache_read, so its cache reads come out of billable input.
+    [("google-api", "0.37500000"), ("vercel-ai-gateway", "0.03000000")],
+)
+def test_installed_catalog_prices_gemini_2_5_flash_on_both_channels(channel, cache_read_cost):
+    """The gateway resolves the provider-qualified id and bills its own cache rate.
+
+    Google direct and the Vercel gateway share input/output rates but not the
+    cache-read rate, so the gateway needs its own priced window rather than a
+    fallback to the direct channel.
+    """
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model="google/gemini-2.5-flash", channel=channel, at=_AT_GEMINI_25_FLASH,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "google/gemini-2.5-flash"
+    assert resolved.price_id == f"google/gemini-2.5-flash:{channel}:global:2025-06-17"
+    assert resolved.cost_usd == Decimal("2.80000000")
+
+    output_only = catalog.price(
+        model="google/gemini-2.5-flash", channel=channel, at=_AT_GEMINI_25_FLASH,
+        input_tokens=0, output_tokens=1_000_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("2.50000000")
+
+    cached = catalog.price(
+        model="google/gemini-2.5-flash", channel=channel, at=_AT_GEMINI_25_FLASH,
+        input_tokens=1_000_000, output_tokens=0, cache_read_tokens=1_000_000,
+    )
+    assert cached.status == "priced"
+    assert cached.cost_usd == Decimal(cache_read_cost)
+
+
 def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api():
     catalog = load_catalog()
 
