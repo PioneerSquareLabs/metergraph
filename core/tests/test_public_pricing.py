@@ -425,6 +425,38 @@ def test_installed_catalog_prices_claude_opus_4_8_on_both_channels(model, channe
     assert output_only.cost_usd == Decimal("25.00000000")
 
 
+_AT_HAIKU_3 = datetime(2026, 8, 20, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,channel",
+    # The provider-qualified id is the gateway's naming, the dashed id is
+    # Anthropic's own -- matching every other Claude model in the catalog.
+    [("claude-3-haiku", "anthropic-api"),
+     ("anthropic/claude-3-haiku", "vercel-ai-gateway")],
+)
+def test_installed_catalog_prices_claude_3_haiku_on_both_channels(model, channel):
+    """Claude 3 Haiku carried gateway pricing only, so a deployment routing
+    candidates directly to Anthropic could not reach the oldest Haiku at all:
+    an unpriced candidate is dropped rather than compared."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_HAIKU_3,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "anthropic/claude-3-haiku"
+    assert resolved.cost_usd == Decimal("1.50000000")
+
+    output_only = catalog.price(
+        model=model, channel=channel, at=_AT_HAIKU_3,
+        input_tokens=0, output_tokens=1_000_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("1.25000000")
+
+
 def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api():
     catalog = load_catalog()
 

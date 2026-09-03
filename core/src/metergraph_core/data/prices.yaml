@@ -934,11 +934,20 @@ models:
   - canonical_id: anthropic/claude-3-haiku
     publisher: anthropic
     aliases:
+      - {provider: anthropic, alias: claude-3-haiku, channel: anthropic-api}
       - provider: anthropic
         alias: anthropic/claude-3-haiku
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
     prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2024-03-13"
+        input_per_mtok: 0.25
+        output_per_mtok: 1.25
+        cache_read_per_mtok: 0.03
+        cache_write_5m_per_mtok: 0.30
+        source_url: https://platform.claude.com/docs/en/about-claude/pricing
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2024-03-13"
