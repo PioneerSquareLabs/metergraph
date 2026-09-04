@@ -457,6 +457,31 @@ def test_installed_catalog_prices_claude_3_haiku_on_both_channels(model, channel
     assert output_only.cost_usd == Decimal("1.25000000")
 
 
+_AT_KIMI_25 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+
+def test_installed_catalog_prices_kimi_k2_5_on_the_gateway():
+    """K2.5 was priced on aws-bedrock only, so gateway-routed calls resolved
+    unpriced and the analysis pricing guard refused to generate against it."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model="moonshotai/kimi-k2.5", channel="vercel-ai-gateway", at=_AT_KIMI_25,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "moonshotai/kimi-k2.5"
+    assert resolved.price_id == "moonshotai/kimi-k2.5:vercel-ai-gateway:global:2026-08-27"
+    assert resolved.cost_usd == Decimal("3.60000000")
+
+    output_only = catalog.price(
+        model="moonshotai/kimi-k2.5", channel="vercel-ai-gateway", at=_AT_KIMI_25,
+        input_tokens=0, output_tokens=1_000_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("3.00000000")
+
+
 def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api():
     catalog = load_catalog()
 

@@ -1109,6 +1109,10 @@ models:
     publisher: moonshotai
     aliases:
       - {provider: bedrock, alias: moonshotai.kimi-k2.5, channel: aws-bedrock}
+      - provider: moonshotai
+        alias: moonshotai/kimi-k2.5
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
     prices:
       - channel: aws-bedrock
         region: us-west-2
@@ -1116,6 +1120,15 @@ models:
         input_per_mtok: 0.60
         output_per_mtok: 3.00
         source_url: https://aws.amazon.com/bedrock/pricing/
+      # No cache-read rate: of the three gateway providers only Novita offers
+      # one, and routing is not ours to pin, so cache reads bill at the input
+      # rate rather than assume the cheaper path.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-08-27"
+        input_per_mtok: 0.60
+        output_per_mtok: 3.00
+        source_url: https://vercel.com/ai-gateway/models/kimi-k2.5/providers
 
   - canonical_id: minimax/minimax-m3
     publisher: minimax
