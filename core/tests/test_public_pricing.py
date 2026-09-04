@@ -482,6 +482,32 @@ def test_installed_catalog_prices_kimi_k2_5_on_the_gateway():
     assert output_only.cost_usd == Decimal("3.00000000")
 
 
+_AT_GROK_41 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "alias,canonical",
+    # Vercel serves Grok under both namespaces and answers 200 on either, so
+    # both must price -- otherwise a caller sending the id the gateway accepts
+    # gets an unpriced call.
+    [("spacexai/grok-4.1-fast-reasoning", "xai/grok-4.1-fast-reasoning"),
+     ("xai/grok-4.1-fast-reasoning", "xai/grok-4.1-fast-reasoning"),
+     ("spacexai/grok-4.1-fast-non-reasoning", "xai/grok-4.1-fast-non-reasoning"),
+     ("xai/grok-4.1-fast-non-reasoning", "xai/grok-4.1-fast-non-reasoning"),
+     ("spacexai/grok-4.6", "xai/grok-4.6"),
+     ("xai/grok-4.6", "xai/grok-4.6")],
+)
+def test_installed_catalog_prices_grok_under_both_namespaces(alias, canonical):
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=alias, channel="vercel-ai-gateway", at=_AT_GROK_41,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == canonical
+
+
 def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api():
     catalog = load_catalog()
 

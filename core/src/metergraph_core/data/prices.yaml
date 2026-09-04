@@ -1193,6 +1193,10 @@ models:
         alias: xai/grok-4.1-fast-reasoning
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
+      - provider: xai
+        alias: spacexai/grok-4.1-fast-reasoning
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -1202,13 +1206,19 @@ models:
         cache_read_per_mtok: 0.05
         source_url: https://vercel.com/ai-gateway/models/grok-4.1-fast-reasoning/providers
 
-  # Vercel now serves the Grok creator namespace as spacexai/*; canonical ids
-  # stay xai/* (publisher). Non-reasoning shares the fast-reasoning launch rate.
+  # Vercel serves Grok under both the creator namespace (spacexai/*) and the
+  # publisher one (xai/*); both are live and each model carries both aliases, so
+  # either id a caller sends resolves to a price. Canonical ids stay xai/*.
+  # Non-reasoning shares the fast-reasoning launch rate.
   - canonical_id: xai/grok-4.1-fast-non-reasoning
     publisher: xai
     aliases:
       - provider: xai
         alias: spacexai/grok-4.1-fast-non-reasoning
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+      - provider: xai
+        alias: xai/grok-4.1-fast-non-reasoning
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
     prices:
@@ -1225,6 +1235,10 @@ models:
     aliases:
       - provider: xai
         alias: spacexai/grok-4.6
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+      - provider: xai
+        alias: xai/grok-4.6
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
     prices:
