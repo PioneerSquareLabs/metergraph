@@ -459,6 +459,41 @@ models:
         cache_write_5m_per_mtok: 6.25
         source_url: https://vercel.com/ai-gateway/models/claude-opus-4.8/providers
 
+  - canonical_id: anthropic/claude-opus-4.7
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-opus-4-7, channel: anthropic-api}
+      # The preflight reports the provider-qualified id it captured, and traffic
+      # arrives under both spellings of the minor version.
+      - {provider: anthropic, alias: anthropic/claude-opus-4-7, channel: anthropic-api}
+      # Bedrock inference profiles carry a region prefix on the model id.
+      - {provider: anthropic, alias: global.anthropic.claude-opus-4-7, channel: anthropic-api}
+      - {provider: anthropic, alias: us.anthropic.claude-opus-4-7, channel: anthropic-api}
+      - provider: anthropic
+        alias: anthropic/claude-opus-4.7
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-05-28"
+        input_per_mtok: 5.00
+        output_per_mtok: 25.00
+        cache_read_per_mtok: 0.50
+        cache_write_5m_per_mtok: 6.25
+        cache_write_1h_per_mtok: 10.00
+        batch_input_per_mtok: 2.50
+        batch_output_per_mtok: 12.50
+        source_url: https://platform.claude.com/docs/en/about-claude/pricing
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-05-28"
+        input_per_mtok: 5.00
+        output_per_mtok: 25.00
+        cache_read_per_mtok: 0.50
+        cache_write_5m_per_mtok: 6.25
+        source_url: https://vercel.com/ai-gateway/models/claude-opus-4.7/providers
+
   - canonical_id: anthropic/claude-sonnet-5
     publisher: anthropic
     aliases:
