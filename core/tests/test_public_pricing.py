@@ -425,6 +425,46 @@ def test_installed_catalog_prices_claude_opus_4_8_on_both_channels(model, channe
     assert output_only.cost_usd == Decimal("25.00000000")
 
 
+_AT_OPUS_47 = datetime(2026, 9, 6, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,channel",
+    # Every spelling production actually captured. The dashed id is Anthropic's
+    # own, the dotted provider-qualified id is the gateway's, and the
+    # region-prefixed ids come from Bedrock inference profiles. An alias is keyed
+    # on (provider, alias) without the channel, so one spelling cannot appear on
+    # two channels -- which is why the dotted id lives only on the gateway.
+    [("claude-opus-4-7", "anthropic-api"),
+     ("anthropic/claude-opus-4-7", "anthropic-api"),
+     ("global.anthropic.claude-opus-4-7", "anthropic-api"),
+     ("us.anthropic.claude-opus-4-7", "anthropic-api"),
+     ("anthropic/claude-opus-4.7", "vercel-ai-gateway")],
+)
+def test_installed_catalog_prices_claude_opus_4_7_on_every_captured_alias(model, channel):
+    """Opus 4.7 was absent from the catalog entirely, so an analysis whose
+    reference baseline used it could not launch at all: the pricing preflight
+    blocks a run rather than report a cost it cannot compute. Observed in
+    production 2026-09-06, where a scheduled run failed with
+    `pricing_preflight_failed` naming `anthropic/claude-opus-4-7`."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_OPUS_47,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "anthropic/claude-opus-4.7"
+    assert resolved.cost_usd == Decimal("30.00000000")
+
+    output_only = catalog.price(
+        model=model, channel=channel, at=_AT_OPUS_47,
+        input_tokens=0, output_tokens=1_000_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("25.00000000")
+
+
 _AT_HAIKU_3 = datetime(2026, 8, 20, tzinfo=timezone.utc)
 
 
