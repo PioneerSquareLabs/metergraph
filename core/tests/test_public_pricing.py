@@ -497,6 +497,47 @@ def test_installed_catalog_prices_claude_3_haiku_on_both_channels(model, channel
     assert output_only.cost_usd == Decimal("1.25000000")
 
 
+_AT_SONNET_46 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,channel",
+    # Sonnet 4.6 carried only the direct Anthropic price. A pipeline that
+    # evaluates candidates over a shared gateway channel could not reference
+    # this model at all: an unpriced reference blocks the whole run rather
+    # than reporting a cost it cannot compute. The dashed id stays
+    # Anthropic's own; the provider-qualified id now also resolves the
+    # canonical id on both channels, matching every other Claude model.
+    [("claude-sonnet-4-6", "anthropic-api"),
+     ("anthropic/claude-sonnet-4.6", "anthropic-api"),
+     ("anthropic/claude-sonnet-4.6", "vercel-ai-gateway")],
+)
+def test_installed_catalog_prices_claude_sonnet_4_6_on_both_channels(model, channel):
+    """anthropic/claude-sonnet-4.6 had no vercel-ai-gateway price at all, so a
+    reference-generation budget reservation against it failed closed on every
+    attempt regardless of provider health -- observed against real production
+    traffic (96 captured calls) that a gateway-only evaluation pipeline could
+    never analyse. The existing direct-channel alias for the dotted id must
+    keep resolving unchanged: it now does so through the canonical id, which
+    every alias of a model registers for its own channel."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_SONNET_46,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "anthropic/claude-sonnet-4.6"
+    assert resolved.cost_usd == Decimal("18.00000000")
+
+    output_only = catalog.price(
+        model=model, channel=channel, at=_AT_SONNET_46,
+        input_tokens=0, output_tokens=1_000_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("15.00000000")
+
+
 _AT_KIMI_25 = datetime(2026, 9, 1, tzinfo=timezone.utc)
 
 
