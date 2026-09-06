@@ -718,3 +718,68 @@ def test_installed_catalog_prices_kimi_k2_6_on_both_channels(model, channel):
     assert resolved.status == "priced"
     assert resolved.canonical_model == "moonshotai/kimi-k2.6"
     assert resolved.cost_usd == Decimal("4.95000000")
+
+
+_AT_GEMMA = datetime(2026, 9, 6, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,canonical",
+    [("gemma-4-26b-a4b-it", "google/gemma-4-26b-a4b-it"),
+     ("models/gemma-4-26b-a4b-it", "google/gemma-4-26b-a4b-it"),
+     ("gemma-4-31b-it", "google/gemma-4-31b-it"),
+     ("models/gemma-4-31b-it", "google/gemma-4-31b-it")],
+)
+def test_installed_catalog_prices_gemma_free_on_the_direct_api(model, canonical):
+    """Google serves Gemma free on the direct API. A priced zero and a missing
+    price are different answers: the first says the call cost nothing, the
+    second says the cost is unknown and blocks an analysis that needs it. Both
+    Gemma variants were captured on the direct API and resolved unpriced,
+    because the catalog carried them on the gateway only."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel="google-api", at=_AT_GEMMA,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == canonical
+    assert resolved.cost_usd == Decimal("0E-8")
+
+
+@pytest.mark.parametrize(
+    "model,channel,cost",
+    # The gateway resells Gemma at a real rate, so free on one channel must not
+    # leak into the other. Channel selection is exact.
+    [("google/gemma-4-26b-a4b-it", "vercel-ai-gateway", "0.75000000"),
+     ("google/gemma-4-31b-it", "vercel-ai-gateway", "0.54000000")],
+)
+def test_gemma_stays_paid_on_the_gateway(model, channel, cost):
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_GEMMA,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.cost_usd == Decimal(cost)
+
+
+@pytest.mark.parametrize(
+    "model",
+    ["gemini-omni-flash-preview", "models/gemini-omni-flash-preview"],
+)
+def test_installed_catalog_prices_gemini_omni_flash_preview(model):
+    """Records Google's text output rate. Google prices this model's output by
+    modality ($9.00 text, $17.50 video) and a price row carries one output
+    rate, so video-heavy traffic is under-costed until the schema can express
+    per-modality output."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel="google-api", at=_AT_GEMMA,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "google/gemini-omni-flash-preview"
+    assert resolved.cost_usd == Decimal("10.50000000")

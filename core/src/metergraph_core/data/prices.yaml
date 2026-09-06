@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-09-06"
+version: "2026-09-07"
 currency: USD
-pricing_verified_at: "2026-09-06"
+pricing_verified_at: "2026-09-07"
 models:
   - canonical_id: openai/gpt-5.6-sol
     publisher: openai
@@ -763,7 +763,18 @@ models:
         alias: google/gemma-4-26b-a4b-it
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: google, alias: gemma-4-26b-a4b-it, channel: google-api}
+      - {provider: google, alias: models/gemma-4-26b-a4b-it, channel: google-api}
     prices:
+      # Google serves Gemma free on the direct API and lists no paid tier for
+      # it. This is a priced zero, not a missing price: a call resolves to
+      # $0.00 rather than resolving to nothing.
+      - channel: google-api
+        region: global
+        effective_from: "2026-04-02"
+        input_per_mtok: 0.00
+        output_per_mtok: 0.00
+        source_url: https://ai.google.dev/gemini-api/docs/pricing
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-04-02"
@@ -1072,7 +1083,17 @@ models:
     publisher: google
     aliases:
       - {provider: google, alias: google/gemma-4-31b-it, channel: vercel-ai-gateway}
+      - {provider: google, alias: gemma-4-31b-it, channel: google-api}
+      - {provider: google, alias: models/gemma-4-31b-it, channel: google-api}
     prices:
+      # Free on the direct API, as with every Gemma variant. See the note on
+      # google/gemma-4-26b-a4b-it.
+      - channel: google-api
+        region: global
+        effective_from: "2026-04-02"
+        input_per_mtok: 0.00
+        output_per_mtok: 0.00
+        source_url: https://ai.google.dev/gemini-api/docs/pricing
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-04-02"
@@ -1429,6 +1450,23 @@ models:
         output_per_mtok: 4.00
         cache_read_per_mtok: 0.16
         source_url: https://fireworks.ai/models/fireworks/kimi-k2p6
+
+  # Google prices this model's output by modality: $9.00 text, $17.50 video.
+  # The catalog carries one output rate per price row, so this records the text
+  # rate. A video-heavy caller is therefore under-costed here, which is the
+  # known limitation to revisit if that traffic ever becomes material.
+  - canonical_id: google/gemini-omni-flash-preview
+    publisher: google
+    aliases:
+      - {provider: google, alias: gemini-omni-flash-preview, channel: google-api}
+      - {provider: google, alias: models/gemini-omni-flash-preview, channel: google-api}
+    prices:
+      - channel: google-api
+        region: global
+        effective_from: "2026-05-19"
+        input_per_mtok: 1.50
+        output_per_mtok: 9.00
+        source_url: https://ai.google.dev/gemini-api/docs/pricing
 
 # Retrieval prices: USD per 1,000 counted operations (completed searches, tool
 # calls, executed grounding queries), billed on the provider's direct channel.
