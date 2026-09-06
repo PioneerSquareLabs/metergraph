@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-09-02"
+version: "2026-09-06"
 currency: USD
-pricing_verified_at: "2026-09-02"
+pricing_verified_at: "2026-09-06"
 models:
   - canonical_id: openai/gpt-5.6-sol
     publisher: openai
@@ -671,7 +671,19 @@ models:
     publisher: google
     aliases:
       - {provider: vertex-ai, alias: gemini-3.5-flash, channel: google-vertex-ai}
+      - {provider: google, alias: gemini-3.5-flash, channel: google-api}
+      - {provider: google, alias: models/gemini-3.5-flash, channel: google-api}
     prices:
+      # Direct API and Vertex list the same rate for this model.
+      - channel: google-api
+        region: global
+        effective_from: "2026-05-19"
+        input_per_mtok: 1.50
+        output_per_mtok: 9.00
+        cache_read_per_mtok: 0.15
+        batch_input_per_mtok: 0.75
+        batch_output_per_mtok: 4.50
+        source_url: https://ai.google.dev/gemini-api/docs/pricing
       - channel: google-vertex-ai
         region: global
         effective_from: "2026-05-19"
@@ -1284,6 +1296,139 @@ models:
         output_per_mtok: 6.00
         cache_read_per_mtok: 0.50
         source_url: https://vercel.com/ai-gateway/models/grok-4.6/providers
+
+  - canonical_id: google/gemini-3-flash-preview
+    publisher: google
+    aliases:
+      - {provider: google, alias: gemini-3-flash-preview, channel: google-api}
+      - {provider: google, alias: models/gemini-3-flash-preview, channel: google-api}
+    prices:
+      - channel: google-api
+        region: global
+        effective_from: "2025-12-17"
+        input_per_mtok: 0.50
+        output_per_mtok: 3.00
+        cache_read_per_mtok: 0.05
+        batch_input_per_mtok: 0.25
+        batch_output_per_mtok: 1.50
+        source_url: https://ai.google.dev/gemini-api/docs/pricing
+
+  # The retired `-preview` id shares the GA entry rather than carrying its own.
+  # Google shut that id down and published no preview-era rate, so a separate
+  # price for it would be invented rather than sourced.
+  - canonical_id: google/gemini-3.1-flash-lite
+    publisher: google
+    aliases:
+      - {provider: google, alias: gemini-3.1-flash-lite, channel: google-api}
+      - {provider: google, alias: models/gemini-3.1-flash-lite, channel: google-api}
+      - {provider: google, alias: gemini-3.1-flash-lite-preview, channel: google-api}
+    prices:
+      - channel: google-api
+        region: global
+        effective_from: "2026-05-07"
+        input_per_mtok: 0.25
+        output_per_mtok: 1.50
+        cache_read_per_mtok: 0.025
+        batch_input_per_mtok: 0.125
+        batch_output_per_mtok: 0.75
+        source_url: https://ai.google.dev/gemini-api/docs/pricing
+
+  # GLM 5.3, GLM 5.3 Flash and Kimi K2.6 are each served on both Vercel and
+  # Fireworks at different rates. One canonical id per model with a price per
+  # channel keeps a cost query for the model whole. `fireworks/glm-5p2` above
+  # predates that convention and splits GLM 5.2 across two canonical ids;
+  # consolidating it is a separate change, since it moves existing rows.
+  - canonical_id: zai/glm-5.3
+    publisher: zai
+    aliases:
+      - provider: zai
+        alias: zai/glm-5.3
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: accounts/fireworks/models/glm-5p3
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/glm-5p3
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-08-14"
+        input_per_mtok: 0.70
+        output_per_mtok: 2.20
+        source_url: https://vercel.com/ai-gateway/models/glm-5.3
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-08-14"
+        input_per_mtok: 1.40
+        output_per_mtok: 4.40
+        cache_read_per_mtok: 0.26
+        source_url: https://fireworks.ai/models/fireworks/glm-5p3
+
+  - canonical_id: zai/glm-5.3-flash
+    publisher: zai
+    aliases:
+      - provider: zai
+        alias: zai/glm-5.3-flash
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: accounts/fireworks/models/glm-5p3-flash
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/glm-5p3-flash
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+    prices:
+      # Vercel lists this well under half the Fireworks rate. Recorded as listed;
+      # if it is promotional it will need an `effective_to` when it moves.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-08-26"
+        input_per_mtok: 0.07125
+        output_per_mtok: 0.2375
+        source_url: https://vercel.com/ai-gateway/models/glm-5.3-flash
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-08-26"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.50
+        cache_read_per_mtok: 0.03
+        source_url: https://fireworks.ai/models/fireworks/glm-5p3-flash
+
+  - canonical_id: moonshotai/kimi-k2.6
+    publisher: moonshotai
+    aliases:
+      - provider: moonshotai
+        alias: moonshotai/kimi-k2.6
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: accounts/fireworks/models/kimi-k2p6
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/kimi-k2p6
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-04-20"
+        input_per_mtok: 0.95
+        output_per_mtok: 4.00
+        source_url: https://vercel.com/ai-gateway/models/kimi-k2.6
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-04-20"
+        input_per_mtok: 0.95
+        output_per_mtok: 4.00
+        cache_read_per_mtok: 0.16
+        source_url: https://fireworks.ai/models/fireworks/kimi-k2p6
 
 # Retrieval prices: USD per 1,000 counted operations (completed searches, tool
 # calls, executed grounding queries), billed on the provider's direct channel.

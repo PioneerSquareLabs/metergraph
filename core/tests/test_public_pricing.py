@@ -572,3 +572,149 @@ def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api(
         == "anthropic/claude-sonnet-4.5:anthropic-api:global:2025-09-29"
     )
     assert priced.cost_usd == Decimal("0.01093500")
+
+
+_AT_GEMINI_3_FLASH = datetime(2026, 9, 6, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model",
+    ["gemini-3-flash-preview", "models/gemini-3-flash-preview"],
+)
+def test_installed_catalog_prices_gemini_3_flash_preview_on_the_direct_api(model):
+    """Gemini 3 Flash Preview was absent from the catalog while carrying the
+    second-largest share of unpriced production calls. A preview id is still a
+    billed id."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel="google-api", at=_AT_GEMINI_3_FLASH,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "google/gemini-3-flash-preview"
+    assert resolved.cost_usd == Decimal("3.50000000")
+
+    output_only = catalog.price(
+        model=model, channel="google-api", at=_AT_GEMINI_3_FLASH,
+        input_tokens=0, output_tokens=1_000_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("3.00000000")
+
+
+@pytest.mark.parametrize(
+    "model",
+    # The retired `-preview` id resolves to the same entry. Google shut that id
+    # down without publishing a preview-era rate, so giving it a separate price
+    # would invent one.
+    ["gemini-3.1-flash-lite",
+     "models/gemini-3.1-flash-lite",
+     "gemini-3.1-flash-lite-preview"],
+)
+def test_installed_catalog_prices_gemini_31_flash_lite_on_every_captured_alias(model):
+    """Flash Lite carried the largest share of unpriced production calls."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel="google-api", at=_AT_GEMINI_3_FLASH,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "google/gemini-3.1-flash-lite"
+    assert resolved.cost_usd == Decimal("1.75000000")
+
+    output_only = catalog.price(
+        model=model, channel="google-api", at=_AT_GEMINI_3_FLASH,
+        input_tokens=0, output_tokens=1_000_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("1.50000000")
+
+
+@pytest.mark.parametrize(
+    "model,channel",
+    [("gemini-3.5-flash", "google-vertex-ai"),
+     ("gemini-3.5-flash", "google-api"),
+     ("models/gemini-3.5-flash", "google-api")],
+)
+def test_installed_catalog_prices_gemini_35_flash_on_both_channels(model, channel):
+    """3.5 Flash was priced on Vertex only, so calls captured against the direct
+    API resolved unpriced. Google lists the same rate on both."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_GEMINI_3_FLASH,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "google/gemini-3.5-flash"
+    assert resolved.cost_usd == Decimal("10.50000000")
+
+
+_AT_GLM_53 = datetime(2026, 9, 6, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,channel,cost",
+    # One canonical id per model, one price per channel. The two channels list
+    # materially different rates, so a single blended price would be wrong on
+    # both.
+    [("zai/glm-5.3", "vercel-ai-gateway", "2.90000000"),
+     ("accounts/fireworks/models/glm-5p3", "fireworks-api", "5.80000000"),
+     ("fireworks:accounts/fireworks/models/glm-5p3", "fireworks-api", "5.80000000")],
+)
+def test_installed_catalog_prices_glm_53_on_both_channels(model, channel, cost):
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_GLM_53,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "zai/glm-5.3"
+    assert resolved.cost_usd == Decimal(cost)
+
+
+@pytest.mark.parametrize(
+    "model,channel,cost",
+    [("zai/glm-5.3-flash", "vercel-ai-gateway", "0.30875000"),
+     ("accounts/fireworks/models/glm-5p3-flash", "fireworks-api", "0.65000000"),
+     ("fireworks:accounts/fireworks/models/glm-5p3-flash", "fireworks-api", "0.65000000")],
+)
+def test_installed_catalog_prices_glm_53_flash_on_both_channels(model, channel, cost):
+    """The gateway lists this at well under half the Fireworks rate. Recorded as
+    listed rather than reconciled, so the spread is visible instead of averaged
+    away."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_GLM_53,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "zai/glm-5.3-flash"
+    assert resolved.cost_usd == Decimal(cost)
+
+
+_AT_KIMI_26 = datetime(2026, 9, 6, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,channel",
+    [("moonshotai/kimi-k2.6", "vercel-ai-gateway"),
+     ("accounts/fireworks/models/kimi-k2p6", "fireworks-api"),
+     ("fireworks:accounts/fireworks/models/kimi-k2p6", "fireworks-api")],
+)
+def test_installed_catalog_prices_kimi_k2_6_on_both_channels(model, channel):
+    """Both channels list the same rate; each still needs its own window, since
+    channel selection is exact and never falls back."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_KIMI_26,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "moonshotai/kimi-k2.6"
+    assert resolved.cost_usd == Decimal("4.95000000")
