@@ -538,6 +538,43 @@ def test_installed_catalog_prices_claude_sonnet_4_6_on_both_channels(model, chan
     assert output_only.cost_usd == Decimal("15.00000000")
 
 
+_AT_GROK_43 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,channel",
+    [("grok-4.3", "xai-api"), ("xai/grok-4.3", "aws-bedrock")],
+)
+def test_installed_catalog_prices_grok_4_3_on_both_channels(model, channel):
+    """xai/grok-4.3 carried only the direct xAI price, so a reference or
+    candidate routed to Bedrock (available there since 2026-06-15, served on
+    the bedrock-mantle endpoint at Standard-tier rates matching xAI's own
+    price) had no way to be priced on that channel.
+
+    Token counts stay under xai-api's 200k long-context threshold: both
+    channels bill the same Standard-tier rate below it, so one pair of
+    expected costs covers both parametrized channels. Bedrock pricing is
+    region-scoped (In-Region only, and GovCloud differs), so the catalog is
+    loaded for us-west-2 -- exactly how a real caller resolves it (see
+    execution_profile.bedrock_region)."""
+    catalog = load_catalog(region="us-west-2")
+
+    resolved = catalog.price(
+        model=model, channel=channel, at=_AT_GROK_43,
+        input_tokens=100_000, output_tokens=100_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "xai/grok-4.3"
+    assert resolved.cost_usd == Decimal("0.37500000")
+
+    output_only = catalog.price(
+        model=model, channel=channel, at=_AT_GROK_43,
+        input_tokens=0, output_tokens=100_000,
+    )
+    assert output_only.status == "priced"
+    assert output_only.cost_usd == Decimal("0.25000000")
+
+
 _AT_KIMI_25 = datetime(2026, 9, 1, tzinfo=timezone.utc)
 
 
