@@ -947,6 +947,7 @@ models:
       - {provider: x-ai, alias: grok-4.3, channel: xai-api}
       - {provider: x-ai, alias: grok-4.3-latest, channel: xai-api}
       - {provider: x-ai, alias: grok-latest, channel: xai-api}
+      - {provider: bedrock, alias: xai.grok-4.3, channel: aws-bedrock}
     prices:
       - channel: xai-api
         region: global
@@ -958,6 +959,19 @@ models:
           input_includes_cache_read: true
           long_context: {threshold: 200000, input_multiplier: 2, output_multiplier: 2}
         source_url: https://docs.x.ai/developers/pricing
+      # Served via Bedrock's bedrock-mantle endpoint (OpenAI-compatible Chat
+      # Completions/Responses), not the classic Converse API; In-Region only,
+      # no Geo/Global cross-region inference profile. Standard tier, us-west-2;
+      # Priority is 1.75x, Flex is 0.5x these rates.
+      - channel: aws-bedrock
+        region: us-west-2
+        effective_from: "2026-06-15"
+        input_per_mtok: 1.25
+        output_per_mtok: 2.50
+        cache_read_per_mtok: 0.20
+        rules:
+          input_includes_cache_read: true
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-xai-grok-4-3.html
 
   - canonical_id: perplexity/sonar
     publisher: perplexity
