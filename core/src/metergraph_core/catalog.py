@@ -142,6 +142,8 @@ def _price_tokens(
     output_tokens: Any,
     cache_read_tokens: Any,
     cache_write_tokens: Any,
+    cache_write_5m_tokens: Any,
+    cache_write_1h_tokens: Any,
     batch: bool,
 ) -> tuple[Decimal, list[str]]:
     """Cost a token usage against one already-selected price and its merged
@@ -151,7 +153,11 @@ def _price_tokens(
     input_count = _tokens(input_tokens)
     output_count = _tokens(output_tokens)
     cache_read_count = _tokens(cache_read_tokens) or 0
-    cache_write_count = _tokens(cache_write_tokens) or 0
+    cache_write_5m_count = _tokens(cache_write_5m_tokens)
+    if cache_write_5m_count is None:
+        cache_write_5m_count = _tokens(cache_write_tokens) or 0
+    cache_write_1h_count = _tokens(cache_write_1h_tokens) or 0
+    cache_write_count = cache_write_5m_count + cache_write_1h_count
     if input_count is None:
         reasons.append("missing_input_tokens")
         input_count = 0
@@ -215,13 +221,23 @@ def _price_tokens(
                 * input_multiplier
                 / _MILLION
             )
-    if cache_write_count:
+    if cache_write_5m_count:
         if price.cache_write_5m_per_mtok is None:
-            reasons.append("cache_write_rate_unavailable")
+            reasons.append("cache_write_5m_rate_unavailable")
         else:
             cost += (
-                Decimal(cache_write_count)
+                Decimal(cache_write_5m_count)
                 * price.cache_write_5m_per_mtok
+                * input_multiplier
+                / _MILLION
+            )
+    if cache_write_1h_count:
+        if price.cache_write_1h_per_mtok is None:
+            reasons.append("cache_write_1h_rate_unavailable")
+        else:
+            cost += (
+                Decimal(cache_write_1h_count)
+                * price.cache_write_1h_per_mtok
                 * input_multiplier
                 / _MILLION
             )
@@ -338,6 +354,8 @@ class CatalogSnapshot:
         output_tokens: Any,
         cache_read_tokens: Any = None,
         cache_write_tokens: Any = None,
+        cache_write_5m_tokens: Any = None,
+        cache_write_1h_tokens: Any = None,
         batch: bool = False,
     ) -> CostResult:
         provider_key = str(provider or "").strip().lower()
@@ -363,6 +381,8 @@ class CatalogSnapshot:
             output_tokens=output_tokens,
             cache_read_tokens=cache_read_tokens,
             cache_write_tokens=cache_write_tokens,
+            cache_write_5m_tokens=cache_write_5m_tokens,
+            cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
         )
         return CostResult(
@@ -383,6 +403,8 @@ class CatalogSnapshot:
         output_tokens: Any,
         cache_read_tokens: Any = None,
         cache_write_tokens: Any = None,
+        cache_write_5m_tokens: Any = None,
+        cache_write_1h_tokens: Any = None,
         batch: bool = False,
     ) -> CostResult:
         """Price an observed deployment from the identity a caller already has:
@@ -406,6 +428,8 @@ class CatalogSnapshot:
             output_tokens=output_tokens,
             cache_read_tokens=cache_read_tokens,
             cache_write_tokens=cache_write_tokens,
+            cache_write_5m_tokens=cache_write_5m_tokens,
+            cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
         )
         return CostResult(
