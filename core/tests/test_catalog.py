@@ -24,7 +24,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-09-07"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-09-11"
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
@@ -727,6 +727,7 @@ def test_gemini36_flash_gateway_promo_reverts_on_2027_boundary():
 # actually billed the call. Only a non-gateway channel identifies a provider's
 # own direct billing relationship.
 _GATEWAY_CHANNEL = "vercel-ai-gateway"
+_NON_BILLING_PROVIDERS = {"unknown", "litellm"}
 
 
 def _declared_direct_channels():
@@ -735,7 +736,12 @@ def _declared_direct_channels():
     for model in DOC["models"]:
         for alias in model.get("aliases") or []:
             provider, channel = alias.get("provider"), alias.get("channel")
-            if provider and channel and channel != _GATEWAY_CHANNEL:
+            if (
+                provider
+                and provider not in _NON_BILLING_PROVIDERS
+                and channel
+                and channel != _GATEWAY_CHANNEL
+            ):
                 declared.setdefault(provider, set()).add(channel)
     return declared
 

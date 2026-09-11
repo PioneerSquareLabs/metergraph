@@ -775,6 +775,66 @@ def test_installed_catalog_prices_glm_53_flash_on_both_channels(model, channel, 
     assert resolved.cost_usd == Decimal(cost)
 
 
+_AT_CATALOG_REFRESH = datetime(2026, 9, 11, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "provider,model,canonical,cost",
+    [
+        ("google", "gemini-flash-latest", "google/gemini-3.8-flash", "4.50000000"),
+        ("unknown", "models/gemini-flash-latest", "google/gemini-3.8-flash", "4.50000000"),
+        ("litellm", "google/gemini-flash-latest", "google/gemini-3.8-flash", "4.50000000"),
+        ("google", "google/models/gemini-flash-latest", "google/gemini-3.8-flash", "4.50000000"),
+        ("google", "gemini-flash-lite-latest", "google/gemini-2.5-flash-lite", "0.50000000"),
+        ("unknown", "models/gemini-flash-lite-latest", "google/gemini-2.5-flash-lite", "0.50000000"),
+        ("litellm", "google/gemini-flash-lite-latest", "google/gemini-2.5-flash-lite", "0.50000000"),
+        ("google", "google/models/gemini-flash-lite-latest", "google/gemini-2.5-flash-lite", "0.50000000"),
+    ],
+)
+def test_installed_catalog_prices_google_latest_aliases(provider, model, canonical, cost):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider=provider,
+        model=model,
+        at=_AT_CATALOG_REFRESH,
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == canonical
+    assert result.cost_usd == Decimal(cost)
+
+
+@pytest.mark.parametrize(
+    "provider,model,canonical,cost",
+    [
+        ("deepseek", "deepseek/deepseek-v4.1-flash", "deepseek/deepseek-v4.1-flash", "1.50000000"),
+        ("meta", "meta/muse-spark-1.3", "meta/muse-spark-1.3", "5.50000000"),
+        ("zai", "zai/glm-5.3-fast", "zai/glm-5.3-fast", "8.70000000"),
+        ("zai", "zai/glm-5.3", "zai/glm-5.3", "5.80000000"),
+        ("zai", "zai/glm-5.3-flash", "zai/glm-5.3-flash", "0.65000000"),
+    ],
+)
+def test_installed_catalog_prices_current_vercel_gateway_models(
+    provider, model, canonical, cost
+):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider=provider,
+        model=model,
+        at=_AT_CATALOG_REFRESH,
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == canonical
+    assert result.cost_usd == Decimal(cost)
+
+
 _AT_KIMI_26 = datetime(2026, 9, 6, tzinfo=timezone.utc)
 
 
