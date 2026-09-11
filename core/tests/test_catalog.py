@@ -85,6 +85,30 @@ def test_cache_write_tiers_use_their_respective_rates():
 
 
 @pytest.mark.parametrize(
+    "provider,model,expected_channel,expected_cost",
+    [
+        ("openai", "gpt-5.2", "openai-api", Decimal("15.75000000")),
+        ("anthropic", "claude-opus-4-6", "anthropic-api", Decimal("30.00000000")),
+        ("vertex-ai", "claude-opus-4-6", "google-vertex-ai", Decimal("33.00000000")),
+    ],
+)
+def test_zucca_models_resolve_on_their_observed_billing_channels(
+    provider, model, expected_channel, expected_cost
+):
+    result = SNAPSHOT.cost(
+        provider=provider,
+        model=model,
+        at=_at("2026-09-11"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert f":{expected_channel}:" in result.price_id
+    assert result.cost_usd == expected_cost
+
+
+@pytest.mark.parametrize(
     "model,channel,input_rate,output_rate",
     [
         ("gpt-4o-mini", "openai-api", "0.15", "0.60"),
