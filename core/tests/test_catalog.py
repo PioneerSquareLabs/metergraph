@@ -70,6 +70,20 @@ def test_gemini_direct_price_changes_on_its_effective_date():
     assert after.price.input_per_mtok == Decimal("0.75")
 
 
+def test_cache_write_tiers_use_their_respective_rates():
+    result = SNAPSHOT.cost(
+        provider="anthropic",
+        model="claude-haiku-4-5",
+        at=_at("2026-09-11"),
+        input_tokens=0,
+        output_tokens=0,
+        cache_write_5m_tokens=1_000_000,
+        cache_write_1h_tokens=1_000_000,
+    )
+
+    assert result.cost_usd == Decimal("3.25000000")
+
+
 @pytest.mark.parametrize(
     "model,channel,input_rate,output_rate",
     [

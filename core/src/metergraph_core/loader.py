@@ -100,6 +100,8 @@ class LoadedCatalog:
         output_tokens: Any,
         cache_read_tokens: Any = None,
         cache_write_tokens: Any = None,
+        cache_write_5m_tokens: Any = None,
+        cache_write_1h_tokens: Any = None,
         batch: bool = False,
     ) -> CostResult:
         """Price an observed deployment channel-exactly. See
@@ -112,6 +114,8 @@ class LoadedCatalog:
             output_tokens=output_tokens,
             cache_read_tokens=cache_read_tokens,
             cache_write_tokens=cache_write_tokens,
+            cache_write_5m_tokens=cache_write_5m_tokens,
+            cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
         )
 
