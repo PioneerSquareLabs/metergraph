@@ -14,6 +14,8 @@ _PROVIDER_ALIASES = {
     "aws-bedrock": "bedrock",
     "gemini": "google",
     "google-genai": "google",
+    "perplexity": "perplexity-ai",
+    "xai": "x-ai",
 }
 
 # The direct catalog channel each captured source provider was actually billed
@@ -29,6 +31,9 @@ _DIRECT_CHANNEL_BY_PROVIDER = {
     "vertex-ai": "google-vertex-ai",
     "fireworks": "fireworks-api",
     "bedrock": "aws-bedrock",
+    "deepseek": "deepseek-api",
+    "perplexity-ai": "perplexity-api",
+    "x-ai": "xai-api",
 }
 
 
