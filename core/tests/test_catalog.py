@@ -3,7 +3,12 @@ from decimal import Decimal
 
 import pytest
 
-from metergraph_core import CatalogError, load_catalog, parse_catalog
+from metergraph_core import (
+    CatalogError,
+    direct_channel_for_provider,
+    load_catalog,
+    parse_catalog,
+)
 
 LOADED = load_catalog()
 VERSION = LOADED.version
@@ -716,3 +721,59 @@ def test_gemini36_flash_gateway_promo_reverts_on_2027_boundary():
     # effective_to is exclusive: the standard rate resumes on 2027-01-01.
     assert standard.price.input_per_mtok == Decimal("1.50")
     assert standard.price.cache_read_per_mtok == Decimal("0.15")
+
+
+# The gateway resells every provider, so an alias on it says nothing about who
+# actually billed the call. Only a non-gateway channel identifies a provider's
+# own direct billing relationship.
+_GATEWAY_CHANNEL = "vercel-ai-gateway"
+
+
+def _declared_direct_channels():
+    """Each provider mapped to the non-gateway channels this catalog prices it on."""
+    declared = {}
+    for model in DOC["models"]:
+        for alias in model.get("aliases") or []:
+            provider, channel = alias.get("provider"), alias.get("channel")
+            if provider and channel and channel != _GATEWAY_CHANNEL:
+                declared.setdefault(provider, set()).add(channel)
+    return declared
+
+
+def test_every_directly_priced_provider_resolves_its_own_channel():
+    """A provider this catalog prices directly must resolve that same channel.
+
+    Callers treat a missing direct channel as "explicitly unpriced", so a
+    provider present in the data but absent from the channel map makes its
+    traffic unpriceable even though the price sits in this very file. That gap
+    blocked every analysis of DeepSeek, Perplexity and xAI traffic; this keeps
+    the map and the data from drifting apart again.
+    """
+    mismatched = {
+        provider: (sorted(channels), direct_channel_for_provider(provider))
+        for provider, channels in _declared_direct_channels().items()
+        if direct_channel_for_provider(provider) not in channels
+    }
+    assert mismatched == {}, (
+        "providers priced on a direct channel the map does not resolve to it: "
+        f"{mismatched}"
+    )
+
+
+def test_gateway_only_providers_have_no_direct_channel():
+    """The converse. A provider reachable only through the gateway has no direct
+    billing relationship, and inventing one would price its traffic at a
+    reseller's list rate rather than what the customer was actually charged."""
+    gateway_only = {
+        alias.get("provider")
+        for model in DOC["models"]
+        for alias in model.get("aliases") or []
+        if alias.get("channel") == _GATEWAY_CHANNEL and alias.get("provider")
+    } - set(_declared_direct_channels())
+    resolved = {
+        provider
+        for provider in gateway_only
+        if direct_channel_for_provider(provider) is not None
+    }
+    # "xai" is a gateway spelling of "x-ai", which this catalog prices directly.
+    assert resolved == {"xai"}
