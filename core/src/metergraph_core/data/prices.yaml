@@ -370,6 +370,25 @@ models:
           input_includes_cache_read: true
         source_url: https://developers.openai.com/api/docs/models/gpt-4.1-nano
 
+  - canonical_id: openai/gpt-5.2
+    publisher: openai
+    aliases:
+      - {provider: openai, alias: gpt-5.2, channel: openai-api}
+      - {provider: openai, alias: gpt-5.2-2025-12-11, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.2, channel: openai-api}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2025-12-11"
+        input_per_mtok: 1.75
+        output_per_mtok: 14.00
+        cache_read_per_mtok: 0.175
+        batch_input_per_mtok: 0.875
+        batch_output_per_mtok: 7.00
+        rules:
+          input_includes_cache_read: true
+        source_url: https://developers.openai.com/api/docs/models/gpt-5.2
+
   - canonical_id: anthropic/claude-fable-5
     publisher: anthropic
     aliases:
@@ -493,6 +512,36 @@ models:
         cache_read_per_mtok: 0.50
         cache_write_5m_per_mtok: 6.25
         source_url: https://vercel.com/ai-gateway/models/claude-opus-4.7/providers
+
+  - canonical_id: anthropic/claude-opus-4.6
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-opus-4-6, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-4.6, channel: anthropic-api}
+      - {provider: vertex-ai, alias: claude-opus-4-6, channel: google-vertex-ai}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-02-05"
+        input_per_mtok: 5.00
+        output_per_mtok: 25.00
+        cache_read_per_mtok: 0.50
+        cache_write_5m_per_mtok: 6.25
+        cache_write_1h_per_mtok: 10.00
+        batch_input_per_mtok: 2.50
+        batch_output_per_mtok: 12.50
+        source_url: https://platform.claude.com/docs/en/about-claude/pricing
+      - channel: google-vertex-ai
+        region: global
+        effective_from: "2026-02-05"
+        input_per_mtok: 5.50
+        output_per_mtok: 27.50
+        cache_read_per_mtok: 0.55
+        cache_write_5m_per_mtok: 6.875
+        cache_write_1h_per_mtok: 11.00
+        batch_input_per_mtok: 2.75
+        batch_output_per_mtok: 13.75
+        source_url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
 
   - canonical_id: anthropic/claude-sonnet-5
     publisher: anthropic
