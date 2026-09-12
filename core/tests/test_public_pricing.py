@@ -354,6 +354,23 @@ def test_installed_catalog_prices_gpt_5_4_nano_on_both_channels(channel):
 _AT_GEMINI_25_FLASH = datetime(2026, 8, 20, tzinfo=timezone.utc)
 
 
+def test_installed_catalog_prices_gemini_2_5_flash_image_on_google_api():
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model="gemini-2.5-flash-image", channel="google-api",
+        at=_AT_GEMINI_25_FLASH, input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "google/gemini-2.5-flash-image"
+    assert (
+        resolved.price_id
+        == "google/gemini-2.5-flash-image:google-api:global:2025-10-02"
+    )
+    assert resolved.cost_usd == Decimal("30.30000000")
+
+
 @pytest.mark.parametrize(
     "channel,cache_read_cost",
     # google-api bills cache reads on top of full input; the gateway alias sets
