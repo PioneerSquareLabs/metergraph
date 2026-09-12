@@ -747,6 +747,50 @@ def test_installed_catalog_prices_gemini_35_flash_on_both_channels(model, channe
     assert resolved.cost_usd == Decimal("10.50000000")
 
 
+_AT_GEMINI_35_FLASH_LITE = datetime(2026, 9, 6, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model",
+    ["gemini-3.5-flash-lite", "models/gemini-3.5-flash-lite"],
+)
+def test_installed_catalog_prices_gemini_35_flash_lite_on_the_direct_api(model):
+    """Google direct bills cache reads on top of full input."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel="google-api", at=_AT_GEMINI_35_FLASH_LITE,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "google/gemini-3.5-flash-lite"
+    assert resolved.price_id == (
+        "google/gemini-3.5-flash-lite:google-api:global:2026-05-19"
+    )
+    assert resolved.cost_usd == Decimal("2.80000000")
+
+    cached = catalog.price(
+        model=model, channel="google-api", at=_AT_GEMINI_35_FLASH_LITE,
+        input_tokens=1_000_000, output_tokens=0, cache_read_tokens=1_000_000,
+    )
+    assert cached.status == "priced"
+    assert cached.cost_usd == Decimal("0.33000000")
+
+
+def test_installed_catalog_does_not_price_gemini_35_flash_lite_off_google_api():
+    """Only the direct API rate is published; other channels stay unpriced."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model="gemini-3.5-flash-lite", channel="google-vertex-ai",
+        at=_AT_GEMINI_35_FLASH_LITE,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+
+    assert resolved.status == "unpriced"
+    assert resolved.cost_usd is None
+
+
 _AT_GLM_53 = datetime(2026, 9, 6, tzinfo=timezone.utc)
 
 
