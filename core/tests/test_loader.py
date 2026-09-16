@@ -127,3 +127,35 @@ def test_bundled_catalog_prices_aws_bedrock_analysis_models(
     assert result.canonical_model == canonical
     assert result.cost_usd == Decimal(input_rate) / 10 + Decimal(output_rate)
     assert loaded.canonical_model_id("bedrock", model) == canonical
+
+
+def test_loaded_catalog_price_forwards_search_context_size():
+    loaded = load_catalog()
+    at = datetime(2026, 9, 16, tzinfo=timezone.utc)
+
+    exact = loaded.price(
+        model="sonar",
+        channel="perplexity-api",
+        at=at,
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        search_context_size="medium",
+    )
+    lower_bound = loaded.price(
+        model="sonar",
+        channel="perplexity-api",
+        at=at,
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert (exact.status, exact.cost_usd, exact.reasons) == (
+        "priced",
+        Decimal("2.00800000"),
+        (),
+    )
+    assert (lower_bound.status, lower_bound.cost_usd, lower_bound.reasons) == (
+        "partial",
+        Decimal("2.00000000"),
+        ("search_context_size_unknown",),
+    )

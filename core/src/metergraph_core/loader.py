@@ -133,6 +133,7 @@ class LoadedCatalog:
         cache_write_5m_tokens: Any = None,
         cache_write_1h_tokens: Any = None,
         batch: bool = False,
+        search_context_size: Any = None,
     ) -> CostResult:
         """Price an observed deployment channel-exactly. See
         :meth:`CatalogSnapshot.price_deployment`."""
@@ -147,6 +148,7 @@ class LoadedCatalog:
             cache_write_5m_tokens=cache_write_5m_tokens,
             cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
+            search_context_size=search_context_size,
         )
 
     def price_retrieval(

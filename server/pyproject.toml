@@ -9,7 +9,7 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "psycopg[binary,pool]>=3.1",
-    "metergraph-core>=0.2,<0.3",
+    "metergraph-core>=0.2.24,<0.3",
 ]
 
 [project.optional-dependencies]
