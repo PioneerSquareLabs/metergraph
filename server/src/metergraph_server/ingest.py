@@ -194,6 +194,7 @@ def project_row(row: dict, catalog: CatalogSnapshot) -> tuple:
         cache_read_tokens=row.get("cache_read_tokens"),
         cache_write_tokens=row.get("cache_write_tokens"),
         batch=row.get("batch") is True,
+        search_context_size=row.get("search_context_size"),
     )
     billing = resolve_billing(enrichment, normalize_gateway_evidence(row))
     status_code, finish_reason, finish_reason_raw = _status_fields(row)

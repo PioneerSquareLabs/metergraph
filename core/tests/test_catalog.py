@@ -5,6 +5,7 @@ import pytest
 
 from metergraph_core import (
     CatalogError,
+    CatalogSnapshot,
     direct_channel_for_provider,
     load_catalog,
     parse_catalog,
@@ -24,7 +25,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-09-12"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-09-16"
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
@@ -268,18 +269,190 @@ def test_gateway_luna_price_drop_does_not_reprice_history():
 
 
 def test_partial_price_reports_uncaptured_fees():
+    document = {
+        "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-08-24",
+        "models": [
+            {
+                "canonical_id": "example/model",
+                "aliases": [
+                    {"provider": "example", "alias": "model", "channel": "api"}
+                ],
+                "prices": [
+                    {
+                        "channel": "api",
+                        "effective_from": "2026-08-24",
+                        "input_per_mtok": 1,
+                        "output_per_mtok": 1,
+                        "rules": {"uncaptured_fees": True},
+                        "source_url": "https://example.test/pricing",
+                    }
+                ],
+            }
+        ],
+    }
+    _, aliases, prices = parse_catalog(document)
+    snapshot = CatalogSnapshot(aliases, prices, region="global")
+    result = snapshot.cost(
+        provider="example",
+        model="model",
+        at=_at("2026-08-25"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    assert result.canonical_model == "example/model"
+    assert result.cost_usd == Decimal("2.00000000")
+    assert result.status == "partial"
+    assert result.reasons == ("uncaptured_fees",)
+
+
+@pytest.mark.parametrize(
+    ("search_context_size", "fee"),
+    [("low", "0.005"), ("medium", "0.008"), ("high", "0.012")],
+)
+def test_sonar_search_context_fee_is_added_per_request(search_context_size, fee):
     result = SNAPSHOT.cost(
         provider="perplexity-ai",
         model="sonar",
         at=_at("2026-08-10"),
         input_tokens=1_000_000,
         output_tokens=1_000_000,
+        search_context_size=search_context_size,
     )
-    assert result.canonical_model == "perplexity/sonar"
-    assert result.price_id == "perplexity/sonar:perplexity-api:global:2025-04-18"
+
+    assert result.cost_usd == Decimal("2") + Decimal(fee)
+    assert result.status == "priced"
+    assert result.reasons == ()
+
+
+@pytest.mark.parametrize("search_context_size", [None, "max", 3, ""])
+def test_sonar_without_valid_search_context_size_is_a_lower_bound(search_context_size):
+    result = SNAPSHOT.cost(
+        provider="perplexity-ai",
+        model="sonar",
+        at=_at("2026-08-10"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        search_context_size=search_context_size,
+    )
+
     assert result.cost_usd == Decimal("2.00000000")
     assert result.status == "partial"
-    assert result.reasons == ("uncaptured_fees",)
+    assert result.reasons == ("search_context_size_unknown",)
+
+
+def test_sonar_search_context_size_normalizes_case_and_whitespace():
+    result = SNAPSHOT.cost(
+        provider="perplexity-ai",
+        model="sonar",
+        at=_at("2026-08-10"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        search_context_size=" Medium ",
+    )
+
+    assert result.cost_usd == Decimal("2.00800000")
+    assert result.status == "priced"
+    assert result.reasons == ()
+
+
+def test_search_context_fee_is_independent_of_batch():
+    result = SNAPSHOT.cost(
+        provider="perplexity-ai",
+        model="sonar",
+        at=_at("2026-08-10"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        batch=True,
+        search_context_size="low",
+    )
+
+    assert result.cost_usd == Decimal("2.00500000")
+
+
+def test_model_without_search_context_fee_rule_ignores_size():
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model="gpt-5.4-mini",
+        at=_at("2026-08-10"),
+        input_tokens=100_000,
+        output_tokens=100_000,
+        search_context_size="high",
+    )
+
+    assert result.cost_usd == Decimal("0.52500000")
+    assert result.status == "priced"
+    assert result.reasons == ()
+
+
+def test_search_context_tier_missing_from_fee_table_is_partial_not_free():
+    document = {
+        "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-09-16",
+        "models": [
+            {
+                "canonical_id": "example/search",
+                "aliases": [
+                    {"provider": "example", "alias": "search", "channel": "api"}
+                ],
+                "prices": [
+                    {
+                        "channel": "api",
+                        "effective_from": "2026-09-01",
+                        "input_per_mtok": 1,
+                        "output_per_mtok": 1,
+                        "rules": {"search_context_fee_per_request": {"low": 0.005}},
+                        "source_url": "https://example.test/pricing",
+                    }
+                ],
+            }
+        ],
+    }
+    _, aliases, prices = parse_catalog(document)
+    snapshot = CatalogSnapshot(aliases, prices, region="global")
+
+    low = snapshot.cost(
+        provider="example",
+        model="search",
+        at=_at("2026-09-16"),
+        input_tokens=0,
+        output_tokens=0,
+        search_context_size="low",
+    )
+    high = snapshot.cost(
+        provider="example",
+        model="search",
+        at=_at("2026-09-16"),
+        input_tokens=0,
+        output_tokens=0,
+        search_context_size="high",
+    )
+
+    assert (low.status, low.cost_usd, low.reasons) == (
+        "priced",
+        Decimal("0.00500000"),
+        (),
+    )
+    assert high.status == "partial"
+    assert high.cost_usd == Decimal("0E-8")
+    assert high.reasons == ("search_context_fee_unavailable",)
+
+
+def test_price_deployment_applies_search_context_fee():
+    result = SNAPSHOT.price_deployment(
+        model="sonar",
+        channel="perplexity-api",
+        at=_at("2026-08-10"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        search_context_size="high",
+    )
+
+    assert result.cost_usd == Decimal("2.01200000")
+    assert result.status == "priced"
+    assert result.reasons == ()
 
 
 @pytest.mark.parametrize(
@@ -398,7 +571,7 @@ def test_design_partner_models_are_priced(
             "perplexity-api",
             Decimal("2.00"),
             "partial",
-            ("uncaptured_fees",),
+            ("search_context_size_unknown",),
         ),
         (
             "openai",

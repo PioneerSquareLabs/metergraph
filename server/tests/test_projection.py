@@ -53,6 +53,29 @@ def test_projection_maps_and_prices():
     assert values["finish_reason_raw"] is None
 
 
+def test_projection_prices_sonar_search_context_size():
+    high = dict(zip(COLUMNS, project_row(_row(
+        provider="perplexity-ai",
+        model="sonar",
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        cache_read_tokens=0,
+        search_context_size="high",
+    ), SNAPSHOT)))
+    missing = dict(zip(COLUMNS, project_row(_row(
+        provider="perplexity-ai",
+        model="sonar",
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        cache_read_tokens=0,
+    ), SNAPSHOT)))
+
+    assert high["cost_status"] == "priced"
+    assert high["cost_usd"] == Decimal("2.01200000")
+    assert missing["cost_status"] == "partial"
+    assert missing["cost_usd"] == Decimal("2.00000000")
+
+
 def test_projection_separates_explicit_status_and_finish_reason():
     values = dict(zip(COLUMNS, project_row(_row(
         status="tool-calls",

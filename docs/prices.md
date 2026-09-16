@@ -32,6 +32,7 @@ models:
 - `input_includes_cache_write: true` — provider reports cache-write tokens inside `input_tokens` (Vercel AI Gateway); cache writes are deducted before their cache rate is applied.
 - `long_context: {threshold, input_multiplier, output_multiplier}` — surcharge above a prompt-size threshold (OpenAI GPT-5.6, Gemini Pro).
 - `uncaptured_fees: true` — provider charges fees tokens can't express; rows are marked `partial`.
+- `search_context_fee_per_request: {low, medium, high}` - per-request fees for the provider's search context size; a valid captured size is required for an exact price.
 
 `currency` is required and currently limited to `USD`.
 `pricing_verified_at` is the ISO date when the catalog was last checked against
@@ -43,6 +44,8 @@ historical selection.
 Every stored call gets a `cost_status`:
 - `priced` — fully priced from the catalog
 - `partial` — priced, but something was missing (e.g. cache rate unavailable); the stored cost is a lower bound
+  - reason `search_context_size_unknown`: the price has `search_context_fee_per_request` but the call carried no valid `search_context_size` (`low`, `medium` or `high`), so only token charges are included. The size is never inferred.
+  - reason `search_context_fee_unavailable`: the call's size has no fee in that price's table.
 - `unpriced` — unknown model or no effective price window; the dashboard surfaces these so you know to update the catalog
 
 ## Updating
