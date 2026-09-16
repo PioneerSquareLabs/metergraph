@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 _MILLION = Decimal("1000000")
 _COST_QUANTUM = Decimal("0.00000001")
+_SEARCH_CONTEXT_SIZES = frozenset({"low", "medium", "high"})
 _PROVIDER_ALIASES = {
     "amazon-bedrock": "bedrock",
     "aws": "bedrock",
@@ -134,6 +135,13 @@ def _tokens(value: Any) -> int | None:
     return result if result >= 0 else None
 
 
+def _normalize_search_context_size(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    return normalized if normalized in _SEARCH_CONTEXT_SIZES else None
+
+
 def _price_tokens(
     price: Price,
     rules: Mapping[str, Any],
@@ -145,6 +153,7 @@ def _price_tokens(
     cache_write_5m_tokens: Any,
     cache_write_1h_tokens: Any,
     batch: bool,
+    search_context_size: Any,
 ) -> tuple[Decimal, list[str]]:
     """Cost a token usage against one already-selected price and its merged
     rules. Shared by ``cost`` (provider+model entry) and ``price_deployment``
@@ -243,6 +252,19 @@ def _price_tokens(
             )
     if rules.get("uncaptured_fees"):
         reasons.append("uncaptured_fees")
+
+    search_context_fees = rules.get("search_context_fee_per_request")
+    if search_context_fees is not None:
+        normalized_size = _normalize_search_context_size(search_context_size)
+        if normalized_size is None:
+            reasons.append("search_context_size_unknown")
+        else:
+            fee = _decimal(search_context_fees.get(normalized_size))
+            if fee is None:
+                # The catalog carries no fee for this tier: never price it as zero.
+                reasons.append("search_context_fee_unavailable")
+            else:
+                cost += fee
 
     return cost.quantize(_COST_QUANTUM, rounding=ROUND_HALF_UP), reasons
 
@@ -357,6 +379,7 @@ class CatalogSnapshot:
         cache_write_5m_tokens: Any = None,
         cache_write_1h_tokens: Any = None,
         batch: bool = False,
+        search_context_size: Any = None,
     ) -> CostResult:
         provider_key = str(provider or "").strip().lower()
         provider_key = _PROVIDER_ALIASES.get(provider_key, provider_key)
@@ -384,6 +407,7 @@ class CatalogSnapshot:
             cache_write_5m_tokens=cache_write_5m_tokens,
             cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
+            search_context_size=search_context_size,
         )
         return CostResult(
             alias.canonical_id,
@@ -406,6 +430,7 @@ class CatalogSnapshot:
         cache_write_5m_tokens: Any = None,
         cache_write_1h_tokens: Any = None,
         batch: bool = False,
+        search_context_size: Any = None,
     ) -> CostResult:
         """Price an observed deployment from the identity a caller already has:
         a model id, the pricing channel it was served on, the execution time,
@@ -431,6 +456,7 @@ class CatalogSnapshot:
             cache_write_5m_tokens=cache_write_5m_tokens,
             cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
+            search_context_size=search_context_size,
         )
         return CostResult(
             resolved.canonical_model,

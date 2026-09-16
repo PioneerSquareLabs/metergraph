@@ -1,6 +1,7 @@
 """Parse and load the bundled prices.yaml into a CatalogSnapshot."""
 
 import hashlib
+from collections.abc import Mapping as MappingABC
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -25,6 +26,35 @@ _PROVIDER_SYNONYMS = {"bedrock": ("aws-bedrock", "aws")}
 
 class CatalogError(ValueError):
     pass
+
+
+_SEARCH_CONTEXT_SIZES = frozenset({"low", "medium", "high"})
+
+
+def _validate_price_rules(canonical: str, price: Mapping[str, Any]) -> None:
+    rules = price.get("rules") or {}
+    if not isinstance(rules, MappingABC):
+        return
+    if "search_context_fee_per_request" not in rules:
+        return
+    fees = rules["search_context_fee_per_request"]
+    if not isinstance(fees, MappingABC) or not fees:
+        raise CatalogError(
+            f"{canonical}: search_context_fee_per_request must be a non-empty mapping"
+        )
+    invalid_keys = set(fees) - _SEARCH_CONTEXT_SIZES
+    if invalid_keys:
+        raise CatalogError(
+            f"{canonical}: search_context_fee_per_request keys must be a subset of "
+            "low, medium, high"
+        )
+    for size, value in fees.items():
+        parsed = _decimal(value)
+        if parsed is None or parsed < 0:
+            raise CatalogError(
+                f"{canonical}: search_context_fee_per_request.{size} must be a "
+                "finite non-negative decimal"
+            )
 
 
 def _freeze(value: Any) -> Any:
@@ -103,6 +133,7 @@ class LoadedCatalog:
         cache_write_5m_tokens: Any = None,
         cache_write_1h_tokens: Any = None,
         batch: bool = False,
+        search_context_size: Any = None,
     ) -> CostResult:
         """Price an observed deployment channel-exactly. See
         :meth:`CatalogSnapshot.price_deployment`."""
@@ -117,6 +148,7 @@ class LoadedCatalog:
             cache_write_5m_tokens=cache_write_5m_tokens,
             cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
+            search_context_size=search_context_size,
         )
 
     def price_retrieval(
@@ -208,6 +240,7 @@ def parse_catalog(
                 raise CatalogError(f"{canonical}: price entry needs channel")
             if not str(price.get("source_url") or "").strip():
                 raise CatalogError(f"{canonical}: price entry needs source_url")
+            _validate_price_rules(canonical, price)
             effective_from = _date(
                 price.get("effective_from"), field="effective_from", model=canonical
             )
