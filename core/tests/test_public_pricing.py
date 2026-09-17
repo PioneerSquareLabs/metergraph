@@ -373,9 +373,11 @@ def test_installed_catalog_prices_gemini_2_5_flash_image_on_google_api():
 
 @pytest.mark.parametrize(
     "channel,cache_read_cost",
-    # google-api bills cache reads on top of full input; the gateway alias sets
-    # input_includes_cache_read, so its cache reads come out of billable input.
-    [("google-api", "0.37500000"), ("vercel-ai-gateway", "0.03000000")],
+    # Both channels count cache reads inside the reported input, so on either
+    # one a fully cached prompt is billed at the cache rate alone. Google's
+    # UsageMetadata is explicit that promptTokenCount "includes the number of
+    # tokens in the cached content".
+    [("google-api", "0.07500000"), ("vercel-ai-gateway", "0.03000000")],
 )
 def test_installed_catalog_prices_gemini_2_5_flash_on_both_channels(channel, cache_read_cost):
     """The gateway resolves the provider-qualified id and bills its own cache rate.
@@ -755,7 +757,8 @@ _AT_GEMINI_35_FLASH_LITE = datetime(2026, 9, 6, tzinfo=timezone.utc)
     ["gemini-3.5-flash-lite", "models/gemini-3.5-flash-lite"],
 )
 def test_installed_catalog_prices_gemini_35_flash_lite_on_the_direct_api(model):
-    """Google direct bills cache reads on top of full input."""
+    """Google direct counts cache reads inside the reported input, so a fully
+    cached prompt costs the cache rate alone rather than that plus full input."""
     catalog = load_catalog()
 
     resolved = catalog.price(
@@ -774,7 +777,7 @@ def test_installed_catalog_prices_gemini_35_flash_lite_on_the_direct_api(model):
         input_tokens=1_000_000, output_tokens=0, cache_read_tokens=1_000_000,
     )
     assert cached.status == "priced"
-    assert cached.cost_usd == Decimal("0.33000000")
+    assert cached.cost_usd == Decimal("0.03000000")
 
 
 def test_installed_catalog_does_not_price_gemini_35_flash_lite_off_google_api():
@@ -982,3 +985,33 @@ def test_installed_catalog_prices_gemini_omni_flash_preview(model):
     assert resolved.status == "priced"
     assert resolved.canonical_model == "google/gemini-omni-flash-preview"
     assert resolved.cost_usd == Decimal("10.50000000")
+
+
+def test_google_published_models_count_cache_reads_inside_reported_input():
+    """Google's UsageMetadata defines promptTokenCount as "the total effective
+    prompt size meaning this includes the number of tokens in the cached
+    content". A Google-channel price that bills cache reads without recording
+    that convention charges those tokens twice, at the input rate and again at
+    the cache rate, so every such price must carry the rule.
+
+    Models Google publishes no cache rate for are exempt: nothing is billed per
+    cached token there. So is Anthropic's own model served on Vertex, which
+    reports Anthropic's usage shape, where input already excludes the cache.
+    """
+    doc = load_catalog().document
+    google_channels = {"google-api", "google-ai-studio", "google-vertex-ai"}
+
+    missing = [
+        (model["canonical_id"], price["channel"], str(price["effective_from"]))
+        for model in doc["models"]
+        if model.get("publisher") == "google"
+        for price in model.get("prices") or []
+        if price.get("channel") in google_channels
+        and price.get("cache_read_per_mtok") is not None
+        and not (price.get("rules") or {}).get("input_includes_cache_read")
+    ]
+
+    assert missing == [], (
+        "Google-channel prices billing cache reads without "
+        f"input_includes_cache_read: {missing}"
+    )
