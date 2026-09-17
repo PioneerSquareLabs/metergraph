@@ -982,3 +982,26 @@ def test_installed_catalog_prices_gemini_omni_flash_preview(model):
     assert resolved.status == "priced"
     assert resolved.canonical_model == "google/gemini-omni-flash-preview"
     assert resolved.cost_usd == Decimal("10.50000000")
+
+
+def test_price_forwards_cache_inclusive_input_to_the_deployment_pricer():
+    """`load_catalog().price` is the public entry point, so the cache-inclusive
+    mode has to reach it too: an OTLP caller that goes through the wrapper must
+    not get a TypeError, nor silently pay the uncached remainder twice."""
+    catalog = load_catalog()
+    usage = dict(
+        model="claude-opus-4-8",
+        channel="anthropic-api",
+        at=datetime(2026, 9, 11, tzinfo=timezone.utc),
+        input_tokens=148_661,
+        output_tokens=613,
+        cache_read_tokens=148_290,
+        cache_write_tokens=369,
+    )
+
+    inclusive = catalog.price(**usage, input_includes_cache=True)
+    native = catalog.price(**{**usage, "input_tokens": 2})
+
+    assert inclusive.status == "priced"
+    assert inclusive.cost_usd == native.cost_usd == Decimal("0.09178625")
+    assert catalog.price(**usage).cost_usd > inclusive.cost_usd
