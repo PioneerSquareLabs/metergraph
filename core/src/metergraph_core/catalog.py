@@ -145,10 +145,19 @@ def _price_tokens(
     cache_write_5m_tokens: Any,
     cache_write_1h_tokens: Any,
     batch: bool,
+    input_includes_cache: bool = False,
 ) -> tuple[Decimal, list[str]]:
     """Cost a token usage against one already-selected price and its merged
     rules. Shared by ``cost`` (provider+model entry) and ``price_deployment``
-    (model+channel entry) so both compute identically."""
+    (model+channel entry) so both compute identically.
+
+    ``input_includes_cache`` states that the caller's own input count already
+    counts cache reads and writes, whatever convention the catalog entry
+    records. It is how an OpenTelemetry GenAI source is priced: the semantic
+    conventions define ``gen_ai.usage.input_tokens`` as the whole input,
+    cached tokens included, so the same span shape arrives for every provider.
+    Only the uncached remainder is billed at the input rate, while the size
+    tier is still judged on the whole prompt the provider processed."""
     reasons: list[str] = []
     input_count = _tokens(input_tokens)
     output_count = _tokens(output_tokens)
@@ -166,20 +175,33 @@ def _price_tokens(
         output_count = 0
 
     billable_input = input_count
-    deducted_input = 0
-    if rules.get("input_includes_cache_read"):
-        if cache_read_count > input_count:
-            reasons.append("cache_read_exceeds_input")
-            deducted_input = input_count
+    # The prompt the provider actually processed, which decides the size tier.
+    context_count = input_count
+    if input_includes_cache:
+        cached_count = cache_read_count + cache_write_count
+        if cached_count > input_count:
+            # A total smaller than its own cache counts cannot include them, so
+            # the caller's convention does not hold for this usage: bill the
+            # count as uncached input and size the prompt on the whole of it.
+            reasons.append("cache_exceeds_input_total")
+            context_count = input_count + cached_count
         else:
-            deducted_input += cache_read_count
-    if rules.get("input_includes_cache_write"):
-        if cache_write_count > input_count - deducted_input:
-            reasons.append("cache_write_exceeds_input")
-            deducted_input = input_count
-        else:
-            deducted_input += cache_write_count
-    billable_input -= deducted_input
+            billable_input = input_count - cached_count
+    else:
+        deducted_input = 0
+        if rules.get("input_includes_cache_read"):
+            if cache_read_count > input_count:
+                reasons.append("cache_read_exceeds_input")
+                deducted_input = input_count
+            else:
+                deducted_input += cache_read_count
+        if rules.get("input_includes_cache_write"):
+            if cache_write_count > input_count - deducted_input:
+                reasons.append("cache_write_exceeds_input")
+                deducted_input = input_count
+            else:
+                deducted_input += cache_write_count
+        billable_input -= deducted_input
 
     input_rate = price.input_per_mtok
     output_rate = price.output_per_mtok
@@ -194,7 +216,7 @@ def _price_tokens(
     output_multiplier = Decimal("1")
     long_context = rules.get("long_context") or {}
     threshold = _tokens(long_context.get("threshold"))
-    if threshold is not None and input_count > threshold:
+    if threshold is not None and context_count > threshold:
         input_multiplier = _decimal(long_context.get("input_multiplier")) or Decimal("1")
         output_multiplier = _decimal(
             long_context.get("output_multiplier")
@@ -357,7 +379,14 @@ class CatalogSnapshot:
         cache_write_5m_tokens: Any = None,
         cache_write_1h_tokens: Any = None,
         batch: bool = False,
+        input_includes_cache: bool = False,
     ) -> CostResult:
+        """Price one captured call from its reported provider and model.
+
+        Set ``input_includes_cache`` when the caller's input count already
+        counts cache reads and writes, as an OpenTelemetry GenAI source reports
+        it; see ``_price_tokens``.
+        """
         provider_key = str(provider or "").strip().lower()
         provider_key = _PROVIDER_ALIASES.get(provider_key, provider_key)
         model_key = str(model or "").strip().lower()
@@ -384,6 +413,7 @@ class CatalogSnapshot:
             cache_write_5m_tokens=cache_write_5m_tokens,
             cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
+            input_includes_cache=input_includes_cache,
         )
         return CostResult(
             alias.canonical_id,
@@ -406,6 +436,7 @@ class CatalogSnapshot:
         cache_write_5m_tokens: Any = None,
         cache_write_1h_tokens: Any = None,
         batch: bool = False,
+        input_includes_cache: bool = False,
     ) -> CostResult:
         """Price an observed deployment from the identity a caller already has:
         a model id, the pricing channel it was served on, the execution time,
@@ -416,6 +447,10 @@ class CatalogSnapshot:
         repriced off a different channel. The caller never has to rebuild a
         provider or alias index from the catalog document; resolution and cost
         both live here.
+
+        Set ``input_includes_cache`` when the caller's input count already
+        counts cache reads and writes, as an OpenTelemetry GenAI source reports
+        it; see ``_price_tokens``.
         """
         when = _coerce_datetime(at)
         resolved = self.resolve_price(model=model, channel=channel, at=when)
@@ -431,6 +466,7 @@ class CatalogSnapshot:
             cache_write_5m_tokens=cache_write_5m_tokens,
             cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
+            input_includes_cache=input_includes_cache,
         )
         return CostResult(
             resolved.canonical_model,

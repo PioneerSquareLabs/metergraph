@@ -821,3 +821,139 @@ def test_gateway_only_providers_have_no_direct_channel():
     }
     # "xai" is a gateway spelling of "x-ai", which this catalog prices directly.
     assert resolved == {"xai"}
+
+
+def test_inclusive_input_bills_cached_anthropic_tokens_once():
+    """An OpenTelemetry GenAI source reports the whole input, cached tokens
+    included, while Anthropic's own usage reports only the uncached remainder.
+    Pricing the same call either way must cost the same. The numbers are the
+    customer trace from MET-61, which billed $0.835 before this option existed.
+    """
+    inclusive = SNAPSHOT.cost(
+        provider="anthropic",
+        model="claude-opus-4-8",
+        at=_at("2026-09-11"),
+        input_tokens=148_661,
+        output_tokens=613,
+        cache_read_tokens=148_290,
+        cache_write_tokens=369,
+        input_includes_cache=True,
+    )
+    native = SNAPSHOT.cost(
+        provider="anthropic",
+        model="claude-opus-4-8",
+        at=_at("2026-09-11"),
+        input_tokens=2,
+        output_tokens=613,
+        cache_read_tokens=148_290,
+        cache_write_tokens=369,
+    )
+
+    assert inclusive.status == "priced"
+    assert inclusive.cost_usd == Decimal("0.09178625")
+    assert inclusive.cost_usd == native.cost_usd
+    assert inclusive.reasons == ()
+
+
+def test_inclusive_input_sizes_the_long_context_tier_on_the_whole_prompt():
+    """The size tier follows the prompt the provider processed, so a prompt over
+    the threshold only because of cached tokens still pays the long-context
+    rates while the cached tokens themselves are billed once."""
+    result = SNAPSHOT.cost(
+        provider="google",
+        model="gemini-2.5-pro",
+        at=_at("2026-09-11"),
+        input_tokens=200_001,
+        output_tokens=1_000,
+        cache_read_tokens=50_000,
+        input_includes_cache=True,
+    )
+
+    expected = (
+        Decimal(150_001) * Decimal("1.25") * 2
+        + Decimal(1_000) * Decimal("10") * Decimal("1.5")
+        + Decimal(50_000) * Decimal("0.31") * 2
+    ) / Decimal(1_000_000)
+    assert result.status == "priced"
+    assert result.cost_usd == expected.quantize(Decimal("0.00000001"))
+
+    # Below the threshold the same shape pays standard rates.
+    short = SNAPSHOT.cost(
+        provider="google",
+        model="gemini-2.5-pro",
+        at=_at("2026-09-11"),
+        input_tokens=199_999,
+        output_tokens=1_000,
+        cache_read_tokens=50_000,
+        input_includes_cache=True,
+    )
+    standard = (
+        Decimal(149_999) * Decimal("1.25")
+        + Decimal(1_000) * Decimal("10")
+        + Decimal(50_000) * Decimal("0.31")
+    ) / Decimal(1_000_000)
+    assert short.cost_usd == standard.quantize(Decimal("0.00000001"))
+
+
+def test_inclusive_input_smaller_than_its_cache_counts_is_billed_as_uncached():
+    """A total below its own cache counts cannot include them, so the caller's
+    convention does not hold for that usage: bill it as uncached input, size the
+    prompt on the whole of it, and say so in the reasons."""
+    result = SNAPSHOT.cost(
+        provider="anthropic",
+        model="claude-opus-4-8",
+        at=_at("2026-09-11"),
+        input_tokens=2,
+        output_tokens=613,
+        cache_read_tokens=148_290,
+        cache_write_tokens=369,
+        input_includes_cache=True,
+    )
+
+    assert result.cost_usd == Decimal("0.09178625")
+    assert result.status == "partial"
+    assert "cache_exceeds_input_total" in result.reasons
+
+
+def test_inclusive_input_matches_an_entry_that_already_deducts_cache():
+    """Where the catalog already records the inclusive convention, saying so
+    explicitly must not deduct the cache twice."""
+    by_rule = SNAPSHOT.cost(
+        provider="openai",
+        model="gpt-5.6-luna",
+        at=_at("2026-07-15"),
+        input_tokens=100_000,
+        output_tokens=0,
+        cache_read_tokens=50_000,
+    )
+    explicit = SNAPSHOT.cost(
+        provider="openai",
+        model="gpt-5.6-luna",
+        at=_at("2026-07-15"),
+        input_tokens=100_000,
+        output_tokens=0,
+        cache_read_tokens=50_000,
+        input_includes_cache=True,
+    )
+
+    assert explicit.cost_usd == by_rule.cost_usd == Decimal("0.055")
+
+
+def test_inclusive_input_is_off_by_default_for_price_deployment():
+    """The option is opt-in on both entry points and changes nothing unless set."""
+    usage = dict(
+        model="gemini-2.5-pro",
+        channel="google-api",
+        at=_at("2026-09-11"),
+        input_tokens=200_001,
+        output_tokens=0,
+        cache_read_tokens=50_000,
+    )
+    legacy = SNAPSHOT.price_deployment(**usage)
+    inclusive = SNAPSHOT.price_deployment(**usage, input_includes_cache=True)
+
+    assert legacy.cost_usd > inclusive.cost_usd
+    assert inclusive.cost_usd == (
+        (Decimal(150_001) * Decimal("1.25") * 2 + Decimal(50_000) * Decimal("0.31") * 2)
+        / Decimal(1_000_000)
+    ).quantize(Decimal("0.00000001"))
