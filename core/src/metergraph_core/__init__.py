@@ -7,6 +7,7 @@ from .catalog import (
     Price,
     ResolvedPrice,
     direct_channel_for_provider,
+    resolve_price_rules,
 )
 from .billing import (
     BillingDecision,
@@ -46,4 +47,5 @@ __all__ = [
     "parse_catalog",
     "parse_retrieval",
     "resolve_billing",
+    "resolve_price_rules",
 ]

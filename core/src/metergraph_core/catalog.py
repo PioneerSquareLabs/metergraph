@@ -37,6 +37,46 @@ _DIRECT_CHANNEL_BY_PROVIDER = {
 }
 
 
+# Channels whose provider reports cache reads inside the input token count.
+# OpenAI's `prompt_tokens`, Google's `promptTokenCount`, DeepSeek's
+# `prompt_tokens` and xAI's `prompt_tokens` all include the cached tokens they
+# also report separately, so a price row on these channels must deduct them
+# before applying the input rate. Without it a cached token is billed at the
+# input rate and again at the cache-read rate -- several times the real cost on
+# a cache-heavy workload, and enough to reorder a customer's spend ranking.
+# Anthropic and Bedrock report cache reads outside the input count and are
+# absent by design; a gateway channel depends on the provider behind it and
+# states its own rules per row.
+_INPUT_INCLUDES_CACHE_READ_CHANNELS = frozenset({
+    "openai-api",
+    "google-api",
+    "google-vertex-ai",
+    "deepseek-api",
+    "xai-api",
+})
+
+
+def resolve_price_rules(
+    channel: Any, rules: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    """The pricing rules for a row on ``channel``, supplying what the provider's
+    token accounting requires and the row leaves unstated.
+
+    A catalog author or an operator adding a model has no way to know which
+    providers count cache reads inside the input total, so the rule is applied
+    here rather than left to every row that carries a cache-read rate. A row
+    that states the rule, either way, is left alone.
+    """
+    resolved = dict(rules or {})
+    if (
+        isinstance(channel, str)
+        and channel.strip().lower() in _INPUT_INCLUDES_CACHE_READ_CHANNELS
+        and "input_includes_cache_read" not in resolved
+    ):
+        resolved["input_includes_cache_read"] = True
+    return resolved
+
+
 def _normalize_provider(provider: str) -> str:
     """Fold a provider spelling through metergraph-core's provider-alias map
     (e.g. ``aws``/``amazon-bedrock`` -> ``bedrock``, ``google-genai`` ->

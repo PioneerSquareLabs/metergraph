@@ -241,6 +241,60 @@ def test_price_source_is_required():
         parse_catalog(doc)
 
 
+def _channel_document(channel, rules=None):
+    price = {
+        "channel": channel,
+        "effective_from": "2026-08-24",
+        "input_per_mtok": 1,
+        "output_per_mtok": 2,
+        "cache_read_per_mtok": "0.1",
+        "source_url": "https://example.test/pricing",
+    }
+    if rules is not None:
+        price["rules"] = rules
+    return {
+        "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-08-24",
+        "models": [
+            {
+                "canonical_id": "example/model",
+                "aliases": [
+                    {"provider": "example", "alias": "model", "channel": channel}
+                ],
+                "prices": [price],
+            }
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "channel",
+    ["openai-api", "google-api", "google-vertex-ai", "deepseek-api", "xai-api"],
+)
+def test_channels_that_count_cache_reads_inside_input_say_so_without_the_row(channel):
+    """A catalog author has no way to know which providers report cached tokens
+    inside the input total, so the rule is supplied rather than left to the row."""
+    _version, _aliases, [price] = parse_catalog(_channel_document(channel))
+
+    assert price.rules["input_includes_cache_read"] is True
+
+
+@pytest.mark.parametrize(
+    "channel,rules",
+    [
+        ("openai-api", {"input_includes_cache_read": False}),
+        ("anthropic-api", None),
+        ("aws-bedrock", None),
+        ("vercel-ai-gateway", None),
+    ],
+)
+def test_a_stated_rule_and_an_unlisted_channel_are_left_alone(channel, rules):
+    _version, _aliases, [price] = parse_catalog(_channel_document(channel, rules))
+
+    assert price.rules.get("input_includes_cache_read") is not True
+
+
 def test_openai_cache_read_included_in_input():
     result = SNAPSHOT.cost(
         provider="openai",
