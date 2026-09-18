@@ -243,33 +243,69 @@ def test_price_source_is_required():
 
 
 @pytest.mark.parametrize(
-    "channel",
-    ["openai-api", "google-api", "google-vertex-ai", "deepseek-api", "xai-api"],
+    "publisher, channel",
+    [
+        ("openai", "openai-api"),
+        ("google", "google-api"),
+        ("google", "google-vertex-ai"),
+        ("deepseek", "deepseek-api"),
+        ("xai", "xai-api"),
+    ],
 )
-def test_cache_reads_come_out_of_input_on_the_channels_that_count_them(channel):
+def test_cache_reads_come_out_of_input_where_the_publisher_counts_them(
+    publisher, channel
+):
     """A catalog author has no way to know which providers report cached tokens
-    inside the input total, so the channel answers when the row does not."""
-    assert counts_cache_read_in_input(channel, {}) is True
+    inside the input total, so the publisher and channel answer together when
+    the row does not."""
+    assert counts_cache_read_in_input(publisher, channel, {}) is True
 
 
 @pytest.mark.parametrize(
-    "channel, rules",
+    "publisher, channel, rules",
     [
-        ("openai-api", {"input_includes_cache_read": False}),
-        ("anthropic-api", {}),
-        ("aws-bedrock", {}),
-        ("vercel-ai-gateway", {}),
-        (None, {}),
+        ("openai", "openai-api", {"input_includes_cache_read": False}),
+        ("anthropic", "anthropic-api", {}),
+        ("anthropic", "aws-bedrock", {}),
+        ("openai", "vercel-ai-gateway", {}),
+        ("google", None, {}),
+        (None, "google-api", {}),
     ],
 )
-def test_a_stated_rule_and_an_unlisted_channel_keep_input_billable(channel, rules):
-    assert counts_cache_read_in_input(channel, rules) is False
+def test_a_stated_rule_and_an_unlisted_pair_keep_input_billable(
+    publisher, channel, rules
+):
+    assert counts_cache_read_in_input(publisher, channel, rules) is False
 
 
 def test_a_gateway_row_can_claim_the_rule_for_the_provider_behind_it():
     assert counts_cache_read_in_input(
-        "vercel-ai-gateway", {"input_includes_cache_read": True}
+        "openai", "vercel-ai-gateway", {"input_includes_cache_read": True}
     ) is True
+
+
+def test_vertex_serves_two_publishers_and_only_google_counts_cache_in_input():
+    """google-vertex-ai is the one mixed-publisher channel in the catalog.
+    Claude on Vertex keeps Anthropic's usage shape, where input_tokens already
+    excludes cache reads, so deducting there overcharges in the opposite
+    direction from the defect this default removes."""
+    assert counts_cache_read_in_input("google", "google-vertex-ai", {}) is True
+    assert counts_cache_read_in_input("anthropic", "google-vertex-ai", {}) is False
+
+
+def test_claude_on_vertex_bills_cache_reads_on_top_of_input():
+    """The bundled catalog's only Anthropic row on a Google channel. At 1M
+    input including 1M cache reads it is 5.50 + 0.55, not 0.55."""
+    result = SNAPSHOT.cost(
+        provider="vertex-ai",
+        model="claude-opus-4-6",
+        at=_at("2026-09-18"),
+        input_tokens=1_000_000,
+        output_tokens=0,
+        cache_read_tokens=1_000_000,
+    )
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("6.05")
 
 
 def test_openai_cache_read_included_in_input():

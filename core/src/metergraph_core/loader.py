@@ -249,6 +249,7 @@ def parse_catalog(
                     effective_from=effective_from,
                     effective_to=effective_to,
                     source_url=str(price["source_url"]).strip(),
+                    publisher=publisher,
                 )
             )
     return version, aliases, prices
