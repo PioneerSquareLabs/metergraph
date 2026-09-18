@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-09-12"
+version: "2026-09-18"
 currency: USD
-pricing_verified_at: "2026-09-12"
+pricing_verified_at: "2026-09-18"
 models:
   - canonical_id: openai/gpt-5.6-sol
     publisher: openai
@@ -232,6 +232,7 @@ models:
       - {provider: openai, alias: gpt-5.4, channel: openai-api}
       - {provider: openai, alias: gpt-5.4-2026-03-05, channel: openai-api}
       - {provider: openai, alias: openai/gpt-5.4, channel: openai-api}
+      - {provider: vercel, alias: openai/gpt-5.4, channel: vercel-ai-gateway}
     prices:
       - channel: openai-api
         region: global
@@ -246,6 +247,13 @@ models:
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://developers.openai.com/api/docs/models/gpt-5.4
 
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-03-05"
+        input_per_mtok: 2.5
+        output_per_mtok: 15.0
+        cache_read_per_mtok: 0.25
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: openai/gpt-5.4-nano
     publisher: openai
     aliases:
@@ -319,6 +327,7 @@ models:
       - {provider: openai, alias: gpt-4.1, channel: openai-api}
       - {provider: openai, alias: gpt-4.1-2025-04-14, channel: openai-api}
       - {provider: openai, alias: openai/gpt-4.1, channel: openai-api}
+      - {provider: vercel, alias: openai/gpt-4.1, channel: vercel-ai-gateway}
     prices:
       - channel: openai-api
         region: global
@@ -332,6 +341,13 @@ models:
           input_includes_cache_read: true
         source_url: https://developers.openai.com/api/docs/models/gpt-4.1
 
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-04-14"
+        input_per_mtok: 2.0
+        output_per_mtok: 8.0
+        cache_read_per_mtok: 0.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: openai/gpt-4.1-mini
     publisher: openai
     aliases:
@@ -396,6 +412,7 @@ models:
       - {provider: anthropic, alias: anthropic/claude-fable-5, channel: anthropic-api}
       - {provider: bedrock, alias: us.anthropic.claude-fable-5, channel: aws-bedrock}
       - {provider: bedrock, alias: anthropic.claude-fable-5, channel: aws-bedrock}
+      - {provider: vercel, alias: anthropic/claude-fable-5, channel: vercel-ai-gateway}
     prices:
       - channel: anthropic-api
         region: global
@@ -420,6 +437,14 @@ models:
         batch_output_per_mtok: 25.00
         source_url: https://aws.amazon.com/bedrock/pricing/
 
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-06-09"
+        input_per_mtok: 10.0
+        output_per_mtok: 50.0
+        cache_read_per_mtok: 1.0
+        cache_write_5m_per_mtok: 12.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: anthropic/claude-opus-5
     publisher: anthropic
     aliases:
@@ -428,6 +453,9 @@ models:
         alias: anthropic/claude-opus-5
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: bedrock, alias: anthropic.claude-opus-5, channel: aws-bedrock}
+      - {provider: bedrock, alias: global.anthropic.claude-opus-5, channel: aws-bedrock}
+      - {provider: bedrock, alias: us.anthropic.claude-opus-5, channel: aws-bedrock-geo}
     prices:
       - channel: anthropic-api
         region: global
@@ -449,6 +477,28 @@ models:
         cache_write_5m_per_mtok: 6.25
         source_url: https://ai-gateway.vercel.sh/v1/models
 
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2026-07-24"
+        input_per_mtok: 5.0
+        output_per_mtok: 25.0
+        cache_read_per_mtok: 0.5
+        cache_write_5m_per_mtok: 6.25
+        cache_write_1h_per_mtok: 10.0
+        batch_input_per_mtok: 2.5
+        batch_output_per_mtok: 12.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-07-24"
+        input_per_mtok: 5.5
+        output_per_mtok: 27.5
+        cache_read_per_mtok: 0.55
+        cache_write_5m_per_mtok: 6.875
+        cache_write_1h_per_mtok: 11.0
+        batch_input_per_mtok: 2.75
+        batch_output_per_mtok: 13.75
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: anthropic/claude-opus-4.8
     publisher: anthropic
     aliases:
@@ -519,6 +569,7 @@ models:
       - {provider: anthropic, alias: claude-opus-4-6, channel: anthropic-api}
       - {provider: anthropic, alias: anthropic/claude-opus-4.6, channel: anthropic-api}
       - {provider: vertex-ai, alias: claude-opus-4-6, channel: google-vertex-ai}
+      - {provider: vercel, alias: anthropic/claude-opus-4.6, channel: vercel-ai-gateway}
     prices:
       - channel: anthropic-api
         region: global
@@ -543,6 +594,14 @@ models:
         batch_output_per_mtok: 13.75
         source_url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
 
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-02-05"
+        input_per_mtok: 5.0
+        output_per_mtok: 25.0
+        cache_read_per_mtok: 0.5
+        cache_write_5m_per_mtok: 6.25
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: anthropic/claude-sonnet-5
     publisher: anthropic
     aliases:
@@ -624,6 +683,18 @@ models:
         alias: anthropic/claude-sonnet-4.6
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: bedrock, alias: anthropic.claude-sonnet-4-6, channel: aws-bedrock}
+      - {provider: bedrock, alias: bedrock/anthropic.claude-sonnet-4-6, channel: aws-bedrock}
+      - {provider: bedrock, alias: bedrock/global.anthropic.claude-sonnet-4-6, channel: aws-bedrock}
+      - {provider: bedrock, alias: global.anthropic.claude-sonnet-4-6, channel: aws-bedrock}
+      - {provider: bedrock, alias: au.anthropic.claude-sonnet-4-6, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: bedrock/au.anthropic.claude-sonnet-4-6, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: bedrock/eu.anthropic.claude-sonnet-4-6, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: bedrock/jp.anthropic.claude-sonnet-4-6, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: bedrock/us.anthropic.claude-sonnet-4-6, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: eu.anthropic.claude-sonnet-4-6, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: jp.anthropic.claude-sonnet-4-6, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: us.anthropic.claude-sonnet-4-6, channel: aws-bedrock-geo}
     prices:
       - channel: anthropic-api
         region: global
@@ -645,12 +716,35 @@ models:
         cache_write_5m_per_mtok: 3.75
         source_url: https://vercel.com/ai-gateway/models/claude-sonnet-4.6/providers
 
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2026-02-17"
+        input_per_mtok: 3.0
+        output_per_mtok: 15.0
+        cache_read_per_mtok: 0.3
+        cache_write_5m_per_mtok: 3.75
+        cache_write_1h_per_mtok: 6.0
+        batch_input_per_mtok: 1.5
+        batch_output_per_mtok: 7.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-02-17"
+        input_per_mtok: 3.3
+        output_per_mtok: 16.5
+        cache_read_per_mtok: 0.33
+        cache_write_5m_per_mtok: 4.125
+        cache_write_1h_per_mtok: 6.6
+        batch_input_per_mtok: 1.65
+        batch_output_per_mtok: 8.25
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: anthropic/claude-sonnet-4.5
     publisher: anthropic
     aliases:
       - {provider: anthropic, alias: claude-sonnet-4-5, channel: anthropic-api}
       - {provider: anthropic, alias: claude-sonnet-4-5-20250929, channel: anthropic-api}
       - {provider: anthropic, alias: anthropic/claude-sonnet-4.5, channel: anthropic-api}
+      - {provider: vercel, alias: anthropic/claude-sonnet-4.5, channel: vercel-ai-gateway}
     prices:
       - channel: anthropic-api
         region: global
@@ -664,6 +758,14 @@ models:
         batch_output_per_mtok: 7.50
         source_url: https://platform.claude.com/docs/en/about-claude/pricing
 
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-09-29"
+        input_per_mtok: 3.0
+        output_per_mtok: 15.0
+        cache_read_per_mtok: 0.3
+        cache_write_5m_per_mtok: 3.75
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: google/gemini-3-pro
     publisher: google
     aliases:
@@ -733,6 +835,7 @@ models:
       - {provider: vertex-ai, alias: gemini-3.5-flash, channel: google-vertex-ai}
       - {provider: google, alias: gemini-3.5-flash, channel: google-api}
       - {provider: google, alias: models/gemini-3.5-flash, channel: google-api}
+      - {provider: google, alias: google/gemini-3.5-flash, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
     prices:
       # Direct API and Vertex list the same rate for this model.
       - channel: google-api
@@ -755,6 +858,13 @@ models:
         source_url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
 
   # Direct API only: no Vertex rate is published for this model.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-05-19"
+        input_per_mtok: 1.5
+        output_per_mtok: 9.0
+        cache_read_per_mtok: 0.15
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: google/gemini-3.5-flash-lite
     publisher: google
     aliases:
@@ -774,6 +884,7 @@ models:
     aliases:
       - {provider: google, alias: gemini-2.5-pro, channel: google-api}
       - {provider: google, alias: models/gemini-2.5-pro, channel: google-api}
+      - {provider: google, alias: google/gemini-2.5-pro, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
     prices:
       - channel: google-api
         region: global
@@ -787,6 +898,13 @@ models:
           long_context: {threshold: 200000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://ai.google.dev/gemini-api/docs/pricing
 
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-06-17"
+        input_per_mtok: 1.25
+        output_per_mtok: 10.0
+        cache_read_per_mtok: 0.125
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: google/gemini-2.5-flash
     publisher: google
     aliases:
@@ -845,6 +963,7 @@ models:
       - {provider: litellm, alias: models/gemini-flash-lite-latest, channel: google-api}
       - {provider: litellm, alias: google/gemini-flash-lite-latest, channel: google-api}
       - {provider: litellm, alias: google/models/gemini-flash-lite-latest, channel: google-api}
+      - {provider: google, alias: google/gemini-2.5-flash-lite, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
     prices:
       - channel: google-api
         region: global
@@ -856,6 +975,13 @@ models:
         batch_output_per_mtok: 0.20
         source_url: https://ai.google.dev/gemini-api/docs/pricing
 
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-07-22"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.4
+        cache_read_per_mtok: 0.01
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: google/gemma-4-26b-a4b-it
     publisher: google
     aliases:
@@ -917,6 +1043,7 @@ models:
         alias: meta/muse-spark-1.1
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: litellm, alias: muse-spark-1.1, channel: meta-api}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -926,10 +1053,20 @@ models:
         cache_read_per_mtok: 0.15
         source_url: https://ai-gateway.vercel.sh/v1/models
 
+      - channel: meta-api
+        region: global
+        effective_from: "2026-07-09"
+        input_per_mtok: 1.25
+        output_per_mtok: 4.25
+        cache_read_per_mtok: 0.15
+        source_url: https://dev.meta.ai/docs/pricing-rate-limits
   - canonical_id: mistral/mistral-large-3
     publisher: mistral
     aliases:
       - {provider: bedrock, alias: mistral.mistral-large-3-675b-instruct, channel: aws-bedrock}
+      - {provider: litellm, alias: mistral-large-3, channel: mistral-api}
+      - {provider: mistral, alias: mistral-large-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral/mistral-large-3, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
     prices:
       - channel: aws-bedrock
         region: us-west-2
@@ -938,10 +1075,24 @@ models:
         output_per_mtok: 1.50
         source_url: https://aws.amazon.com/bedrock/pricing/
 
+      - channel: mistral-api
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.5
+        output_per_mtok: 1.5
+        source_url: https://mistral.ai/pricing/api
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.5
+        output_per_mtok: 1.5
+        cache_read_per_mtok: 0.05
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: deepseek/v3.2
     publisher: deepseek
     aliases:
       - {provider: bedrock, alias: deepseek.v3.2, channel: aws-bedrock}
+      - {provider: deepseek, alias: deepseek/deepseek-v3.2, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
     prices:
       - channel: aws-bedrock
         region: us-west-2
@@ -950,6 +1101,12 @@ models:
         output_per_mtok: 1.85
         source_url: https://aws.amazon.com/bedrock/pricing/
 
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-12-01"
+        input_per_mtok: 0.62
+        output_per_mtok: 1.85
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: deepseek/v3.1
     publisher: deepseek
     aliases:
@@ -1037,6 +1194,7 @@ models:
       - {provider: x-ai, alias: grok-4.3-latest, channel: xai-api}
       - {provider: x-ai, alias: grok-latest, channel: xai-api}
       - {provider: bedrock, alias: xai.grok-4.3, channel: aws-bedrock}
+      - {provider: vercel, alias: spacexai/grok-4.3, channel: vercel-ai-gateway}
     prices:
       - channel: xai-api
         region: global
@@ -1062,6 +1220,15 @@ models:
           input_includes_cache_read: true
         source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-xai-grok-4-3.html
 
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-04-30"
+        input_per_mtok: 1.25
+        output_per_mtok: 2.5
+        cache_read_per_mtok: 0.2
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: perplexity/sonar
     publisher: perplexity
     aliases:
@@ -1184,6 +1351,9 @@ models:
         alias: google/gemini-3.7-flash
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
+      - {provider: google, alias: gemini-3.7-flash, channel: google-api}
+      - {provider: google, alias: google/models/gemini-3.7-flash, channel: google-api}
+      - {provider: google, alias: models/gemini-3.7-flash, channel: google-api}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -1193,6 +1363,13 @@ models:
         cache_read_per_mtok: 0.075
         source_url: https://ai-gateway.vercel.sh/v1/models
 
+      - channel: google-api
+        region: global
+        effective_from: "2026-08-18"
+        input_per_mtok: 0.75
+        output_per_mtok: 3.75
+        cache_read_per_mtok: 0.075
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: google/gemini-3.8-flash
     publisher: google
     aliases:
@@ -1324,6 +1501,9 @@ models:
         alias: zai/glm-5.2
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
+      - {provider: litellm, alias: glm-5.2, channel: zai-api}
+      - {provider: litellm, alias: glm-5p2, channel: zai-api}
+      - {provider: zai, alias: zai/glm-5p2, channel: zai-api}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -1333,6 +1513,13 @@ models:
         cache_read_per_mtok: 0.16
         source_url: https://ai-gateway.vercel.sh/v1/models
 
+      - channel: zai-api
+        region: global
+        effective_from: "2026-08-01"
+        input_per_mtok: 1.4
+        output_per_mtok: 4.4
+        cache_read_per_mtok: 0.26
+        source_url: https://docs.z.ai/guides/overview/pricing
   - canonical_id: moonshotai/kimi-k3
     publisher: moonshotai
     aliases:
@@ -1340,6 +1527,7 @@ models:
         alias: moonshotai/kimi-k3
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
+      - {provider: litellm, alias: kimi-k3, channel: moonshot-api}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -1357,6 +1545,13 @@ models:
         cache_read_per_mtok: 0.30
         source_url: https://vercel.com/ai-gateway/models/kimi-k3/providers
 
+      - channel: moonshot-api
+        region: global
+        effective_from: "2026-07-16"
+        input_per_mtok: 3.0
+        output_per_mtok: 15.0
+        cache_read_per_mtok: 0.3
+        source_url: https://platform.kimi.ai/docs/pricing/chat
   - canonical_id: moonshotai/kimi-k2.5
     publisher: moonshotai
     aliases:
@@ -1389,6 +1584,7 @@ models:
         alias: minimax/minimax-m3
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
+      - {provider: litellm, alias: minimax-m3, channel: minimax-api}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -1398,6 +1594,15 @@ models:
         cache_read_per_mtok: 0.06
         source_url: https://vercel.com/ai-gateway/models/minimax-m3/providers
 
+      - channel: minimax-api
+        region: global
+        effective_from: "2026-08-01"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.06
+        rules:
+          long_context: {threshold: 512000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://platform.minimax.io/docs/guides/pricing-paygo
   - canonical_id: fireworks/glm-5p2
     publisher: fireworks
     aliases:
@@ -1493,6 +1698,11 @@ models:
         alias: xai/grok-4.6
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
+      - {provider: bedrock, alias: us.xai.grok-4.6, channel: aws-bedrock-geo}
+      - {provider: litellm, alias: grok-4.6, channel: xai-api}
+      - {provider: litellm, alias: grok-4.6-latest, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.6, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.6-latest, channel: xai-api}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -1502,6 +1712,22 @@ models:
         cache_read_per_mtok: 0.50
         source_url: https://vercel.com/ai-gateway/models/grok-4.6/providers
 
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-08-01"
+        input_per_mtok: 2.2
+        output_per_mtok: 6.6
+        cache_read_per_mtok: 0.55
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-xai-grok-4-6.html
+      - channel: xai-api
+        region: global
+        effective_from: "2026-08-01"
+        input_per_mtok: 2.0
+        output_per_mtok: 6.0
+        cache_read_per_mtok: 0.5
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: google/gemini-3-flash-preview
     publisher: google
     aliases:
@@ -1527,6 +1753,7 @@ models:
       - {provider: google, alias: gemini-3.1-flash-lite, channel: google-api}
       - {provider: google, alias: models/gemini-3.1-flash-lite, channel: google-api}
       - {provider: google, alias: gemini-3.1-flash-lite-preview, channel: google-api}
+      - {provider: google, alias: google/gemini-3.1-flash-lite, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
     prices:
       - channel: google-api
         region: global
@@ -1543,6 +1770,13 @@ models:
   # channel keeps a cost query for the model whole. `fireworks/glm-5p2` above
   # predates that convention and splits GLM 5.2 across two canonical ids;
   # consolidating it is a separate change, since it moves existing rows.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-05-07"
+        input_per_mtok: 0.25
+        output_per_mtok: 1.5
+        cache_read_per_mtok: 0.03
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: zai/glm-5.3
     publisher: zai
     aliases:
@@ -1691,6 +1925,623 @@ models:
 # per token. Effective-dated like model prices: keep superseded entries and close
 # them with `effective_to` rather than editing in place. A $0 fee is an explicit
 # priced zero, not the absence of a price.
+  - canonical_id: alibaba/qwen3.7-max
+    publisher: alibaba
+    aliases:
+      - {provider: alibaba, alias: alibaba/qwen3.7-max, channel: alibaba-api}
+      - {provider: alibaba, alias: qwen3.7-max, channel: alibaba-api}
+    prices:
+      - channel: alibaba-api
+        region: global
+        effective_from: "2026-07-01"
+        input_per_mtok: 2.5
+        output_per_mtok: 7.5
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 3.125
+        source_url: https://www.alibabacloud.com/help/en/model-studio/qwen3-7-max
+  - canonical_id: alibaba/qwen3.7-plus
+    publisher: alibaba
+    aliases:
+      - {provider: alibaba, alias: qwen3.7-plus, channel: alibaba-api}
+      - {provider: alibaba, alias: alibaba/qwen3.7-plus, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+    prices:
+      - channel: alibaba-api
+        region: global
+        effective_from: "2026-06-02"
+        input_per_mtok: 0.4
+        output_per_mtok: 1.6
+        cache_read_per_mtok: 0.04
+        cache_write_5m_per_mtok: 0.5
+        rules:
+          long_context: {threshold: 256000, input_multiplier: 3.0, output_multiplier: 3.0}
+        source_url: https://www.alibabacloud.com/help/en/model-studio/qwen3-7-plus
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-06-02"
+        input_per_mtok: 0.4
+        output_per_mtok: 1.6
+        cache_read_per_mtok: 0.08
+        cache_write_5m_per_mtok: 0.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: alibaba/qwen3.8-max
+    publisher: alibaba
+    aliases:
+      - {provider: alibaba, alias: alibaba/qwen3.8-max, channel: alibaba-api}
+      - {provider: alibaba, alias: qwen3.8-max, channel: alibaba-api}
+      - {provider: vercel, alias: alibaba/qwen3.8-max, channel: vercel-ai-gateway}
+    prices:
+      - channel: alibaba-api
+        region: global
+        effective_from: "2026-08-01"
+        input_per_mtok: 2.0
+        output_per_mtok: 6.0
+        cache_read_per_mtok: 0.17
+        cache_write_5m_per_mtok: 2.5
+        source_url: https://www.alibabacloud.com/help/en/model-studio/qwen3-8-max
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-08-01"
+        input_per_mtok: 2.0
+        output_per_mtok: 6.0
+        cache_read_per_mtok: 0.25
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: amazon/nova-2-lite
+    publisher: amazon
+    aliases:
+      # Bedrock's global inference profile bills at standard / 1.1 on every
+      # dimension. Every other prefix, and the bare id, is the higher tier.
+      - {provider: bedrock, alias: global.amazon.nova-2-lite-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: amazon.nova-2-lite-v1:0, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: us.amazon.nova-2-lite-v1:0, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: eu.amazon.nova-2-lite-v1:0, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: jp.amazon.nova-2-lite-v1:0, channel: aws-bedrock-geo}
+      - {provider: vercel, alias: amazon/nova-2-lite, channel: vercel-ai-gateway}
+    prices:
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.30
+        output_per_mtok: 2.50
+        cache_read_per_mtok: 0.075
+        source_url: https://aws.amazon.com/bedrock/pricing/
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.33
+        output_per_mtok: 2.75
+        cache_read_per_mtok: 0.0825
+        source_url: https://aws.amazon.com/bedrock/pricing/
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.30
+        output_per_mtok: 2.50
+        cache_read_per_mtok: 0.075
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: amazon/nova-lite
+    publisher: amazon
+    aliases:
+      # No global inference profile exists for this model, so every
+      # prefix shares one rate.
+      - {provider: bedrock, alias: amazon.nova-lite-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: us.amazon.nova-lite-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: eu.amazon.nova-lite-v1:0, channel: aws-bedrock}
+    prices:
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.06
+        output_per_mtok: 0.24
+        cache_read_per_mtok: 0.015
+        source_url: https://aws.amazon.com/bedrock/pricing/
+  - canonical_id: amazon/nova-micro
+    publisher: amazon
+    aliases:
+      # No global inference profile exists for this model, so every
+      # prefix shares one rate.
+      - {provider: bedrock, alias: amazon.nova-micro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: us.amazon.nova-micro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: eu.amazon.nova-micro-v1:0, channel: aws-bedrock}
+    prices:
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.035
+        output_per_mtok: 0.14
+        cache_read_per_mtok: 0.00875
+        source_url: https://aws.amazon.com/bedrock/pricing/
+  - canonical_id: amazon/nova-pro
+    publisher: amazon
+    aliases:
+      # No global inference profile exists for this model, so every
+      # prefix shares one rate.
+      - {provider: bedrock, alias: amazon.nova-pro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: us.amazon.nova-pro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: eu.amazon.nova-pro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: apac.amazon.nova-pro-v1:0, channel: aws-bedrock}
+    prices:
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.8
+        output_per_mtok: 3.2
+        cache_read_per_mtok: 0.2
+        source_url: https://aws.amazon.com/bedrock/pricing/
+  - canonical_id: anthropic/claude-haiku-3.5
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: anthropic/claude-haiku-3.5, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-3-5-haiku-20241022, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-3-5-haiku-latest, channel: anthropic-api}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2024-10-22"
+        input_per_mtok: 0.8
+        output_per_mtok: 4
+        cache_read_per_mtok: 0.08
+        cache_write_5m_per_mtok: 1
+        cache_write_1h_per_mtok: 1.6
+        batch_input_per_mtok: 0.4
+        batch_output_per_mtok: 2
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: anthropic/claude-mythos-5
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: anthropic/claude-mythos-5, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-mythos-preview, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-mythos-5, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-mythos-preview, channel: anthropic-api}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-06-09"
+        input_per_mtok: 10
+        output_per_mtok: 50
+        cache_read_per_mtok: 1
+        cache_write_5m_per_mtok: 12.5
+        cache_write_1h_per_mtok: 20
+        batch_input_per_mtok: 5
+        batch_output_per_mtok: 25
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: anthropic/claude-opus-4
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: anthropic/claude-4-opus-20250514, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-4, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-4-20250514, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-4-opus-20250514, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4-20250514, channel: anthropic-api}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2025-05-14"
+        input_per_mtok: 15
+        output_per_mtok: 75
+        cache_read_per_mtok: 1.5
+        cache_write_5m_per_mtok: 18.75
+        cache_write_1h_per_mtok: 30
+        batch_input_per_mtok: 7.5
+        batch_output_per_mtok: 37.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: anthropic/claude-opus-4.1
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: anthropic/claude-opus-4-1, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-4.1, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-4-1-20250805, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4-1, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4.1, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4-1-20250805, channel: anthropic-api}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2025-08-05"
+        input_per_mtok: 15
+        output_per_mtok: 75
+        cache_read_per_mtok: 1.5
+        cache_write_5m_per_mtok: 18.75
+        cache_write_1h_per_mtok: 30
+        batch_input_per_mtok: 7.5
+        batch_output_per_mtok: 37.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: anthropic/claude-opus-4.5
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-opus-4-5, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4-5-20251101, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-4.5, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2025-11-01"
+        input_per_mtok: 5
+        output_per_mtok: 25
+        cache_read_per_mtok: 0.5
+        cache_write_5m_per_mtok: 6.25
+        cache_write_1h_per_mtok: 10
+        batch_input_per_mtok: 2.5
+        batch_output_per_mtok: 12.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-11-01"
+        input_per_mtok: 5.0
+        output_per_mtok: 25.0
+        cache_read_per_mtok: 0.5
+        cache_write_5m_per_mtok: 6.25
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: anthropic/claude-opus-5-fast
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: anthropic/claude-opus-5-fast, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-5-fast, channel: anthropic-api}
+      - {provider: vercel, alias: anthropic/claude-opus-5-fast, channel: vercel-ai-gateway}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-07-24"
+        input_per_mtok: 10
+        output_per_mtok: 50
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-07-24"
+        input_per_mtok: 10.0
+        output_per_mtok: 50.0
+        cache_read_per_mtok: 1.0
+        cache_write_5m_per_mtok: 12.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: anthropic/claude-sonnet-4
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-sonnet-4, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-sonnet-4-20250514, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-sonnet-4, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2025-05-14"
+        input_per_mtok: 3
+        output_per_mtok: 15
+        cache_read_per_mtok: 0.3
+        cache_write_5m_per_mtok: 3.75
+        cache_write_1h_per_mtok: 6
+        batch_input_per_mtok: 1.5
+        batch_output_per_mtok: 7.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-05-14"
+        input_per_mtok: 3.0
+        output_per_mtok: 15.0
+        cache_read_per_mtok: 0.3
+        cache_write_5m_per_mtok: 3.75
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: google/gemini-3-flash
+    publisher: google
+    aliases:
+      - {provider: vercel, alias: google/gemini-3-flash, channel: vercel-ai-gateway}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-12-17"
+        input_per_mtok: 0.5
+        output_per_mtok: 3.0
+        cache_read_per_mtok: 0.05
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: meta/muse-spark-1.2
+    publisher: meta
+    aliases:
+      - {provider: litellm, alias: muse-spark-1.2, channel: meta-api}
+      - {provider: meta, alias: meta/muse-spark-1.2, channel: meta-api}
+      - {provider: vercel, alias: meta/muse-spark-1.2, channel: vercel-ai-gateway}
+    prices:
+      - channel: meta-api
+        region: global
+        effective_from: "2026-08-01"
+        input_per_mtok: 1.25
+        output_per_mtok: 4.25
+        cache_read_per_mtok: 0.15
+        source_url: https://developer.meta.com/ai/models/muse-spark-1-2/
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-08-01"
+        input_per_mtok: 1.25
+        output_per_mtok: 4.25
+        cache_read_per_mtok: 0.15
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: minimax/m2.5
+    publisher: minimax
+    aliases:
+      - {provider: bedrock, alias: minimax.minimax-m2.5, channel: aws-bedrock}
+    prices:
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2026-02-12"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        source_url: https://aws.amazon.com/bedrock/pricing/
+  - canonical_id: minimax/minimax-m2.7
+    publisher: minimax
+    aliases:
+      - {provider: litellm, alias: minimax-m2.7, channel: minimax-api}
+      - {provider: minimax, alias: minimax-m2p7, channel: minimax-api}
+      - {provider: minimax, alias: minimax/minimax-m2.7, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+    prices:
+      - channel: minimax-api
+        region: global
+        effective_from: "2026-03-18"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.06
+        cache_write_5m_per_mtok: 0.375
+        source_url: https://platform.minimax.io/docs/guides/pricing-paygo
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-03-18"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.06
+        cache_write_5m_per_mtok: 0.375
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: mistral/mistral-medium-3.5
+    publisher: mistral
+    aliases:
+      - {provider: litellm, alias: mistral-medium-2604, channel: mistral-api}
+      - {provider: litellm, alias: mistral-medium-3.5, channel: mistral-api}
+      - {provider: litellm, alias: mistral-medium-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral/mistral-medium-2604, channel: mistral-api}
+      - {provider: mistral, alias: mistral/mistral-medium-3.5, channel: mistral-api}
+      - {provider: mistral, alias: mistral/mistral-medium-latest, channel: mistral-api}
+    prices:
+      - channel: mistral-api
+        region: global
+        effective_from: "2026-04-01"
+        input_per_mtok: 1.5
+        output_per_mtok: 7.5
+        source_url: https://mistral.ai/pricing/api
+  - canonical_id: mistral/mistral-small-4
+    publisher: mistral
+    aliases:
+      - {provider: litellm, alias: mistral-small-2603, channel: mistral-api}
+      - {provider: litellm, alias: mistral-small-4, channel: mistral-api}
+      - {provider: litellm, alias: mistral-small-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral/mistral-small-2603, channel: mistral-api}
+      - {provider: mistral, alias: mistral/mistral-small-4, channel: mistral-api}
+      - {provider: mistral, alias: mistral/mistral-small-latest, channel: mistral-api}
+    prices:
+      - channel: mistral-api
+        region: global
+        effective_from: "2026-03-01"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
+        source_url: https://mistral.ai/pricing/api
+  - canonical_id: openai/gpt-5
+    publisher: openai
+    aliases:
+      - {provider: litellm, alias: gpt-5, channel: openai-api, rules: {"input_includes_cache_read": true}}
+      - {provider: openai, alias: gpt-5-2025-08-07, channel: openai-api, rules: {"input_includes_cache_read": true}}
+      - {provider: openai, alias: openai/gpt-5, channel: openai-api, rules: {"input_includes_cache_read": true}}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2025-08-07"
+        input_per_mtok: 1.25
+        output_per_mtok: 10
+        cache_read_per_mtok: 0.125
+        batch_input_per_mtok: 0.625
+        batch_output_per_mtok: 5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: openai/gpt-5.3-codex
+    publisher: openai
+    aliases:
+      - {provider: litellm, alias: gpt-5.3-codex, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.3-codex, channel: openai-api}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-02-01"
+        input_per_mtok: 1.75
+        output_per_mtok: 14
+        cache_read_per_mtok: 0.175
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: openai/gpt-5.4-pro
+    publisher: openai
+    aliases:
+      - {provider: litellm, alias: gpt-5.4-pro, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.4-pro-2026-03-05, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.4-pro, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.4-pro-2026-03-05, channel: openai-api}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-03-05"
+        input_per_mtok: 30
+        output_per_mtok: 180
+        batch_input_per_mtok: 15
+        batch_output_per_mtok: 90
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: openai/gpt-5.5
+    publisher: openai
+    aliases:
+      - {provider: litellm, alias: gpt-5.5, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.5-2026-04-23, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.5, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.5-2026-04-23, channel: openai-api}
+      - {provider: vercel, alias: openai/gpt-5.5, channel: vercel-ai-gateway}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-04-24"
+        input_per_mtok: 5
+        output_per_mtok: 30
+        cache_read_per_mtok: 0.5
+        batch_input_per_mtok: 2.5
+        batch_output_per_mtok: 15
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-04-24"
+        input_per_mtok: 5.0
+        output_per_mtok: 30.0
+        cache_read_per_mtok: 0.5
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: openai/gpt-5.5-pro
+    publisher: openai
+    aliases:
+      - {provider: litellm, alias: gpt-5.5-pro, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.5-pro-2026-04-23, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.5-pro, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.5-pro-2026-04-23, channel: openai-api}
+      - {provider: vercel, alias: openai/gpt-5.5-pro, channel: vercel-ai-gateway}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-04-24"
+        input_per_mtok: 30
+        output_per_mtok: 180
+        batch_input_per_mtok: 15
+        batch_output_per_mtok: 90
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-04-24"
+        input_per_mtok: 30.0
+        output_per_mtok: 180.0
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: openai/gpt-5.6-cyber
+    publisher: openai
+    aliases:
+      - {provider: litellm, alias: gpt-5.6-cyber, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.6-cyber, channel: openai-api}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-07-09"
+        input_per_mtok: 12.5
+        output_per_mtok: 75
+        cache_read_per_mtok: 1.25
+        cache_write_5m_per_mtok: 15.625
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: openai/o4-mini
+    publisher: openai
+    aliases:
+      - {provider: litellm, alias: o4-mini, channel: openai-api}
+      - {provider: openai, alias: o4-mini-2025-04-16, channel: openai-api}
+      - {provider: openai, alias: openai/o4-mini, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2025-04-16"
+        input_per_mtok: 1.1
+        output_per_mtok: 4.4
+        cache_read_per_mtok: 0.275
+        batch_input_per_mtok: 0.55
+        batch_output_per_mtok: 2.2
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-04-16"
+        input_per_mtok: 1.1
+        output_per_mtok: 4.4
+        cache_read_per_mtok: 0.275
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: xai/grok-4.20-non-reasoning
+    publisher: xai
+    aliases:
+      - {provider: vercel, alias: spacexai/grok-4.20-non-reasoning, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: grok-4.20-0309-non-reasoning, channel: xai-api}
+      - {provider: litellm, alias: grok-4.20-non-reasoning, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.20-0309-non-reasoning, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.20-non-reasoning, channel: xai-api}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-03-10"
+        input_per_mtok: 1.25
+        output_per_mtok: 2.5
+        cache_read_per_mtok: 0.2
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: xai-api
+        region: global
+        effective_from: "2026-03-10"
+        input_per_mtok: 1.25
+        output_per_mtok: 2.5
+        cache_read_per_mtok: 0.2
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: xai/grok-4.20-reasoning
+    publisher: xai
+    aliases:
+      - {provider: vercel, alias: spacexai/grok-4.20-reasoning, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: grok-4.20-0309-reasoning, channel: xai-api}
+      - {provider: litellm, alias: grok-4.20-reasoning, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.20-0309-reasoning, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.20-reasoning, channel: xai-api}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-03-10"
+        input_per_mtok: 1.25
+        output_per_mtok: 2.5
+        cache_read_per_mtok: 0.2
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: xai-api
+        region: global
+        effective_from: "2026-03-10"
+        input_per_mtok: 1.25
+        output_per_mtok: 2.5
+        cache_read_per_mtok: 0.2
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: xai/grok-4.5
+    publisher: xai
+    aliases:
+      - {provider: litellm, alias: grok-4.5, channel: xai-api}
+      - {provider: litellm, alias: grok-4.5-latest, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.5, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.5-latest, channel: xai-api}
+    prices:
+      - channel: xai-api
+        region: global
+        effective_from: "2026-07-01"
+        input_per_mtok: 2.0
+        output_per_mtok: 6.0
+        cache_read_per_mtok: 0.3
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: zai/glm-5.1
+    publisher: zai
+    aliases:
+      - {provider: vercel, alias: zai/glm-5.1, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: glm-5.1, channel: zai-api}
+      - {provider: litellm, alias: glm-5p1, channel: zai-api}
+      - {provider: zai, alias: zai/glm-5.1, channel: zai-api}
+      - {provider: zai, alias: zai/glm-5p1, channel: zai-api}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-04-07"
+        input_per_mtok: 1.4
+        output_per_mtok: 4.4
+        cache_read_per_mtok: 0.26
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: zai-api
+        region: global
+        effective_from: "2026-04-07"
+        input_per_mtok: 1.4
+        output_per_mtok: 4.4
+        cache_read_per_mtok: 0.26
+        source_url: https://docs.z.ai/guides/overview/pricing
 retrieval:
   - channel: anthropic-api
     operation: web_search

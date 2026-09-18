@@ -34,6 +34,13 @@ _DIRECT_CHANNEL_BY_PROVIDER = {
     "deepseek": "deepseek-api",
     "perplexity-ai": "perplexity-api",
     "x-ai": "xai-api",
+    "alibaba": "alibaba-api",
+    "amazon": "amazon-api",
+    "meta": "meta-api",
+    "minimax": "minimax-api",
+    "mistral": "mistral-api",
+    "moonshotai": "moonshot-api",
+    "zai": "zai-api",
 }
 
 
