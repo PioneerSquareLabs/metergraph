@@ -6,6 +6,7 @@ from .catalog import (
     CostResult,
     Price,
     ResolvedPrice,
+    counts_cache_read_in_input,
     direct_channel_for_provider,
 )
 from .billing import (
@@ -40,6 +41,7 @@ __all__ = [
     "RetrievalCatalog",
     "RetrievalCostResult",
     "RetrievalPrice",
+    "counts_cache_read_in_input",
     "direct_channel_for_provider",
     "load_catalog",
     "normalize_gateway_evidence",

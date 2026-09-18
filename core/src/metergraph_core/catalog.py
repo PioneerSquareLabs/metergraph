@@ -37,6 +37,54 @@ _DIRECT_CHANNEL_BY_PROVIDER = {
 }
 
 
+# How a call reports cached tokens is set by whoever serves the model, so the
+# default is keyed on (publisher, channel) rather than the channel alone.
+# OpenAI's `prompt_tokens`, Google's `promptTokenCount`, DeepSeek's and xAI's
+# `prompt_tokens` all include the cached tokens they also report separately, so
+# a row on these pairs must deduct them before applying the input rate. Without
+# it a cached token is billed at the input rate and again at the cache-read
+# rate -- several times the real cost on a cache-heavy workload, and enough to
+# reorder a customer's spend ranking.
+#
+# A channel alone cannot decide this: google-vertex-ai serves Anthropic's
+# models beside Google's, and Claude on Vertex keeps Anthropic's usage shape,
+# where input_tokens already excludes cache reads. Deducting there overcharges
+# in the opposite direction -- the same defect this default exists to remove.
+# Anthropic and Bedrock are absent by design; a gateway channel depends on the
+# provider behind it and states its own rules per row.
+_INPUT_INCLUDES_CACHE_READ_PAIRS = frozenset({
+    ("openai", "openai-api"),
+    ("google", "google-api"),
+    ("google", "google-vertex-ai"),
+    ("deepseek", "deepseek-api"),
+    ("xai", "xai-api"),
+})
+
+
+def counts_cache_read_in_input(
+    publisher: Any, channel: Any, rules: Mapping[str, Any]
+) -> bool:
+    """Whether cache reads have to come out of billable input for this row.
+
+    A row states the answer when it differs from its publisher's behaviour on
+    that channel -- a gateway serving one of these providers, or a provider
+    that changes how it counts. Otherwise the (publisher, channel) pair
+    decides, because a catalog author has no way to know which providers report
+    cached tokens inside the input total.
+
+    An unknown publisher defaults to no deduction: over-billing a cached token
+    twice is the failure this exists to prevent, so a row we cannot place
+    keeps the arithmetic it had before.
+    """
+    stated = rules.get("input_includes_cache_read")
+    if stated is not None:
+        return bool(stated)
+    if not isinstance(publisher, str) or not isinstance(channel, str):
+        return False
+    pair = (publisher.strip().lower(), channel.strip().lower())
+    return pair in _INPUT_INCLUDES_CACHE_READ_PAIRS
+
+
 def _normalize_provider(provider: str) -> str:
     """Fold a provider spelling through metergraph-core's provider-alias map
     (e.g. ``aws``/``amazon-bedrock`` -> ``bedrock``, ``google-genai`` ->
@@ -94,6 +142,10 @@ class Price:
     effective_from: datetime
     effective_to: datetime | None
     source_url: str
+    # The catalog's publisher for the model this row prices. A channel does not
+    # imply one: google-vertex-ai serves Anthropic's models beside Google's,
+    # and the two report cache reads differently.
+    publisher: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,7 +219,7 @@ def _price_tokens(
 
     billable_input = input_count
     deducted_input = 0
-    if rules.get("input_includes_cache_read"):
+    if counts_cache_read_in_input(price.publisher, price.pricing_channel, rules):
         if cache_read_count > input_count:
             reasons.append("cache_read_exceeds_input")
             deducted_input = input_count

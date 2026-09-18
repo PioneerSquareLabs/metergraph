@@ -373,9 +373,10 @@ def test_installed_catalog_prices_gemini_2_5_flash_image_on_google_api():
 
 @pytest.mark.parametrize(
     "channel,cache_read_cost",
-    # google-api bills cache reads on top of full input; the gateway alias sets
-    # input_includes_cache_read, so its cache reads come out of billable input.
-    [("google-api", "0.37500000"), ("vercel-ai-gateway", "0.03000000")],
+    # Google reports cached tokens inside promptTokenCount on both channels, so
+    # cache reads come out of billable input and are billed once.
+    # The channels publish different cache-read rates: 0.075 direct, 0.03 gateway.
+    [("google-api", "0.07500000"), ("vercel-ai-gateway", "0.03000000")],
 )
 def test_installed_catalog_prices_gemini_2_5_flash_on_both_channels(channel, cache_read_cost):
     """The gateway resolves the provider-qualified id and bills its own cache rate.
@@ -755,7 +756,8 @@ _AT_GEMINI_35_FLASH_LITE = datetime(2026, 9, 6, tzinfo=timezone.utc)
     ["gemini-3.5-flash-lite", "models/gemini-3.5-flash-lite"],
 )
 def test_installed_catalog_prices_gemini_35_flash_lite_on_the_direct_api(model):
-    """Google direct bills cache reads on top of full input."""
+    """Google direct deducts cache reads from billable input: promptTokenCount
+    already counts them."""
     catalog = load_catalog()
 
     resolved = catalog.price(
@@ -774,7 +776,7 @@ def test_installed_catalog_prices_gemini_35_flash_lite_on_the_direct_api(model):
         input_tokens=1_000_000, output_tokens=0, cache_read_tokens=1_000_000,
     )
     assert cached.status == "priced"
-    assert cached.cost_usd == Decimal("0.33000000")
+    assert cached.cost_usd == Decimal("0.03000000")
 
 
 def test_installed_catalog_does_not_price_gemini_35_flash_lite_off_google_api():

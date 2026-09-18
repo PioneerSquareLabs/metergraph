@@ -28,7 +28,11 @@ models:
 ```
 
 `rules` options:
-- `input_includes_cache_read: true` — provider reports cached tokens inside `input_tokens` (OpenAI); cache reads are deducted from billable input.
+- `input_includes_cache_read` — whether the provider reports cached tokens inside
+  `input_tokens`, in which case cache reads are deducted from billable input. Assumed for
+  the channels whose providers do this (`openai-api`, `google-api`, `google-vertex-ai`,
+  `deepseek-api`, `xai-api`), so a row states it only to disagree with its channel: `false`
+  where a provider stops counting them that way, `true` on a gateway serving one of them.
 - `input_includes_cache_write: true` — provider reports cache-write tokens inside `input_tokens` (Vercel AI Gateway); cache writes are deducted before their cache rate is applied.
 - `long_context: {threshold, input_multiplier, output_multiplier}` — surcharge above a prompt-size threshold (OpenAI GPT-5.6, Gemini Pro).
 - `uncaptured_fees: true` — provider charges fees tokens can't express; rows are marked `partial`.
