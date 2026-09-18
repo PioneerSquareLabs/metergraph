@@ -56,25 +56,21 @@ _INPUT_INCLUDES_CACHE_READ_CHANNELS = frozenset({
 })
 
 
-def resolve_price_rules(
-    channel: Any, rules: Mapping[str, Any] | None = None
-) -> dict[str, Any]:
-    """The pricing rules for a row on ``channel``, supplying what the provider's
-    token accounting requires and the row leaves unstated.
+def counts_cache_read_in_input(channel: Any, rules: Mapping[str, Any]) -> bool:
+    """Whether cache reads have to come out of billable input for this row.
 
-    A catalog author or an operator adding a model has no way to know which
-    providers count cache reads inside the input total, so the rule is applied
-    here rather than left to every row that carries a cache-read rate. A row
-    that states the rule, either way, is left alone.
+    A row states the answer when it differs from its channel's -- a gateway
+    serving one of these providers, or a provider that changes how it counts.
+    Otherwise the channel decides, because a catalog author has no way to know
+    which providers report cached tokens inside the input total.
     """
-    resolved = dict(rules or {})
-    if (
+    stated = rules.get("input_includes_cache_read")
+    if stated is not None:
+        return bool(stated)
+    return (
         isinstance(channel, str)
         and channel.strip().lower() in _INPUT_INCLUDES_CACHE_READ_CHANNELS
-        and "input_includes_cache_read" not in resolved
-    ):
-        resolved["input_includes_cache_read"] = True
-    return resolved
+    )
 
 
 def _normalize_provider(provider: str) -> str:
@@ -207,7 +203,7 @@ def _price_tokens(
 
     billable_input = input_count
     deducted_input = 0
-    if rules.get("input_includes_cache_read"):
+    if counts_cache_read_in_input(price.pricing_channel, rules):
         if cache_read_count > input_count:
             reasons.append("cache_read_exceeds_input")
             deducted_input = input_count

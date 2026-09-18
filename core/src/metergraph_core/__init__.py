@@ -6,8 +6,8 @@ from .catalog import (
     CostResult,
     Price,
     ResolvedPrice,
+    counts_cache_read_in_input,
     direct_channel_for_provider,
-    resolve_price_rules,
 )
 from .billing import (
     BillingDecision,
@@ -41,11 +41,11 @@ __all__ = [
     "RetrievalCatalog",
     "RetrievalCostResult",
     "RetrievalPrice",
+    "counts_cache_read_in_input",
     "direct_channel_for_provider",
     "load_catalog",
     "normalize_gateway_evidence",
     "parse_catalog",
     "parse_retrieval",
     "resolve_billing",
-    "resolve_price_rules",
 ]

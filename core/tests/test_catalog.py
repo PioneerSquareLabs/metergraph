@@ -5,6 +5,7 @@ import pytest
 
 from metergraph_core import (
     CatalogError,
+    counts_cache_read_in_input,
     direct_channel_for_provider,
     load_catalog,
     parse_catalog,
@@ -241,58 +242,34 @@ def test_price_source_is_required():
         parse_catalog(doc)
 
 
-def _channel_document(channel, rules=None):
-    price = {
-        "channel": channel,
-        "effective_from": "2026-08-24",
-        "input_per_mtok": 1,
-        "output_per_mtok": 2,
-        "cache_read_per_mtok": "0.1",
-        "source_url": "https://example.test/pricing",
-    }
-    if rules is not None:
-        price["rules"] = rules
-    return {
-        "version": "test",
-        "currency": "USD",
-        "pricing_verified_at": "2026-08-24",
-        "models": [
-            {
-                "canonical_id": "example/model",
-                "aliases": [
-                    {"provider": "example", "alias": "model", "channel": channel}
-                ],
-                "prices": [price],
-            }
-        ],
-    }
-
-
 @pytest.mark.parametrize(
     "channel",
     ["openai-api", "google-api", "google-vertex-ai", "deepseek-api", "xai-api"],
 )
-def test_channels_that_count_cache_reads_inside_input_say_so_without_the_row(channel):
+def test_cache_reads_come_out_of_input_on_the_channels_that_count_them(channel):
     """A catalog author has no way to know which providers report cached tokens
-    inside the input total, so the rule is supplied rather than left to the row."""
-    _version, _aliases, [price] = parse_catalog(_channel_document(channel))
-
-    assert price.rules["input_includes_cache_read"] is True
+    inside the input total, so the channel answers when the row does not."""
+    assert counts_cache_read_in_input(channel, {}) is True
 
 
 @pytest.mark.parametrize(
-    "channel,rules",
+    "channel, rules",
     [
         ("openai-api", {"input_includes_cache_read": False}),
-        ("anthropic-api", None),
-        ("aws-bedrock", None),
-        ("vercel-ai-gateway", None),
+        ("anthropic-api", {}),
+        ("aws-bedrock", {}),
+        ("vercel-ai-gateway", {}),
+        (None, {}),
     ],
 )
-def test_a_stated_rule_and_an_unlisted_channel_are_left_alone(channel, rules):
-    _version, _aliases, [price] = parse_catalog(_channel_document(channel, rules))
+def test_a_stated_rule_and_an_unlisted_channel_keep_input_billable(channel, rules):
+    assert counts_cache_read_in_input(channel, rules) is False
 
-    assert price.rules.get("input_includes_cache_read") is not True
+
+def test_a_gateway_row_can_claim_the_rule_for_the_provider_behind_it():
+    assert counts_cache_read_in_input(
+        "vercel-ai-gateway", {"input_includes_cache_read": True}
+    ) is True
 
 
 def test_openai_cache_read_included_in_input():

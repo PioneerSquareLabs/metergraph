@@ -16,7 +16,6 @@ from .catalog import (
     Price,
     _decimal,
     _normalize_provider,
-    resolve_price_rules,
 )
 from .retrieval import RetrievalCatalog, RetrievalCostResult, RetrievalPrice
 
@@ -246,7 +245,7 @@ def parse_catalog(
                     ),
                     batch_input_per_mtok=_decimal(price.get("batch_input_per_mtok")),
                     batch_output_per_mtok=_decimal(price.get("batch_output_per_mtok")),
-                    rules=_freeze(resolve_price_rules(channel, price.get("rules"))),
+                    rules=_freeze(price.get("rules") or {}),
                     effective_from=effective_from,
                     effective_to=effective_to,
                     source_url=str(price["source_url"]).strip(),
