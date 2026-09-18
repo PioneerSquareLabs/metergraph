@@ -374,16 +374,15 @@ def test_installed_catalog_prices_gemini_2_5_flash_image_on_google_api():
 @pytest.mark.parametrize(
     "channel,cache_read_cost",
     # Google reports cached tokens inside promptTokenCount on both channels, so
-    # cache reads come out of billable input and are billed once.
-    # The channels publish different cache-read rates: 0.075 direct, 0.03 gateway.
-    [("google-api", "0.07500000"), ("vercel-ai-gateway", "0.03000000")],
+    # cache reads come out of billable input and are billed once. Both channels
+    # publish the same 0.03 cache-read rate.
+    [("google-api", "0.03000000"), ("vercel-ai-gateway", "0.03000000")],
 )
 def test_installed_catalog_prices_gemini_2_5_flash_on_both_channels(channel, cache_read_cost):
-    """The gateway resolves the provider-qualified id and bills its own cache rate.
+    """The gateway resolves the provider-qualified id and prices its own window.
 
-    Google direct and the Vercel gateway share input/output rates but not the
-    cache-read rate, so the gateway needs its own priced window rather than a
-    fallback to the direct channel.
+    The two channels agree on every published rate, but the gateway still needs
+    its own priced window rather than a fallback to the direct channel.
     """
     catalog = load_catalog()
 
