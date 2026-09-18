@@ -1988,68 +1988,84 @@ models:
   - canonical_id: amazon/nova-2-lite
     publisher: amazon
     aliases:
-      - {provider: amazon, alias: amazon/amazon-nova/nova-2-lite, channel: amazon-api}
-      - {provider: amazon, alias: amazon/nova-2-lite, channel: amazon-api}
-      - {provider: amazon, alias: amazon-nova/nova-2-lite, channel: amazon-api}
-      - {provider: amazon, alias: nova-2-lite, channel: amazon-api}
+      # Bedrock's global inference profile bills at standard / 1.1 on every
+      # dimension. Every other prefix, and the bare id, is the higher tier.
+      - {provider: bedrock, alias: global.amazon.nova-2-lite-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: amazon.nova-2-lite-v1:0, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: us.amazon.nova-2-lite-v1:0, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: eu.amazon.nova-2-lite-v1:0, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: jp.amazon.nova-2-lite-v1:0, channel: aws-bedrock-geo}
       - {provider: vercel, alias: amazon/nova-2-lite, channel: vercel-ai-gateway}
     prices:
-      - channel: amazon-api
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.30
+        output_per_mtok: 2.50
+        cache_read_per_mtok: 0.075
+        source_url: https://aws.amazon.com/bedrock/pricing/
+      - channel: aws-bedrock-geo
         region: global
         effective_from: "2025-12-02"
         input_per_mtok: 0.33
         output_per_mtok: 2.75
+        cache_read_per_mtok: 0.0825
         source_url: https://aws.amazon.com/bedrock/pricing/
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2025-12-02"
-        input_per_mtok: 0.3
-        output_per_mtok: 2.5
+        input_per_mtok: 0.30
+        output_per_mtok: 2.50
         cache_read_per_mtok: 0.075
         source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: amazon/nova-lite
     publisher: amazon
     aliases:
-      - {provider: amazon, alias: amazon/nova-lite, channel: amazon-api}
-      - {provider: amazon, alias: amazon/nova-lite-v1, channel: amazon-api}
-      - {provider: amazon, alias: nova-lite, channel: amazon-api}
-      - {provider: amazon, alias: nova-lite-v1, channel: amazon-api}
+      # No global inference profile exists for this model, so every
+      # prefix shares one rate.
+      - {provider: bedrock, alias: amazon.nova-lite-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: us.amazon.nova-lite-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: eu.amazon.nova-lite-v1:0, channel: aws-bedrock}
     prices:
-      - channel: amazon-api
+      - channel: aws-bedrock
         region: global
-        effective_from: "2024-12-03"
+        effective_from: "2025-12-02"
         input_per_mtok: 0.06
         output_per_mtok: 0.24
+        cache_read_per_mtok: 0.015
         source_url: https://aws.amazon.com/bedrock/pricing/
   - canonical_id: amazon/nova-micro
     publisher: amazon
     aliases:
-      - {provider: amazon, alias: amazon/nova-micro, channel: amazon-api}
-      - {provider: amazon, alias: amazon/nova-micro-v1, channel: amazon-api}
-      - {provider: amazon, alias: nova-micro, channel: amazon-api}
-      - {provider: amazon, alias: nova-micro-v1, channel: amazon-api}
+      # No global inference profile exists for this model, so every
+      # prefix shares one rate.
+      - {provider: bedrock, alias: amazon.nova-micro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: us.amazon.nova-micro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: eu.amazon.nova-micro-v1:0, channel: aws-bedrock}
     prices:
-      - channel: amazon-api
+      - channel: aws-bedrock
         region: global
-        effective_from: "2024-12-03"
+        effective_from: "2025-12-02"
         input_per_mtok: 0.035
         output_per_mtok: 0.14
+        cache_read_per_mtok: 0.00875
         source_url: https://aws.amazon.com/bedrock/pricing/
   - canonical_id: amazon/nova-pro
     publisher: amazon
     aliases:
-      - {provider: amazon, alias: amazon/amazon-nova/nova-pro-v1, channel: amazon-api}
-      - {provider: amazon, alias: amazon-nova/nova-pro-v1, channel: amazon-api}
-      - {provider: amazon, alias: amazon/nova-pro, channel: amazon-api}
-      - {provider: amazon, alias: amazon/nova-pro-v1, channel: amazon-api}
-      - {provider: amazon, alias: nova-pro, channel: amazon-api}
-      - {provider: amazon, alias: nova-pro-v1, channel: amazon-api}
+      # No global inference profile exists for this model, so every
+      # prefix shares one rate.
+      - {provider: bedrock, alias: amazon.nova-pro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: us.amazon.nova-pro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: eu.amazon.nova-pro-v1:0, channel: aws-bedrock}
+      - {provider: bedrock, alias: apac.amazon.nova-pro-v1:0, channel: aws-bedrock}
     prices:
-      - channel: amazon-api
+      - channel: aws-bedrock
         region: global
-        effective_from: "2024-12-03"
+        effective_from: "2025-12-02"
         input_per_mtok: 0.8
         output_per_mtok: 3.2
+        cache_read_per_mtok: 0.2
         source_url: https://aws.amazon.com/bedrock/pricing/
   - canonical_id: anthropic/claude-haiku-3.5
     publisher: anthropic
