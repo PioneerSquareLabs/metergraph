@@ -19,7 +19,11 @@ from decimal import Decimal
 
 import pytest
 
-from metergraph_core import direct_channel_for_provider, load_catalog
+from metergraph_core import (
+    direct_channel_for_provider,
+    load_catalog,
+    normalize_provider,
+)
 
 
 _SYNTHETIC_CATALOG = textwrap.dedent(
@@ -983,3 +987,56 @@ def test_installed_catalog_prices_gemini_omni_flash_preview(model):
     assert resolved.status == "priced"
     assert resolved.canonical_model == "google/gemini-omni-flash-preview"
     assert resolved.cost_usd == Decimal("10.50000000")
+
+
+@pytest.mark.parametrize(
+    "provider,model,canonical,cost",
+    [
+        # A provider's own short name, which its SDK is what actually sends.
+        ("openai", "gpt-5", "openai/gpt-5", "11.25000000"),
+        ("openai", "gpt-5.5", "openai/gpt-5.5", "35.00000000"),
+        ("openai", "o4-mini", "openai/o4-mini", "5.50000000"),
+        ("mistral", "mistral-small-4", "mistral/mistral-small-4", "0.75000000"),
+        ("zai", "glm-5.1", "zai/glm-5.1", "5.80000000"),
+        ("minimax", "minimax-m3", "minimax/minimax-m3", "3.00000000"),
+        # Spellings that fold through the provider-alias map before lookup.
+        ("xai", "grok-4.6", "xai/grok-4.6", "16.00000000"),
+        ("x-ai", "grok-4.6", "xai/grok-4.6", "16.00000000"),
+        ("moonshot", "kimi-k3", "moonshotai/kimi-k3", "18.00000000"),
+        ("moonshotai", "kimi-k3", "moonshotai/kimi-k3", "18.00000000"),
+        # Nova is sold only through Bedrock, so its bare name prices there
+        # rather than on a first-party Amazon channel that does not exist.
+        ("amazon", "nova-pro", "amazon/nova-pro", "4.00000000"),
+        # A proxy that forwards without naming the provider still has to price,
+        # on the publisher's own channel rather than a gateway list price.
+        ("unknown", "gpt-5.5", "openai/gpt-5.5", "35.00000000"),
+        ("litellm", "claude-opus-4.8", "anthropic/claude-opus-4.8", "30.00000000"),
+    ],
+)
+def test_installed_catalog_prices_the_spellings_real_traffic_sends(
+    provider, model, canonical, cost
+):
+    """Traffic names a model however its caller spelled it. A spelling core does
+    not carry is not a cosmetic gap: that call stops being priced at all."""
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider=provider,
+        model=model,
+        at=datetime(2026, 9, 18, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == canonical
+    assert result.cost_usd == Decimal(cost)
+
+
+def testnormalize_provider_is_public_so_one_map_serves_every_repo():
+    """The dashboard and the pipeline have to fold provider spellings the same
+    way, or the same call prices differently depending on which one saw it."""
+    assert normalize_provider("XAI") == "x-ai"
+    assert normalize_provider(" moonshot ") == "moonshotai"
+    assert normalize_provider("aws-bedrock") == "bedrock"
+    assert normalize_provider("openai") == "openai"

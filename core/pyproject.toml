@@ -1,6 +1,6 @@
 [project]
 name = "metergraph-core"
-version = "0.2.26"
+version = "0.2.27"
 description = "Reusable MeterGraph catalog and deterministic billing engine"
 readme = "README.md"
 license = "Apache-2.0"

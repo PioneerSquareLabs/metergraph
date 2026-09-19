@@ -887,7 +887,8 @@ def test_gateway_only_providers_have_no_direct_channel():
         if direct_channel_for_provider(provider) is not None
     }
     # Each of these is a provider spelling the catalog also prices directly, not
-    # an invented direct channel: "xai" is the gateway spelling of "x-ai";
-    # "moonshotai" publishes its own rates on moonshot-api; and "vercel" names
-    # the gateway itself, which is a real billing relationship.
-    assert resolved == {"xai", "moonshotai", "vercel"}
+    # an invented direct channel: "xai" is the gateway spelling of "x-ai", and
+    # "vercel" names the gateway itself, which is a real billing relationship.
+    # "moonshotai" has left this set: it now carries its own spellings on
+    # moonshot-api, so it is no longer reachable only through the gateway.
+    assert resolved == {"xai", "vercel"}

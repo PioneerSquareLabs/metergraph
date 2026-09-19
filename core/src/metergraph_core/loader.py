@@ -15,7 +15,7 @@ from .catalog import (
     CostResult,
     Price,
     _decimal,
-    _normalize_provider,
+    normalize_provider,
 )
 from .retrieval import RetrievalCatalog, RetrievalCostResult, RetrievalPrice
 
@@ -83,7 +83,7 @@ class LoadedCatalog:
         if not isinstance(model_id, str) or not isinstance(provider, str):
             return model_id
         return self.canonical_ids.get(
-            (_normalize_provider(provider), model_id), model_id
+            (normalize_provider(provider), model_id), model_id
         )
 
     def infer_direct_channel(self, model: Any) -> str | None:

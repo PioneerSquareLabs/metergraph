@@ -16,6 +16,10 @@ models:
       - {provider: openai, alias: gpt-5.6, channel: openai-api}
       - {provider: openai, alias: gpt-5.6-sol, channel: openai-api}
       - {provider: openai, alias: openai/gpt-5.6, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.6, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.6-sol, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.6, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.6-sol, channel: openai-api}
       - provider: openai
         alias: openai/gpt-5.6-sol
         channel: vercel-ai-gateway
@@ -88,6 +92,8 @@ models:
     publisher: openai
     aliases:
       - {provider: openai, alias: gpt-5.6-terra, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.6-terra, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.6-terra, channel: openai-api}
       - provider: openai
         alias: openai/gpt-5.6-terra
         channel: vercel-ai-gateway
@@ -132,6 +138,8 @@ models:
     publisher: openai
     aliases:
       - {provider: openai, alias: gpt-5.6-luna, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.6-luna, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.6-luna, channel: openai-api}
       - provider: openai
         alias: openai/gpt-5.6-luna
         channel: vercel-ai-gateway
@@ -202,6 +210,11 @@ models:
     aliases:
       - {provider: openai, alias: gpt-5.4-mini, channel: openai-api}
       - {provider: openai, alias: gpt-5.4-mini-2026-03-17, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.4-mini, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.4-mini-2026-03-17, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.4-mini-2026-03-17, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.4-mini, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.4-mini-2026-03-17, channel: openai-api}
       - provider: openai
         alias: openai/gpt-5.4-mini
         channel: vercel-ai-gateway
@@ -233,6 +246,8 @@ models:
       - {provider: openai, alias: gpt-5.4-2026-03-05, channel: openai-api}
       - {provider: openai, alias: openai/gpt-5.4, channel: openai-api}
       - {provider: vercel, alias: openai/gpt-5.4, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: gpt-5.4, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.4, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -259,6 +274,11 @@ models:
     aliases:
       - {provider: openai, alias: gpt-5.4-nano, channel: openai-api}
       - {provider: openai, alias: gpt-5.4-nano-2026-03-17, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.4-nano, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.4-nano-2026-03-17, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.4-nano-2026-03-17, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.4-nano, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.4-nano-2026-03-17, channel: openai-api}
       - provider: openai
         alias: openai/gpt-5.4-nano
         channel: vercel-ai-gateway
@@ -289,6 +309,8 @@ models:
       - {provider: openai, alias: gpt-4o-mini, channel: openai-api}
       - {provider: openai, alias: gpt-4o-mini-2024-07-18, channel: openai-api}
       - {provider: openai, alias: openai/gpt-4o-mini, channel: openai-api}
+      - {provider: litellm, alias: gpt-4o-mini, channel: openai-api}
+      - {provider: unknown, alias: gpt-4o-mini, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -308,6 +330,9 @@ models:
       - {provider: openai, alias: gpt-4o, channel: openai-api}
       - {provider: openai, alias: gpt-4o-2024-08-06, channel: openai-api}
       - {provider: openai, alias: openai/gpt-4o, channel: openai-api}
+      - {provider: litellm, alias: gpt-4o, channel: openai-api}
+      - {provider: openai, alias: gpt-4o-2024-11-20, channel: openai-api}
+      - {provider: unknown, alias: gpt-4o, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -328,6 +353,8 @@ models:
       - {provider: openai, alias: gpt-4.1-2025-04-14, channel: openai-api}
       - {provider: openai, alias: openai/gpt-4.1, channel: openai-api}
       - {provider: vercel, alias: openai/gpt-4.1, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: gpt-4.1, channel: openai-api}
+      - {provider: unknown, alias: gpt-4.1, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -413,6 +440,8 @@ models:
       - {provider: bedrock, alias: us.anthropic.claude-fable-5, channel: aws-bedrock}
       - {provider: bedrock, alias: anthropic.claude-fable-5, channel: aws-bedrock}
       - {provider: vercel, alias: anthropic/claude-fable-5, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: claude-fable-5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-fable-5, channel: anthropic-api}
     prices:
       - channel: anthropic-api
         region: global
@@ -449,6 +478,12 @@ models:
     publisher: anthropic
     aliases:
       - {provider: anthropic, alias: claude-opus-5, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-5-20260724, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-5-20260724, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-5, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-5-20260724, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-5-20260724, channel: anthropic-api}
       - provider: anthropic
         alias: anthropic/claude-opus-5
         channel: vercel-ai-gateway
@@ -503,6 +538,10 @@ models:
     publisher: anthropic
     aliases:
       - {provider: anthropic, alias: claude-opus-4-8, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4-8, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4.8, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4-8, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4.8, channel: anthropic-api}
       - provider: anthropic
         alias: anthropic/claude-opus-4.8
         channel: vercel-ai-gateway
@@ -532,6 +571,15 @@ models:
     publisher: anthropic
     aliases:
       - {provider: anthropic, alias: claude-opus-4-7, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-4-7-20260416, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4-7-20260416, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4.7, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4-7, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4-7-20260416, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4.7, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4-7, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4-7-20260416, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4.7, channel: anthropic-api}
       # The preflight reports the provider-qualified id it captured, and traffic
       # arrives under both spellings of the minor version.
       - {provider: anthropic, alias: anthropic/claude-opus-4-7, channel: anthropic-api}
@@ -570,6 +618,16 @@ models:
       - {provider: anthropic, alias: anthropic/claude-opus-4.6, channel: anthropic-api}
       - {provider: vertex-ai, alias: claude-opus-4-6, channel: google-vertex-ai}
       - {provider: vercel, alias: anthropic/claude-opus-4.6, channel: vercel-ai-gateway}
+      - {provider: anthropic, alias: anthropic/claude-opus-4-6, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-4-6-20260205, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4-6-20260205, channel: anthropic-api}
+      - {provider: anthropic, alias: claude-opus-4.6, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4-6, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4-6-20260205, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4.6, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4-6, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4-6-20260205, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4.6, channel: anthropic-api}
     prices:
       - channel: anthropic-api
         region: global
@@ -606,6 +664,8 @@ models:
     publisher: anthropic
     aliases:
       - {provider: anthropic, alias: claude-sonnet-5, channel: anthropic-api}
+      - {provider: litellm, alias: claude-sonnet-5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-sonnet-5, channel: anthropic-api}
       - provider: anthropic
         alias: anthropic/claude-sonnet-5
         channel: vercel-ai-gateway
@@ -650,6 +710,10 @@ models:
     aliases:
       - {provider: anthropic, alias: claude-haiku-4-5, channel: anthropic-api}
       - {provider: anthropic, alias: claude-haiku-4-5-20251001, channel: anthropic-api}
+      - {provider: litellm, alias: claude-haiku-4-5, channel: anthropic-api}
+      - {provider: litellm, alias: claude-haiku-4.5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-haiku-4-5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-haiku-4.5, channel: anthropic-api}
       - provider: anthropic
         alias: anthropic/claude-haiku-4.5
         channel: vercel-ai-gateway
@@ -679,6 +743,10 @@ models:
     publisher: anthropic
     aliases:
       - {provider: anthropic, alias: claude-sonnet-4-6, channel: anthropic-api}
+      - {provider: litellm, alias: claude-sonnet-4-6, channel: anthropic-api}
+      - {provider: litellm, alias: claude-sonnet-4.6, channel: anthropic-api}
+      - {provider: unknown, alias: claude-sonnet-4-6, channel: anthropic-api}
+      - {provider: unknown, alias: claude-sonnet-4.6, channel: anthropic-api}
       - provider: anthropic
         alias: anthropic/claude-sonnet-4.6
         channel: vercel-ai-gateway
@@ -745,6 +813,10 @@ models:
       - {provider: anthropic, alias: claude-sonnet-4-5-20250929, channel: anthropic-api}
       - {provider: anthropic, alias: anthropic/claude-sonnet-4.5, channel: anthropic-api}
       - {provider: vercel, alias: anthropic/claude-sonnet-4.5, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: claude-sonnet-4-5, channel: anthropic-api}
+      - {provider: litellm, alias: claude-sonnet-4.5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-sonnet-4-5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-sonnet-4.5, channel: anthropic-api}
     prices:
       - channel: anthropic-api
         region: global
@@ -792,6 +864,12 @@ models:
       - {provider: google, alias: gemini-3.1-pro-preview, channel: google-api}
       - {provider: google, alias: models/gemini-3.1-pro-preview, channel: google-api}
       - {provider: vertex-ai, alias: gemini-3.1-pro-preview, channel: google-vertex-ai}
+      - {provider: google, alias: google/gemini-3-pro-preview, channel: google-api}
+      - {provider: google, alias: google/models/gemini-3.1-pro-preview, channel: google-api}
+      - {provider: litellm, alias: gemini-3.1-pro-preview, channel: google-api}
+      - {provider: litellm, alias: models/gemini-3.1-pro-preview, channel: google-api}
+      - {provider: unknown, alias: gemini-3.1-pro-preview, channel: google-api}
+      - {provider: unknown, alias: models/gemini-3.1-pro-preview, channel: google-api}
       - provider: google
         alias: google/gemini-3.1-pro-preview
         channel: vercel-ai-gateway
@@ -836,6 +914,8 @@ models:
       - {provider: google, alias: gemini-3.5-flash, channel: google-api}
       - {provider: google, alias: models/gemini-3.5-flash, channel: google-api}
       - {provider: google, alias: google/gemini-3.5-flash, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+      - {provider: litellm, alias: gemini-3.5-flash, channel: google-api}
+      - {provider: unknown, alias: gemini-3.5-flash, channel: google-api}
     prices:
       # Direct API and Vertex list the same rate for this model.
       - channel: google-api
@@ -870,6 +950,12 @@ models:
     aliases:
       - {provider: google, alias: gemini-3.5-flash-lite, channel: google-api}
       - {provider: google, alias: models/gemini-3.5-flash-lite, channel: google-api}
+      - {provider: google, alias: google/gemini-3.5-flash-lite, channel: google-api}
+      - {provider: google, alias: google/models/gemini-3.5-flash-lite, channel: google-api}
+      - {provider: litellm, alias: gemini-3.5-flash-lite, channel: google-api}
+      - {provider: litellm, alias: models/gemini-3.5-flash-lite, channel: google-api}
+      - {provider: unknown, alias: gemini-3.5-flash-lite, channel: google-api}
+      - {provider: unknown, alias: models/gemini-3.5-flash-lite, channel: google-api}
     prices:
       - channel: google-api
         region: global
@@ -885,6 +971,8 @@ models:
       - {provider: google, alias: gemini-2.5-pro, channel: google-api}
       - {provider: google, alias: models/gemini-2.5-pro, channel: google-api}
       - {provider: google, alias: google/gemini-2.5-pro, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+      - {provider: litellm, alias: gemini-2.5-pro, channel: google-api}
+      - {provider: unknown, alias: gemini-2.5-pro, channel: google-api}
     prices:
       - channel: google-api
         region: global
@@ -910,6 +998,11 @@ models:
     aliases:
       - {provider: google, alias: gemini-2.5-flash, channel: google-api}
       - {provider: google, alias: models/gemini-2.5-flash, channel: google-api}
+      - {provider: google, alias: google/models/gemini-2.5-flash, channel: google-api}
+      - {provider: litellm, alias: gemini-2.5-flash, channel: google-api}
+      - {provider: litellm, alias: models/gemini-2.5-flash, channel: google-api}
+      - {provider: unknown, alias: gemini-2.5-flash, channel: google-api}
+      - {provider: unknown, alias: models/gemini-2.5-flash, channel: google-api}
       - provider: google
         alias: google/gemini-2.5-flash
         channel: vercel-ai-gateway
@@ -964,6 +1057,8 @@ models:
       - {provider: litellm, alias: google/gemini-flash-lite-latest, channel: google-api}
       - {provider: litellm, alias: google/models/gemini-flash-lite-latest, channel: google-api}
       - {provider: google, alias: google/gemini-2.5-flash-lite, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+      - {provider: litellm, alias: gemini-2.5-flash-lite, channel: google-api}
+      - {provider: unknown, alias: gemini-2.5-flash-lite, channel: google-api}
     prices:
       - channel: google-api
         region: global
@@ -1039,6 +1134,8 @@ models:
   - canonical_id: meta/muse-spark-1.1
     publisher: meta
     aliases:
+      - {provider: meta, alias: muse-spark-1.1, channel: meta-api}
+      - {provider: unknown, alias: muse-spark-1.1, channel: meta-api}
       - provider: meta
         alias: meta/muse-spark-1.1
         channel: vercel-ai-gateway
@@ -1067,6 +1164,8 @@ models:
       - {provider: litellm, alias: mistral-large-3, channel: mistral-api}
       - {provider: mistral, alias: mistral-large-latest, channel: mistral-api}
       - {provider: mistral, alias: mistral/mistral-large-3, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+      - {provider: mistral, alias: mistral-large-3, channel: mistral-api}
+      - {provider: unknown, alias: mistral-large-3, channel: mistral-api}
     prices:
       - channel: aws-bedrock
         region: us-west-2
@@ -1123,6 +1222,11 @@ models:
     publisher: deepseek
     aliases:
       - {provider: deepseek, alias: deepseek-v4-flash, channel: deepseek-api}
+      - {provider: deepseek, alias: deepseek/deepseek/deepseek-v4-flash, channel: deepseek-api}
+      - {provider: litellm, alias: deepseek-v4-flash, channel: deepseek-api}
+      - {provider: litellm, alias: deepseek/deepseek-v4-flash, channel: deepseek-api}
+      - {provider: unknown, alias: deepseek-v4-flash, channel: deepseek-api}
+      - {provider: unknown, alias: deepseek/deepseek-v4-flash, channel: deepseek-api}
       - provider: deepseek
         alias: deepseek/deepseek-v4-flash
         channel: vercel-ai-gateway
@@ -1157,6 +1261,11 @@ models:
     publisher: deepseek
     aliases:
       - {provider: deepseek, alias: deepseek-v4-pro, channel: deepseek-api}
+      - {provider: deepseek, alias: deepseek/deepseek/deepseek-v4-pro, channel: deepseek-api}
+      - {provider: litellm, alias: deepseek-v4-pro, channel: deepseek-api}
+      - {provider: litellm, alias: deepseek/deepseek-v4-pro, channel: deepseek-api}
+      - {provider: unknown, alias: deepseek-v4-pro, channel: deepseek-api}
+      - {provider: unknown, alias: deepseek/deepseek-v4-pro, channel: deepseek-api}
       - provider: deepseek
         alias: deepseek/deepseek-v4-pro
         channel: vercel-ai-gateway
@@ -1195,6 +1304,12 @@ models:
       - {provider: x-ai, alias: grok-latest, channel: xai-api}
       - {provider: bedrock, alias: xai.grok-4.3, channel: aws-bedrock}
       - {provider: vercel, alias: spacexai/grok-4.3, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: grok-4.3, channel: xai-api}
+      - {provider: litellm, alias: grok-4.3-latest, channel: xai-api}
+      - {provider: unknown, alias: grok-4.3, channel: xai-api}
+      - {provider: unknown, alias: grok-4.3-latest, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.3, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.3-latest, channel: xai-api}
     prices:
       - channel: xai-api
         region: global
@@ -1233,6 +1348,10 @@ models:
     publisher: perplexity
     aliases:
       - {provider: perplexity-ai, alias: sonar, channel: perplexity-api}
+      - {provider: litellm, alias: perplexity/sonar, channel: perplexity-api}
+      - {provider: litellm, alias: sonar, channel: perplexity-api}
+      - {provider: perplexity-ai, alias: perplexity/sonar, channel: perplexity-api}
+      - {provider: unknown, alias: sonar, channel: perplexity-api}
     prices:
       - channel: perplexity-api
         region: global
@@ -1247,6 +1366,9 @@ models:
     publisher: openai
     aliases:
       - {provider: openai, alias: gpt-5-mini, channel: openai-api}
+      - {provider: litellm, alias: gpt-5-mini, channel: openai-api}
+      - {provider: openai, alias: gpt-5-mini-2025-08-07, channel: openai-api}
+      - {provider: unknown, alias: gpt-5-mini, channel: openai-api}
       - provider: openai
         alias: openai/gpt-5-mini
         channel: vercel-ai-gateway
@@ -1299,6 +1421,12 @@ models:
     publisher: google
     aliases:
       - {provider: google, alias: gemini-3.6-flash, channel: google-api}
+      - {provider: google, alias: google/models/gemini-3.6-flash, channel: google-api}
+      - {provider: google, alias: models/gemini-3.6-flash, channel: google-api}
+      - {provider: litellm, alias: gemini-3.6-flash, channel: google-api}
+      - {provider: litellm, alias: models/gemini-3.6-flash, channel: google-api}
+      - {provider: unknown, alias: gemini-3.6-flash, channel: google-api}
+      - {provider: unknown, alias: models/gemini-3.6-flash, channel: google-api}
       - provider: google
         alias: google/gemini-3.6-flash
         channel: vercel-ai-gateway
@@ -1347,6 +1475,10 @@ models:
   - canonical_id: google/gemini-3.7-flash
     publisher: google
     aliases:
+      - {provider: litellm, alias: gemini-3.7-flash, channel: google-api}
+      - {provider: litellm, alias: models/gemini-3.7-flash, channel: google-api}
+      - {provider: unknown, alias: gemini-3.7-flash, channel: google-api}
+      - {provider: unknown, alias: models/gemini-3.7-flash, channel: google-api}
       - provider: google
         alias: google/gemini-3.7-flash
         channel: vercel-ai-gateway
@@ -1497,6 +1629,10 @@ models:
   - canonical_id: zai/glm-5.2
     publisher: zai
     aliases:
+      - {provider: unknown, alias: glm-5.2, channel: zai-api}
+      - {provider: unknown, alias: glm-5p2, channel: zai-api}
+      - {provider: zai, alias: glm-5.2, channel: zai-api}
+      - {provider: zai, alias: glm-5p2, channel: zai-api}
       - provider: zai
         alias: zai/glm-5.2
         channel: vercel-ai-gateway
@@ -1523,6 +1659,8 @@ models:
   - canonical_id: moonshotai/kimi-k3
     publisher: moonshotai
     aliases:
+      - {provider: moonshotai, alias: kimi-k3, channel: moonshot-api}
+      - {provider: unknown, alias: kimi-k3, channel: moonshot-api}
       - provider: moonshotai
         alias: moonshotai/kimi-k3
         channel: vercel-ai-gateway
@@ -1580,6 +1718,8 @@ models:
   - canonical_id: minimax/minimax-m3
     publisher: minimax
     aliases:
+      - {provider: minimax, alias: minimax-m3, channel: minimax-api}
+      - {provider: unknown, alias: minimax-m3, channel: minimax-api}
       - provider: minimax
         alias: minimax/minimax-m3
         channel: vercel-ai-gateway
@@ -1690,6 +1830,10 @@ models:
   - canonical_id: xai/grok-4.6
     publisher: xai
     aliases:
+      - {provider: unknown, alias: grok-4.6, channel: xai-api}
+      - {provider: unknown, alias: grok-4.6-latest, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.6, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.6-latest, channel: xai-api}
       - provider: xai
         alias: spacexai/grok-4.6
         channel: vercel-ai-gateway
@@ -1733,6 +1877,7 @@ models:
     aliases:
       - {provider: google, alias: gemini-3-flash-preview, channel: google-api}
       - {provider: google, alias: models/gemini-3-flash-preview, channel: google-api}
+      - {provider: google, alias: google/gemini-3-flash-preview, channel: google-api}
     prices:
       - channel: google-api
         region: global
@@ -1754,6 +1899,8 @@ models:
       - {provider: google, alias: models/gemini-3.1-flash-lite, channel: google-api}
       - {provider: google, alias: gemini-3.1-flash-lite-preview, channel: google-api}
       - {provider: google, alias: google/gemini-3.1-flash-lite, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+      - {provider: litellm, alias: gemini-3.1-flash-lite, channel: google-api}
+      - {provider: unknown, alias: gemini-3.1-flash-lite, channel: google-api}
     prices:
       - channel: google-api
         region: global
@@ -1930,6 +2077,8 @@ models:
     aliases:
       - {provider: alibaba, alias: alibaba/qwen3.7-max, channel: alibaba-api}
       - {provider: alibaba, alias: qwen3.7-max, channel: alibaba-api}
+      - {provider: litellm, alias: qwen3.7-max, channel: alibaba-api}
+      - {provider: unknown, alias: qwen3.7-max, channel: alibaba-api}
     prices:
       - channel: alibaba-api
         region: global
@@ -1944,6 +2093,8 @@ models:
     aliases:
       - {provider: alibaba, alias: qwen3.7-plus, channel: alibaba-api}
       - {provider: alibaba, alias: alibaba/qwen3.7-plus, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+      - {provider: litellm, alias: qwen3.7-plus, channel: alibaba-api}
+      - {provider: unknown, alias: qwen3.7-plus, channel: alibaba-api}
     prices:
       - channel: alibaba-api
         region: global
@@ -1969,6 +2120,8 @@ models:
       - {provider: alibaba, alias: alibaba/qwen3.8-max, channel: alibaba-api}
       - {provider: alibaba, alias: qwen3.8-max, channel: alibaba-api}
       - {provider: vercel, alias: alibaba/qwen3.8-max, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: qwen3.8-max, channel: alibaba-api}
+      - {provider: unknown, alias: qwen3.8-max, channel: alibaba-api}
     prices:
       - channel: alibaba-api
         region: global
@@ -1988,6 +2141,14 @@ models:
   - canonical_id: amazon/nova-2-lite
     publisher: amazon
     aliases:
+      - {provider: amazon, alias: amazon-nova/nova-2-lite, channel: aws-bedrock}
+      - {provider: amazon, alias: amazon/amazon-nova/nova-2-lite, channel: aws-bedrock}
+      - {provider: amazon, alias: amazon/nova-2-lite, channel: aws-bedrock}
+      - {provider: amazon, alias: nova-2-lite, channel: aws-bedrock}
+      - {provider: litellm, alias: amazon-nova/nova-2-lite, channel: aws-bedrock}
+      - {provider: litellm, alias: nova-2-lite, channel: aws-bedrock}
+      - {provider: unknown, alias: amazon-nova/nova-2-lite, channel: aws-bedrock}
+      - {provider: unknown, alias: nova-2-lite, channel: aws-bedrock}
       # Bedrock's global inference profile bills at standard / 1.1 on every
       # dimension. Every other prefix, and the bare id, is the higher tier.
       - {provider: bedrock, alias: global.amazon.nova-2-lite-v1:0, channel: aws-bedrock}
@@ -2021,6 +2182,14 @@ models:
   - canonical_id: amazon/nova-lite
     publisher: amazon
     aliases:
+      - {provider: amazon, alias: amazon/nova-lite, channel: aws-bedrock}
+      - {provider: amazon, alias: amazon/nova-lite-v1, channel: aws-bedrock}
+      - {provider: amazon, alias: nova-lite, channel: aws-bedrock}
+      - {provider: amazon, alias: nova-lite-v1, channel: aws-bedrock}
+      - {provider: litellm, alias: nova-lite, channel: aws-bedrock}
+      - {provider: litellm, alias: nova-lite-v1, channel: aws-bedrock}
+      - {provider: unknown, alias: nova-lite, channel: aws-bedrock}
+      - {provider: unknown, alias: nova-lite-v1, channel: aws-bedrock}
       # No global inference profile exists for this model, so every
       # prefix shares one rate.
       - {provider: bedrock, alias: amazon.nova-lite-v1:0, channel: aws-bedrock}
@@ -2037,6 +2206,14 @@ models:
   - canonical_id: amazon/nova-micro
     publisher: amazon
     aliases:
+      - {provider: amazon, alias: amazon/nova-micro, channel: aws-bedrock}
+      - {provider: amazon, alias: amazon/nova-micro-v1, channel: aws-bedrock}
+      - {provider: amazon, alias: nova-micro, channel: aws-bedrock}
+      - {provider: amazon, alias: nova-micro-v1, channel: aws-bedrock}
+      - {provider: litellm, alias: nova-micro, channel: aws-bedrock}
+      - {provider: litellm, alias: nova-micro-v1, channel: aws-bedrock}
+      - {provider: unknown, alias: nova-micro, channel: aws-bedrock}
+      - {provider: unknown, alias: nova-micro-v1, channel: aws-bedrock}
       # No global inference profile exists for this model, so every
       # prefix shares one rate.
       - {provider: bedrock, alias: amazon.nova-micro-v1:0, channel: aws-bedrock}
@@ -2053,6 +2230,18 @@ models:
   - canonical_id: amazon/nova-pro
     publisher: amazon
     aliases:
+      - {provider: amazon, alias: amazon-nova/nova-pro-v1, channel: aws-bedrock}
+      - {provider: amazon, alias: amazon/amazon-nova/nova-pro-v1, channel: aws-bedrock}
+      - {provider: amazon, alias: amazon/nova-pro, channel: aws-bedrock}
+      - {provider: amazon, alias: amazon/nova-pro-v1, channel: aws-bedrock}
+      - {provider: amazon, alias: nova-pro, channel: aws-bedrock}
+      - {provider: amazon, alias: nova-pro-v1, channel: aws-bedrock}
+      - {provider: litellm, alias: amazon-nova/nova-pro-v1, channel: aws-bedrock}
+      - {provider: litellm, alias: nova-pro, channel: aws-bedrock}
+      - {provider: litellm, alias: nova-pro-v1, channel: aws-bedrock}
+      - {provider: unknown, alias: amazon-nova/nova-pro-v1, channel: aws-bedrock}
+      - {provider: unknown, alias: nova-pro, channel: aws-bedrock}
+      - {provider: unknown, alias: nova-pro-v1, channel: aws-bedrock}
       # No global inference profile exists for this model, so every
       # prefix shares one rate.
       - {provider: bedrock, alias: amazon.nova-pro-v1:0, channel: aws-bedrock}
@@ -2092,6 +2281,10 @@ models:
       - {provider: anthropic, alias: anthropic/claude-mythos-preview, channel: anthropic-api}
       - {provider: anthropic, alias: claude-mythos-5, channel: anthropic-api}
       - {provider: anthropic, alias: claude-mythos-preview, channel: anthropic-api}
+      - {provider: litellm, alias: claude-mythos-5, channel: anthropic-api}
+      - {provider: litellm, alias: claude-mythos-preview, channel: anthropic-api}
+      - {provider: unknown, alias: claude-mythos-5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-mythos-preview, channel: anthropic-api}
     prices:
       - channel: anthropic-api
         region: global
@@ -2113,6 +2306,12 @@ models:
       - {provider: anthropic, alias: claude-4-opus-20250514, channel: anthropic-api}
       - {provider: anthropic, alias: claude-opus-4, channel: anthropic-api}
       - {provider: anthropic, alias: claude-opus-4-20250514, channel: anthropic-api}
+      - {provider: litellm, alias: claude-4-opus-20250514, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4-20250514, channel: anthropic-api}
+      - {provider: unknown, alias: claude-4-opus-20250514, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4-20250514, channel: anthropic-api}
     prices:
       - channel: anthropic-api
         region: global
@@ -2134,6 +2333,12 @@ models:
       - {provider: anthropic, alias: claude-opus-4-1, channel: anthropic-api}
       - {provider: anthropic, alias: claude-opus-4.1, channel: anthropic-api}
       - {provider: anthropic, alias: claude-opus-4-1-20250805, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4-1, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4-1-20250805, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-4.1, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4-1, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4-1-20250805, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-4.1, channel: anthropic-api}
     prices:
       - channel: anthropic-api
         region: global
@@ -2178,6 +2383,8 @@ models:
       - {provider: anthropic, alias: anthropic/claude-opus-5-fast, channel: anthropic-api}
       - {provider: anthropic, alias: claude-opus-5-fast, channel: anthropic-api}
       - {provider: vercel, alias: anthropic/claude-opus-5-fast, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: claude-opus-5-fast, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-5-fast, channel: anthropic-api}
     prices:
       - channel: anthropic-api
         region: global
@@ -2223,6 +2430,14 @@ models:
     publisher: google
     aliases:
       - {provider: vercel, alias: google/gemini-3-flash, channel: vercel-ai-gateway}
+      - {provider: google, alias: gemini-3-flash, channel: vercel-ai-gateway}
+      - {provider: google, alias: google/gemini-3-flash, channel: vercel-ai-gateway}
+      - {provider: google, alias: google/models/gemini-3-flash, channel: vercel-ai-gateway}
+      - {provider: google, alias: models/gemini-3-flash, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: gemini-3-flash, channel: vercel-ai-gateway}
+      - {provider: litellm, alias: models/gemini-3-flash, channel: vercel-ai-gateway}
+      - {provider: unknown, alias: gemini-3-flash, channel: vercel-ai-gateway}
+      - {provider: unknown, alias: models/gemini-3-flash, channel: vercel-ai-gateway}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -2237,6 +2452,8 @@ models:
       - {provider: litellm, alias: muse-spark-1.2, channel: meta-api}
       - {provider: meta, alias: meta/muse-spark-1.2, channel: meta-api}
       - {provider: vercel, alias: meta/muse-spark-1.2, channel: vercel-ai-gateway}
+      - {provider: meta, alias: muse-spark-1.2, channel: meta-api}
+      - {provider: unknown, alias: muse-spark-1.2, channel: meta-api}
     prices:
       - channel: meta-api
         region: global
@@ -2269,6 +2486,8 @@ models:
       - {provider: litellm, alias: minimax-m2.7, channel: minimax-api}
       - {provider: minimax, alias: minimax-m2p7, channel: minimax-api}
       - {provider: minimax, alias: minimax/minimax-m2.7, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+      - {provider: minimax, alias: minimax-m2.7, channel: minimax-api}
+      - {provider: unknown, alias: minimax-m2.7, channel: minimax-api}
     prices:
       - channel: minimax-api
         region: global
@@ -2295,6 +2514,12 @@ models:
       - {provider: mistral, alias: mistral/mistral-medium-2604, channel: mistral-api}
       - {provider: mistral, alias: mistral/mistral-medium-3.5, channel: mistral-api}
       - {provider: mistral, alias: mistral/mistral-medium-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral-medium-2604, channel: mistral-api}
+      - {provider: mistral, alias: mistral-medium-3.5, channel: mistral-api}
+      - {provider: mistral, alias: mistral-medium-latest, channel: mistral-api}
+      - {provider: unknown, alias: mistral-medium-2604, channel: mistral-api}
+      - {provider: unknown, alias: mistral-medium-3.5, channel: mistral-api}
+      - {provider: unknown, alias: mistral-medium-latest, channel: mistral-api}
     prices:
       - channel: mistral-api
         region: global
@@ -2311,6 +2536,12 @@ models:
       - {provider: mistral, alias: mistral/mistral-small-2603, channel: mistral-api}
       - {provider: mistral, alias: mistral/mistral-small-4, channel: mistral-api}
       - {provider: mistral, alias: mistral/mistral-small-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral-small-2603, channel: mistral-api}
+      - {provider: mistral, alias: mistral-small-4, channel: mistral-api}
+      - {provider: mistral, alias: mistral-small-latest, channel: mistral-api}
+      - {provider: unknown, alias: mistral-small-2603, channel: mistral-api}
+      - {provider: unknown, alias: mistral-small-4, channel: mistral-api}
+      - {provider: unknown, alias: mistral-small-latest, channel: mistral-api}
     prices:
       - channel: mistral-api
         region: global
@@ -2324,6 +2555,8 @@ models:
       - {provider: litellm, alias: gpt-5, channel: openai-api, rules: {"input_includes_cache_read": true}}
       - {provider: openai, alias: gpt-5-2025-08-07, channel: openai-api, rules: {"input_includes_cache_read": true}}
       - {provider: openai, alias: openai/gpt-5, channel: openai-api, rules: {"input_includes_cache_read": true}}
+      - {provider: openai, alias: gpt-5, channel: openai-api, rules: {"input_includes_cache_read": true}}
+      - {provider: unknown, alias: gpt-5, channel: openai-api, rules: {"input_includes_cache_read": true}}
     prices:
       - channel: openai-api
         region: global
@@ -2339,6 +2572,8 @@ models:
     aliases:
       - {provider: litellm, alias: gpt-5.3-codex, channel: openai-api}
       - {provider: openai, alias: openai/gpt-5.3-codex, channel: openai-api}
+      - {provider: openai, alias: gpt-5.3-codex, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.3-codex, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -2354,6 +2589,10 @@ models:
       - {provider: litellm, alias: gpt-5.4-pro-2026-03-05, channel: openai-api}
       - {provider: openai, alias: openai/gpt-5.4-pro, channel: openai-api}
       - {provider: openai, alias: openai/gpt-5.4-pro-2026-03-05, channel: openai-api}
+      - {provider: openai, alias: gpt-5.4-pro, channel: openai-api}
+      - {provider: openai, alias: gpt-5.4-pro-2026-03-05, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.4-pro, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.4-pro-2026-03-05, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -2371,6 +2610,10 @@ models:
       - {provider: openai, alias: openai/gpt-5.5, channel: openai-api}
       - {provider: openai, alias: openai/gpt-5.5-2026-04-23, channel: openai-api}
       - {provider: vercel, alias: openai/gpt-5.5, channel: vercel-ai-gateway}
+      - {provider: openai, alias: gpt-5.5, channel: openai-api}
+      - {provider: openai, alias: gpt-5.5-2026-04-23, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.5, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.5-2026-04-23, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -2396,6 +2639,10 @@ models:
       - {provider: openai, alias: openai/gpt-5.5-pro, channel: openai-api}
       - {provider: openai, alias: openai/gpt-5.5-pro-2026-04-23, channel: openai-api}
       - {provider: vercel, alias: openai/gpt-5.5-pro, channel: vercel-ai-gateway}
+      - {provider: openai, alias: gpt-5.5-pro, channel: openai-api}
+      - {provider: openai, alias: gpt-5.5-pro-2026-04-23, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.5-pro, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.5-pro-2026-04-23, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -2416,6 +2663,8 @@ models:
     aliases:
       - {provider: litellm, alias: gpt-5.6-cyber, channel: openai-api}
       - {provider: openai, alias: openai/gpt-5.6-cyber, channel: openai-api}
+      - {provider: openai, alias: gpt-5.6-cyber, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.6-cyber, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -2431,6 +2680,8 @@ models:
       - {provider: litellm, alias: o4-mini, channel: openai-api}
       - {provider: openai, alias: o4-mini-2025-04-16, channel: openai-api}
       - {provider: openai, alias: openai/o4-mini, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+      - {provider: openai, alias: o4-mini, channel: openai-api}
+      - {provider: unknown, alias: o4-mini, channel: openai-api}
     prices:
       - channel: openai-api
         region: global
@@ -2456,6 +2707,10 @@ models:
       - {provider: litellm, alias: grok-4.20-non-reasoning, channel: xai-api}
       - {provider: x-ai, alias: xai/grok-4.20-0309-non-reasoning, channel: xai-api}
       - {provider: x-ai, alias: xai/grok-4.20-non-reasoning, channel: xai-api}
+      - {provider: unknown, alias: grok-4.20-0309-non-reasoning, channel: xai-api}
+      - {provider: unknown, alias: grok-4.20-non-reasoning, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.20-0309-non-reasoning, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.20-non-reasoning, channel: xai-api}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -2483,6 +2738,10 @@ models:
       - {provider: litellm, alias: grok-4.20-reasoning, channel: xai-api}
       - {provider: x-ai, alias: xai/grok-4.20-0309-reasoning, channel: xai-api}
       - {provider: x-ai, alias: xai/grok-4.20-reasoning, channel: xai-api}
+      - {provider: unknown, alias: grok-4.20-0309-reasoning, channel: xai-api}
+      - {provider: unknown, alias: grok-4.20-reasoning, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.20-0309-reasoning, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.20-reasoning, channel: xai-api}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -2509,6 +2768,10 @@ models:
       - {provider: litellm, alias: grok-4.5-latest, channel: xai-api}
       - {provider: x-ai, alias: xai/grok-4.5, channel: xai-api}
       - {provider: x-ai, alias: xai/grok-4.5-latest, channel: xai-api}
+      - {provider: unknown, alias: grok-4.5, channel: xai-api}
+      - {provider: unknown, alias: grok-4.5-latest, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.5, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.5-latest, channel: xai-api}
     prices:
       - channel: xai-api
         region: global
@@ -2527,6 +2790,10 @@ models:
       - {provider: litellm, alias: glm-5p1, channel: zai-api}
       - {provider: zai, alias: zai/glm-5.1, channel: zai-api}
       - {provider: zai, alias: zai/glm-5p1, channel: zai-api}
+      - {provider: unknown, alias: glm-5.1, channel: zai-api}
+      - {provider: unknown, alias: glm-5p1, channel: zai-api}
+      - {provider: zai, alias: glm-5.1, channel: zai-api}
+      - {provider: zai, alias: glm-5p1, channel: zai-api}
     prices:
       - channel: vercel-ai-gateway
         region: global

@@ -14,6 +14,7 @@ _PROVIDER_ALIASES = {
     "aws-bedrock": "bedrock",
     "gemini": "google",
     "google-genai": "google",
+    "moonshot": "moonshotai",
     "perplexity": "perplexity-ai",
     "xai": "x-ai",
 }
@@ -35,7 +36,9 @@ _DIRECT_CHANNEL_BY_PROVIDER = {
     "perplexity-ai": "perplexity-api",
     "x-ai": "xai-api",
     "alibaba": "alibaba-api",
-    "amazon": "amazon-api",
+    # Amazon publishes no first-party inference API: its own models are sold
+    # through Bedrock, so a trace naming "amazon" was billed on Bedrock.
+    "amazon": "aws-bedrock",
     "meta": "meta-api",
     "minimax": "minimax-api",
     "mistral": "mistral-api",
@@ -92,7 +95,7 @@ def counts_cache_read_in_input(
     return pair in _INPUT_INCLUDES_CACHE_READ_PAIRS
 
 
-def _normalize_provider(provider: str) -> str:
+def normalize_provider(provider: str) -> str:
     """Fold a provider spelling through metergraph-core's provider-alias map
     (e.g. ``aws``/``amazon-bedrock`` -> ``bedrock``, ``google-genai`` ->
     ``google``) so identity and channel lookups accept every spelling the
@@ -108,7 +111,7 @@ def direct_channel_for_provider(provider: Any) -> str | None:
     channel."""
     if not isinstance(provider, str):
         return None
-    return _DIRECT_CHANNEL_BY_PROVIDER.get(_normalize_provider(provider))
+    return _DIRECT_CHANNEL_BY_PROVIDER.get(normalize_provider(provider))
 
 
 def _coerce_datetime(at: Any) -> datetime:
