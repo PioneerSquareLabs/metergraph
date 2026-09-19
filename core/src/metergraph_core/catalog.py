@@ -196,10 +196,38 @@ def _tokens(value: Any) -> int | None:
     return result if result >= 0 else None
 
 
+def _off_peak_multiplier(rules: Mapping[str, Any], at: datetime) -> Decimal:
+    """The discount a provider applies outside its published peak hours.
+
+    A row states the peak rate, which is the provider's list price, and the
+    window it applies in. A call outside that window is scaled by
+    ``multiplier``; a row with no window is time-independent.
+    """
+    discount = rules.get("off_peak_discount") or {}
+    windows = discount.get("peak_hours_utc") or ()
+    multiplier = _decimal(discount.get("multiplier"))
+    if not windows or multiplier is None:
+        return Decimal("1")
+    moment = at.astimezone(timezone.utc)
+    if discount.get("peak_weekdays_only") and moment.weekday() >= 5:
+        return multiplier
+    for window in windows:
+        try:
+            start, end = window
+        except (TypeError, ValueError):
+            continue
+        if _tokens(start) is None or _tokens(end) is None:
+            continue
+        if int(start) <= moment.hour < int(end):
+            return Decimal("1")
+    return multiplier
+
+
 def _price_tokens(
     price: Price,
     rules: Mapping[str, Any],
     *,
+    at: datetime,
     input_tokens: Any,
     output_tokens: Any,
     cache_read_tokens: Any,
@@ -261,6 +289,11 @@ def _price_tokens(
         output_multiplier = _decimal(
             long_context.get("output_multiplier")
         ) or Decimal("1")
+    # Applies to every rate on the row, cache included, and composes with a
+    # long-context tier rather than replacing it.
+    off_peak = _off_peak_multiplier(rules, at)
+    input_multiplier *= off_peak
+    output_multiplier *= off_peak
 
     cost = Decimal("0")
     if input_rate is None:
@@ -439,6 +472,7 @@ class CatalogSnapshot:
         cost, reasons = _price_tokens(
             price,
             {**price.rules, **alias.rules},
+            at=_coerce_datetime(at),
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cache_read_tokens=cache_read_tokens,
@@ -486,6 +520,7 @@ class CatalogSnapshot:
         cost, reasons = _price_tokens(
             resolved.price,
             resolved.rules,
+            at=when,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cache_read_tokens=cache_read_tokens,
