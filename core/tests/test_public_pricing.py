@@ -1114,3 +1114,51 @@ def test_installed_catalog_prices_deepseeks_current_flash_name_and_its_legacy_on
     assert current.cost_usd == legacy.cost_usd == Decimal("0.75")
     assert current.canonical_model == "deepseek/deepseek-v4.1-flash"
     assert legacy.canonical_model == "deepseek/v4-flash"
+
+
+@pytest.mark.parametrize(
+    "moment,cost",
+    [
+        # DeepSeek's reprice took effect at 04:00 UTC, not at midnight. A date
+        # alone would hand these four hours to the new rate.
+        ("2026-09-09T23:59:00+00:00", "1.30500000"),
+        ("2026-09-10T00:00:00+00:00", "1.30500000"),
+        ("2026-09-10T03:59:00+00:00", "1.30500000"),
+        ("2026-09-10T04:00:00+00:00", "2.64000000"),
+        ("2026-09-10T05:00:00+00:00", "2.64000000"),
+    ],
+)
+def test_installed_catalog_moves_to_deepseeks_new_rate_at_the_stated_hour(moment, cost):
+    """A price row states when it takes effect, not on which day. A reprice
+    announced for a particular hour has to hold the old rate until then, or every
+    call in between is billed at a rate that was not yet in force."""
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="deepseek",
+        model="deepseek-v4-pro",
+        at=datetime.fromisoformat(moment),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal(cost)
+
+
+def test_installed_catalog_leaves_no_gap_or_overlap_at_the_reprice_hour():
+    """The two rows meet exactly: the hour the old one ends is the hour the new
+    one begins, so no call falls between them or is claimed by both."""
+    catalog = load_catalog()
+    rows = [
+        price
+        for model in catalog.document["models"]
+        if model["canonical_id"] == "deepseek/v4-pro"
+        for price in model["prices"]
+        if price["channel"] == "deepseek-api"
+    ]
+
+    ended = {str(row.get("effective_to")) for row in rows if row.get("effective_to")}
+    began = {str(row["effective_from"]) for row in rows}
+
+    assert "2026-09-10T04:00:00+00:00" in ended & began
