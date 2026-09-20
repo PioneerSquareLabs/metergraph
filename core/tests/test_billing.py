@@ -149,3 +149,102 @@ def test_normalized_evidence_is_immutable():
 
     with pytest.raises(AttributeError):
         evidence.gateway = "other"
+
+
+def _portkey_row(**overrides):
+    row = {
+        "gateway": "portkey",
+        "endpoint": "responses",
+        "reported_cost_usd": "0.01807375",
+        "reported_cost_source": "portkey.cost",
+    }
+    row.update(overrides)
+    return {key: value for key, value in row.items() if value is not None}
+
+
+def test_a_verified_gateway_amount_is_what_the_call_cost():
+    """The gateway's figure is what the customer was billed, including the
+    per-request and per-query charges no token rate can express. Where it has
+    been reconciled against the providers' published rates, it outranks a cost
+    computed from tokens alone."""
+    decision = resolve_billing(
+        CATALOG_PRICED, normalize_gateway_evidence(_portkey_row())
+    )
+
+    assert decision.cost_usd == Decimal("0.01807375")
+    assert decision.cost_status == "priced"
+    assert decision.cost_provenance == "gateway_reported"
+    # The computed cost is still recorded, so the two remain comparable.
+    assert decision.catalog_cost_usd == Decimal("0.006")
+
+
+def test_a_verified_gateway_prices_a_model_the_catalog_cannot():
+    decision = resolve_billing(
+        CATALOG_UNPRICED, normalize_gateway_evidence(_portkey_row())
+    )
+
+    assert decision.cost_usd == Decimal("0.01807375")
+    assert decision.cost_status == "priced"
+
+
+@pytest.mark.parametrize("endpoint", ["chat.completions", "responses"])
+def test_each_endpoint_a_gateway_is_verified_on_qualifies(endpoint):
+    decision = resolve_billing(
+        CATALOG_PRICED, normalize_gateway_evidence(_portkey_row(endpoint=endpoint))
+    )
+
+    assert decision.cost_provenance == "gateway_reported"
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        # An endpoint the gateway was not checked on prices differently.
+        {"endpoint": "embeddings"},
+        {"endpoint": None},
+        # A gateway name alone is not enough: the source names the field read.
+        {"reported_cost_source": "portkey.estimated_cost"},
+        {"reported_cost_source": None},
+        # Another gateway's source string does not transfer.
+        {"reported_cost_source": "openrouter.usage.cost"},
+        {"gateway": "langfuse"},
+        {"gateway": None},
+    ],
+)
+def test_evidence_that_does_not_line_up_leaves_the_catalog_in_charge(overrides):
+    decision = resolve_billing(
+        CATALOG_PRICED, normalize_gateway_evidence(_portkey_row(**overrides))
+    )
+
+    assert decision.cost_usd == Decimal("0.006")
+    assert decision.cost_provenance == "catalog"
+    assert decision.reported_cost_usd is None
+
+
+def test_an_upstream_amount_is_only_taken_from_a_gateway_that_reports_one():
+    """Portkey publishes no upstream figure, so one appearing on a Portkey row
+    did not come from the gateway and is not recorded as though it had."""
+    decision = resolve_billing(
+        CATALOG_PRICED,
+        normalize_gateway_evidence(
+            _portkey_row(
+                reported_upstream_cost_usd="0.99",
+                reported_upstream_cost_source=(
+                    "openrouter.usage.cost_details.upstream_inference_cost"
+                ),
+            )
+        ),
+    )
+
+    assert decision.reported_upstream_cost_usd is None
+    assert decision.cost_usd == Decimal("0.01807375")
+
+
+def test_every_entry_names_a_gateway_endpoint_and_source():
+    """An entry missing any of the three would qualify rows it was never checked
+    against."""
+    from metergraph_core.billing import _QUALIFIED_SOURCES
+
+    for source in _QUALIFIED_SOURCES:
+        assert source.gateway and source.endpoints and source.cost_source
+        assert source.cost_source.startswith(f"{source.gateway}.")
