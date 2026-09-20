@@ -1235,11 +1235,27 @@ models:
       - channel: deepseek-api
         region: global
         effective_from: "2026-04-24"
+        effective_to: "2026-09-10T04:00:00+00:00"
         input_per_mtok: 0.14
         output_per_mtok: 0.28
         cache_read_per_mtok: 0.0028
         rules:
           input_includes_cache_read: true
+        source_url: https://api-docs.deepseek.com/quick_start/pricing/
+      # This name is retired but still accepted, and billed at the Flash rate.
+      - channel: deepseek-api
+        region: global
+        effective_from: "2026-09-10T04:00:00+00:00"
+        input_per_mtok: 0.30
+        output_per_mtok: 1.20
+        cache_read_per_mtok: 0.006
+        rules:
+          input_includes_cache_read: true
+          # Peak rate; halved outside the window. Footnote (3) on the source.
+          off_peak_discount:
+            multiplier: 0.5
+            peak_hours_utc: [[1, 4], [6, 10]]
+            peak_weekdays_only: true
         source_url: https://api-docs.deepseek.com/quick_start/pricing/
       - channel: vercel-ai-gateway
         region: global
@@ -1274,11 +1290,26 @@ models:
       - channel: deepseek-api
         region: global
         effective_from: "2026-04-24"
+        effective_to: "2026-09-10T04:00:00+00:00"
         input_per_mtok: 0.435
         output_per_mtok: 0.87
         cache_read_per_mtok: 0.003625
         rules:
           input_includes_cache_read: true
+        source_url: https://api-docs.deepseek.com/quick_start/pricing/
+      - channel: deepseek-api
+        region: global
+        effective_from: "2026-09-10T04:00:00+00:00"
+        input_per_mtok: 1.32
+        output_per_mtok: 3.96
+        cache_read_per_mtok: 0.044
+        rules:
+          input_includes_cache_read: true
+          # Peak rate; halved outside the window. Footnote (3) on the source.
+          off_peak_discount:
+            multiplier: 0.5
+            peak_hours_utc: [[1, 4], [6, 10]]
+            peak_weekdays_only: true
         source_url: https://api-docs.deepseek.com/quick_start/pricing/
       - channel: vercel-ai-gateway
         region: global
@@ -1581,11 +1612,28 @@ models:
   - canonical_id: deepseek/deepseek-v4.1-flash
     publisher: deepseek
     aliases:
+      - {provider: deepseek, alias: deepseek-flash, channel: deepseek-api}
+      - {provider: litellm, alias: deepseek-flash, channel: deepseek-api}
+      - {provider: unknown, alias: deepseek-flash, channel: deepseek-api}
       - provider: deepseek
         alias: deepseek/deepseek-v4.1-flash
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
     prices:
+      - channel: deepseek-api
+        region: global
+        effective_from: "2026-09-10T04:00:00+00:00"
+        input_per_mtok: 0.30
+        output_per_mtok: 1.20
+        cache_read_per_mtok: 0.006
+        rules:
+          input_includes_cache_read: true
+          # Peak rate; halved outside the window. Footnote (3) on the source.
+          off_peak_discount:
+            multiplier: 0.5
+            peak_hours_utc: [[1, 4], [6, 10]]
+            peak_weekdays_only: true
+        source_url: https://api-docs.deepseek.com/quick_start/pricing/
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-09-08"

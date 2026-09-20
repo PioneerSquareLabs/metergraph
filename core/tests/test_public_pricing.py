@@ -1040,3 +1040,125 @@ def testnormalize_provider_is_public_so_one_map_serves_every_repo():
     assert normalize_provider(" moonshot ") == "moonshotai"
     assert normalize_provider("aws-bedrock") == "bedrock"
     assert normalize_provider("openai") == "openai"
+
+
+_DEEPSEEK_PEAK_CASES = [
+    # DeepSeek's peak window is 01:00-04:00 and 06:00-10:00 UTC on weekdays.
+    # 2026-09-16 is a Wednesday, 2026-09-19 a Saturday.
+    ("2026-09-16T00:59:00+00:00", False),
+    ("2026-09-16T01:00:00+00:00", True),
+    ("2026-09-16T03:59:00+00:00", True),
+    ("2026-09-16T04:00:00+00:00", False),
+    ("2026-09-16T05:59:00+00:00", False),
+    ("2026-09-16T06:00:00+00:00", True),
+    ("2026-09-16T09:59:00+00:00", True),
+    ("2026-09-16T10:00:00+00:00", False),
+    ("2026-09-16T23:00:00+00:00", False),
+    # A weekend hour inside the weekday window is still off-peak.
+    ("2026-09-19T02:00:00+00:00", False),
+    ("2026-09-20T07:00:00+00:00", False),
+]
+
+
+@pytest.mark.parametrize("moment,is_peak", _DEEPSEEK_PEAK_CASES)
+def test_installed_catalog_bills_deepseek_by_the_hour_of_the_call(moment, is_peak):
+    """A call's cost depends on the hour it was made, not only on the model."""
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="deepseek",
+        model="deepseek-v4-pro",
+        at=datetime.fromisoformat(moment),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    # Published peak rates: 1.32 input, 3.96 output. Off-peak is exactly half.
+    assert result.cost_usd == (Decimal("5.28") if is_peak else Decimal("2.64"))
+
+
+def test_installed_catalog_keeps_deepseeks_pre_september_rates_for_older_calls():
+    """A reprice must not rewrite what a call already cost. The older row
+    predates the off-peak split, so no discount applies to it."""
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="deepseek",
+        model="deepseek-v4-pro",
+        at=datetime(2026, 9, 1, 2, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("1.30500000")
+
+
+def test_installed_catalog_prices_deepseeks_current_flash_name_and_its_legacy_one():
+    """A retired name the provider still accepts has to keep costing what the
+    provider bills for it, even though it resolves to a different model."""
+    catalog = load_catalog()
+    at = datetime(2026, 9, 16, 12, tzinfo=timezone.utc)
+
+    current = catalog.snapshot.cost(
+        provider="deepseek", model="deepseek-flash", at=at,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    legacy = catalog.snapshot.cost(
+        provider="deepseek", model="deepseek-v4-flash", at=at,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+
+    # Off-peak: half of the published 0.30 input and 1.20 output.
+    assert current.cost_usd == legacy.cost_usd == Decimal("0.75")
+    assert current.canonical_model == "deepseek/deepseek-v4.1-flash"
+    assert legacy.canonical_model == "deepseek/v4-flash"
+
+
+@pytest.mark.parametrize(
+    "moment,cost",
+    [
+        # DeepSeek's reprice took effect at 04:00 UTC, not at midnight. A date
+        # alone would hand these four hours to the new rate.
+        ("2026-09-09T23:59:00+00:00", "1.30500000"),
+        ("2026-09-10T00:00:00+00:00", "1.30500000"),
+        ("2026-09-10T03:59:00+00:00", "1.30500000"),
+        ("2026-09-10T04:00:00+00:00", "2.64000000"),
+        ("2026-09-10T05:00:00+00:00", "2.64000000"),
+    ],
+)
+def test_installed_catalog_moves_to_deepseeks_new_rate_at_the_stated_hour(moment, cost):
+    """A price row states when it takes effect, not on which day. A reprice
+    announced for a particular hour has to hold the old rate until then, or every
+    call in between is billed at a rate that was not yet in force."""
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="deepseek",
+        model="deepseek-v4-pro",
+        at=datetime.fromisoformat(moment),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal(cost)
+
+
+def test_installed_catalog_leaves_no_gap_or_overlap_at_the_reprice_hour():
+    """The two rows meet exactly: the hour the old one ends is the hour the new
+    one begins, so no call falls between them or is claimed by both."""
+    catalog = load_catalog()
+    rows = [
+        price
+        for model in catalog.document["models"]
+        if model["canonical_id"] == "deepseek/v4-pro"
+        for price in model["prices"]
+        if price["channel"] == "deepseek-api"
+    ]
+
+    ended = {str(row.get("effective_to")) for row in rows if row.get("effective_to")}
+    began = {str(row["effective_from"]) for row in rows}
+
+    assert "2026-09-10T04:00:00+00:00" in ended & began
