@@ -222,6 +222,44 @@ def _off_peak_multiplier(rules: Mapping[str, Any], at: datetime) -> Decimal:
             return Decimal("1")
     return multiplier
 
+# A count that was never given and a count that was given but cannot be read are
+# different facts with opposite billing consequences for cached tokens: absent
+# means there was no cache to discount, unusable means we do not know. `_tokens`
+# answers both with None, which is right for a count a caller may legitimately
+# omit and wrong for one it supplied.
+_UNUSABLE = object()
+
+
+def _token_count(value: Any) -> Any:
+    """A usable token count, ``None`` when none was given, or ``_UNUSABLE`` when
+    one was given that cannot be read as a count."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return _UNUSABLE
+    try:
+        result = int(value)
+    except (ValueError, TypeError, OverflowError):
+        return _UNUSABLE
+    return result if result >= 0 else _UNUSABLE
+
+
+def _cached_count(value: Any, name: str, reasons: list[str]) -> int | None:
+    """The count to bill for one cached-token field, recording why when the
+    value supplied cannot be used.
+
+    Returns ``None`` only when nothing was given, so a caller that omits a field
+    keeps the behaviour it had. An unusable value bills as nothing cached, which
+    is the same arithmetic as before, but it now says so: the reason turns the
+    result ``partial``, and a caller that trusts only a fully priced figure stops
+    reading a silent over-bill as a price.
+    """
+    count = _token_count(value)
+    if count is _UNUSABLE:
+        reasons.append(f"unusable_{name}")
+        return 0
+    return count
+
 
 def _price_tokens(
     price: Price,
@@ -242,11 +280,19 @@ def _price_tokens(
     reasons: list[str] = []
     input_count = _tokens(input_tokens)
     output_count = _tokens(output_tokens)
-    cache_read_count = _tokens(cache_read_tokens) or 0
-    cache_write_5m_count = _tokens(cache_write_5m_tokens)
+    cache_read_count = _cached_count(cache_read_tokens, "cache_read_tokens", reasons) or 0
+    cache_write_5m_count = _cached_count(
+        cache_write_5m_tokens, "cache_write_5m_tokens", reasons
+    )
     if cache_write_5m_count is None:
-        cache_write_5m_count = _tokens(cache_write_tokens) or 0
-    cache_write_1h_count = _tokens(cache_write_1h_tokens) or 0
+        # Only an absent split falls back to the aggregate. A stated split we
+        # cannot read is not an invitation to substitute a different field.
+        cache_write_5m_count = (
+            _cached_count(cache_write_tokens, "cache_write_tokens", reasons) or 0
+        )
+    cache_write_1h_count = (
+        _cached_count(cache_write_1h_tokens, "cache_write_1h_tokens", reasons) or 0
+    )
     cache_write_count = cache_write_5m_count + cache_write_1h_count
     if input_count is None:
         reasons.append("missing_input_tokens")
