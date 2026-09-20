@@ -308,6 +308,69 @@ def test_claude_on_vertex_bills_cache_reads_on_top_of_input():
     assert result.cost_usd == Decimal("6.05")
 
 
+@pytest.mark.parametrize("unusable", ["not-a-number", -1, True, [1]])
+def test_an_unusable_cache_read_count_is_reported_not_swallowed(unusable):
+    """A count the caller supplied that cannot be read is not the same as one it
+    omitted. Reading it as absent bills the cached tokens at the full input rate
+    and says nothing, so a consumer trusting a fully priced result cannot tell a
+    silent over-bill from a price."""
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model="gpt-5.6-luna",
+        at=_at("2026-07-15"),
+        input_tokens=100_000,
+        output_tokens=0,
+        cache_read_tokens=unusable,
+    )
+    assert result.status == "partial"
+    assert "unusable_cache_read_tokens" in result.reasons
+
+
+def test_an_omitted_cache_read_count_stays_silent():
+    """Omitting a field is legitimate and must keep the behaviour it had."""
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model="gpt-5.6-luna",
+        at=_at("2026-07-15"),
+        input_tokens=100_000,
+        output_tokens=0,
+    )
+    assert result.status == "priced"
+    assert not [r for r in result.reasons if r.startswith("unusable_")]
+
+
+def test_an_unusable_cache_write_split_does_not_fall_back_to_the_aggregate():
+    """An absent five-minute split falls back to `cache_write_tokens`. A stated
+    split that cannot be read is not an invitation to substitute a different
+    field, which would bill a number the caller never gave."""
+    result = SNAPSHOT.cost(
+        provider="openai",
+        model="gpt-5.6-luna",
+        at=_at("2026-07-15"),
+        input_tokens=100_000,
+        output_tokens=0,
+        cache_write_5m_tokens="oops",
+        cache_write_tokens=1_000_000,
+    )
+    assert result.status == "partial"
+    assert "unusable_cache_write_5m_tokens" in result.reasons
+    assert "unusable_cache_write_tokens" not in result.reasons
+
+
+def test_an_unusable_count_bills_as_nothing_cached_rather_than_guessing():
+    """The arithmetic is unchanged; only the reporting is new. A guess would be
+    worse than a flagged zero."""
+    flagged = SNAPSHOT.cost(
+        provider="openai", model="gpt-5.6-luna", at=_at("2026-07-15"),
+        input_tokens=100_000, output_tokens=0, cache_read_tokens="oops",
+    )
+    absent = SNAPSHOT.cost(
+        provider="openai", model="gpt-5.6-luna", at=_at("2026-07-15"),
+        input_tokens=100_000, output_tokens=0,
+    )
+    assert flagged.cost_usd == absent.cost_usd
+
+
 def test_openai_cache_read_included_in_input():
     result = SNAPSHOT.cost(
         provider="openai",
