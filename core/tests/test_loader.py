@@ -57,15 +57,15 @@ def test_bundled_catalog_has_identity_and_prices_a_call():
 
 
 @pytest.mark.parametrize(
-    ("model", "input_rate", "output_rate"),
+    ("model", "input_rate", "output_rate", "cache_read_rate"),
     [
-        ("openai/gpt-6-luna", "0.10", "0.50"),
-        ("openai/gpt-6-sol", "2.00", "10.00"),
-        ("openai/gpt-6-astra", "10.00", "50.00"),
+        ("openai/gpt-6-luna", "0.10", "0.50", "0.01"),
+        ("openai/gpt-6-sol", "2.00", "10.00", "0.20"),
+        ("openai/gpt-6-astra", "10.00", "50.00", "1.00"),
     ],
 )
 def test_bundled_catalog_prices_gpt6_gateway_candidates(
-    model, input_rate, output_rate,
+    model, input_rate, output_rate, cache_read_rate,
 ):
     loaded = load_catalog()
     result = loaded.price(
@@ -74,10 +74,13 @@ def test_bundled_catalog_prices_gpt6_gateway_candidates(
         at=datetime(2026, 9, 23, 12, tzinfo=timezone.utc),
         input_tokens=1_000,
         output_tokens=1_000,
+        cache_read_tokens=1_000,
     )
     assert result.status == "priced"
     assert result.canonical_model == model
-    assert result.cost_usd == (Decimal(input_rate) + Decimal(output_rate)) / 1_000
+    assert result.cost_usd == (
+        Decimal(output_rate) + Decimal(cache_read_rate)
+    ) / 1_000
 
 
 @pytest.mark.parametrize(
