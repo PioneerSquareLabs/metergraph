@@ -15,6 +15,15 @@ from .loader import LoadedCatalog
 
 EXECUTION_PROFILES = frozenset({"default", "bedrock"})
 ROUTE_PROVIDERS = frozenset({"anthropic", "bedrock", "fireworks", "openai", "vercel"})
+ROUTE_PROVIDER_CHANNELS = MappingProxyType(
+    {
+        "anthropic": "anthropic-api",
+        "bedrock": "aws-bedrock",
+        "fireworks": "fireworks-api",
+        "openai": "openai-api",
+        "vercel": "vercel-ai-gateway",
+    }
+)
 OFFER_GROUP_PROFILES = MappingProxyType(
     {
         "gateway": "default",
@@ -203,6 +212,15 @@ def parse_model_registry(document: Any) -> ModelRegistry:
                     f"{route_id}: unknown route provider {provider!r}"
                 )
             model_id = _text(route.get("model_id"), f"{route_id}: needs model_id")
+            pricing_channel = _text(
+                route.get("pricing_channel"),
+                f"{route_id}: needs pricing_channel",
+            )
+            if pricing_channel != ROUTE_PROVIDER_CHANNELS[provider]:
+                raise ModelRegistryError(
+                    f"{route_id}: provider {provider!r} cannot use pricing channel "
+                    f"{pricing_channel!r}"
+                )
             physical_route = (provider, model_id)
             if physical_route in physical_routes:
                 raise ModelRegistryError(
@@ -219,10 +237,7 @@ def parse_model_registry(document: Any) -> ModelRegistry:
                 ),
                 provider=provider,
                 model_id=model_id,
-                pricing_channel=_text(
-                    route.get("pricing_channel"),
-                    f"{route_id}: needs pricing_channel",
-                ),
+                pricing_channel=pricing_channel,
                 execution_profiles=profiles,
             )
             routes[route_key] = parsed

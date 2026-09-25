@@ -114,6 +114,7 @@ def test_execution_profiles_preserve_declared_route_order():
         ("unexpected_credential", "requires credential"),
         ("unknown_execution_profile", "unknown execution profile"),
         ("unknown_provider", "unknown route provider"),
+        ("incompatible_provider_channel", "cannot use pricing channel"),
         ("publisher_mismatch", "publisher"),
         ("blank_route_field", "needs provider"),
     ],
@@ -164,6 +165,9 @@ def test_invalid_registry_references_fail_closed(mutation, message):
         value["models"][0]["routes"][0]["execution_profiles"] = ["another"]
     elif mutation == "unknown_provider":
         value["models"][0]["routes"][0]["provider"] = "vercle"
+    elif mutation == "incompatible_provider_channel":
+        value["offer_groups"].pop()
+        value["models"][0]["routes"][1]["provider"] = "anthropic"
     elif mutation == "publisher_mismatch":
         value["models"][0]["publisher"] = "opena1"
     else:

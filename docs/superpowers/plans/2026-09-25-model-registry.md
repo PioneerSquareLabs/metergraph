@@ -199,7 +199,7 @@ class ModelRegistry:
         return tuple(result)
 ```
 
-The parser must require nonblank strings, accept only the two declared execution profiles, five route providers, and five offer-group IDs, apply the model display name when a route omits its override, preserve YAML order through dictionaries, freeze public mappings with `MappingProxyType`, and reject duplicate canonical IDs, route IDs, physical `(provider, model_id)` routes, offer-group IDs, route references, and empty route/profile lists. Validate each offer group's exact credential, route provider, and execution profile.
+The parser must require nonblank strings, accept only the two declared execution profiles, five route providers with their exact execution channels, and five offer-group IDs, apply the model display name when a route omits its override, preserve YAML order through dictionaries, freeze public mappings with `MappingProxyType`, and reject duplicate canonical IDs, route IDs, physical `(provider, model_id)` routes, offer-group IDs, route references, and empty route/profile lists. Validate each offer group's exact credential, route provider, and execution profile.
 
 - [ ] **Step 4: Run the focused tests and verify they pass**
 

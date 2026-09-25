@@ -93,8 +93,8 @@ internal `key`.
 Use `validate_model_registry(models, load_catalog())` to verify that every
 route's provider-facing model ID is declared on its exact pricing channel,
 resolves to its canonical model, and has an active price on the registry
-version date. The parser also rejects unknown route providers, mismatched
-offer-group credentials/providers, and duplicate physical routes. Pricing
+version date. The parser also rejects unknown route providers, provider/channel
+mismatches on any route, mismatched offer-group credentials/providers, and duplicate physical routes. Pricing
 remains exclusively in `prices.yaml`; being priceable does not automatically
 make a model an approved analysis candidate.
 
