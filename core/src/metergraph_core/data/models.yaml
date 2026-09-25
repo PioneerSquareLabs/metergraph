@@ -1,4 +1,4 @@
-version: '2026-09-25'
+version: '2026-09-25.2'
 models:
 - canonical_id: openai/gpt-5.6-sol
   display_name: GPT-5.6 Sol
@@ -631,6 +631,20 @@ offer_groups:
   - default:deepseek/deepseek-v4-pro
   - default:deepseek/deepseek-v4-flash
   - default:minimax/minimax-m3
+  - default:anthropic/claude-fable-5
+  - default:anthropic/claude-fable-5.1
+  - default:google/gemini-3.8-flash
+  - default:google/gemini-3.7-flash
+  - default:google/gemini-3.5-flash
+  - default:google/gemini-3.5-flash-lite
+  - default:google/gemini-3.1-flash-lite
+  - default:google/gemma-4-31b-it
+  - default:google/gemma-4-26b-a4b-it
+  - default:moonshotai/kimi-k2.5
+  - default:xai/grok-4.1-fast-reasoning
+  - default:xai/grok-4.1-fast-non-reasoning
+  - default:mistral/ministral-14b
+  - default:nvidia/nemotron-3-super-120b-a12b
 - id: fireworks
   credential: FIREWORKS_API_KEY
   routes:

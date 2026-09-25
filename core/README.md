@@ -160,3 +160,7 @@ they never rewrite historical prices in place. Either data change increments
 its own declared version and produces a patch release of `metergraph-core`.
 Software and data versions remain separate because they have different
 lifecycles.
+
+The model registry version is an ISO date. When more than one registry ships on
+the same date, append a positive revision such as `2026-09-25.2` so consumers
+can distinguish the policies while pricing validation still uses that date.

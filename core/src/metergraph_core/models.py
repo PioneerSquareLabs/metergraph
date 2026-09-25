@@ -152,14 +152,30 @@ def _unique_text_list(value: Any, field: str) -> tuple[str, ...]:
     return items
 
 
+def _registry_version_date(version: str) -> date:
+    date_value, separator, revision = version.partition(".")
+    try:
+        parsed = date.fromisoformat(date_value)
+    except ValueError as exc:
+        raise ModelRegistryError(
+            "models document version must be an ISO date, optionally followed by .N"
+        ) from exc
+    if separator and (
+        not revision.isascii()
+        or not revision.isdecimal()
+        or revision.startswith("0")
+    ):
+        raise ModelRegistryError(
+            "models document version must be an ISO date, optionally followed by .N"
+        )
+    return parsed
+
+
 def parse_model_registry(document: Any) -> ModelRegistry:
     """Parse and freeze one versioned model-registry document."""
     root = _mapping(document, "models document")
     version = _text(root.get("version"), "models document version")
-    try:
-        date.fromisoformat(version)
-    except ValueError as exc:
-        raise ModelRegistryError("models document version must be an ISO date") from exc
+    _registry_version_date(version)
 
     models: dict[str, ModelDefinition] = {}
     routes: dict[str, ModelRoute] = {}
@@ -354,7 +370,7 @@ def validate_model_registry(
 ) -> None:
     """Require every execution route to resolve in the pricing catalog."""
     validation_time = datetime.combine(
-        date.fromisoformat(registry.version), time.min, tzinfo=timezone.utc
+        _registry_version_date(registry.version), time.min, tzinfo=timezone.utc
     )
     catalog_models = {
         entry.get("canonical_id"): entry

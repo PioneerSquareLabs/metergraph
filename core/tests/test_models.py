@@ -64,6 +64,23 @@ def document():
     }
 
 
+def test_registry_version_accepts_a_same_day_revision():
+    value = document()
+    value["version"] = "2026-09-25.2"
+    assert parse_model_registry(value).version == "2026-09-25.2"
+
+
+@pytest.mark.parametrize(
+    "version",
+    ["2026-09-25.0", "2026-09-25.01", "2026-09-25.next", "2026-09-25.1.1"],
+)
+def test_registry_version_rejects_invalid_same_day_revisions(version):
+    value = document()
+    value["version"] = version
+    with pytest.raises(ModelRegistryError, match="ISO date"):
+        parse_model_registry(value)
+
+
 def test_parse_model_registry_keeps_routes_immutable_and_distinct():
     registry = parse_model_registry(document())
     gateway, direct = registry.routes_for_execution_profile("default")
@@ -204,7 +221,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-09-25"
+    assert registry.version == "2026-09-25.2"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -226,6 +243,20 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v4-pro",
         "deepseek/deepseek-v4-flash",
         "minimax/minimax-m3",
+        "anthropic/claude-fable-5",
+        "anthropic/claude-fable-5.1",
+        "google/gemini-3.8-flash",
+        "google/gemini-3.7-flash",
+        "google/gemini-3.5-flash",
+        "google/gemini-3.5-flash-lite",
+        "google/gemini-3.1-flash-lite",
+        "google/gemma-4-31b-it",
+        "google/gemma-4-26b-a4b-it",
+        "moonshotai/kimi-k2.5",
+        "xai/grok-4.1-fast-reasoning",
+        "xai/grok-4.1-fast-non-reasoning",
+        "mistral/ministral-14b",
+        "nvidia/nemotron-3-super-120b-a12b",
     ]
     assert [route.id for route in registry.candidates("fireworks")] == [
         "fireworks:accounts/fireworks/models/glm-5p2",
