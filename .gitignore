@@ -11,3 +11,5 @@ uv.lock
 package-lock.json
 .env
 .DS_Store
+docs/superpowers/
+.superpowers/

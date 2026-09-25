@@ -23,6 +23,16 @@ from .loader import (
     parse_catalog,
     parse_retrieval,
 )
+from .models import (
+    ModelDefinition,
+    ModelRegistry,
+    ModelRegistryError,
+    ModelRoute,
+    OfferGroup,
+    load_model_registry,
+    parse_model_registry,
+    validate_model_registry,
+)
 from .retrieval import (
     RetrievalCatalog,
     RetrievalCostResult,
@@ -36,6 +46,11 @@ __all__ = [
     "CatalogSnapshot",
     "CostResult",
     "LoadedCatalog",
+    "ModelDefinition",
+    "ModelRegistry",
+    "ModelRegistryError",
+    "ModelRoute",
+    "OfferGroup",
     "GatewayBillingEvidence",
     "Price",
     "ResolvedPrice",
@@ -46,8 +61,11 @@ __all__ = [
     "direct_channel_for_provider",
     "normalize_provider",
     "load_catalog",
+    "load_model_registry",
     "normalize_gateway_evidence",
     "parse_catalog",
+    "parse_model_registry",
     "parse_retrieval",
     "resolve_billing",
+    "validate_model_registry",
 ]

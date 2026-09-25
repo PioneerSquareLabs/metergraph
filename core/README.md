@@ -1,14 +1,15 @@
 # metergraph-core
 
-Reusable catalog and deterministic billing engine for MeterGraph.
+Reusable model registry, price catalog, and deterministic billing engine for
+MeterGraph.
 
-`metergraph-core` owns the public effective-dated model catalog and the pricing
-logic shared across MeterGraph systems: catalog parsing and validation, provider
-and model alias resolution, channel and region selection, input/output/cache/
-batch/long-context pricing rules, deterministic cost calculation with reason
-codes, stable logical price identifiers, and catalog version and content-hash
-reporting. It also owns the pure decision that selects a qualified
-gateway-reported charge or a catalog estimate as the effective call cost.
+`metergraph-core` owns two separate public datasets. `models.yaml` records
+canonical model identity, customer-facing names, executable provider routes,
+and the ordered candidate fields MeterGraph products offer. `prices.yaml`
+records effective-dated rates and billing rules. Core parses and validates both
+datasets, resolves provider aliases and routes, calculates deterministic costs,
+and selects a qualified gateway-reported charge or catalog estimate as the
+effective call cost.
 
 It does not own HTTP routes, database access, migrations, authentication,
 tenancy, ingest, dashboard code, or any hosted-only concern, and it never reads
@@ -72,6 +73,31 @@ exists. It never substitutes a direct-provider price for a gateway price.
 `LoadedCatalog.pricing_verified_at` records when the bundled catalog was last
 checked against its linked provider sources.
 
+## Model registry
+
+```python
+from metergraph_core import load_model_registry
+
+models = load_model_registry()
+for candidate in models.candidates("gateway"):
+    print(candidate.id, candidate.display_name, candidate.pricing_channel)
+```
+
+`load_model_registry()` reads the packaged `models.yaml`. Execution profiles
+describe every route the pipeline can run, while offer groups describe the
+smaller ordered fields a product exposes for configured credentials. Candidate
+IDs may intentionally repeat across execution profiles when gateway and
+Bedrock use different physical routes; each route therefore also has a unique
+internal `key`.
+
+Use `validate_model_registry(models, load_catalog())` to verify that every
+route's provider-facing model ID is declared on its exact pricing channel,
+resolves to its canonical model, and has an active price on the registry
+version date. The parser also rejects unknown route providers, provider/channel
+mismatches on any route, mismatched offer-group credentials/providers, and duplicate physical routes. Pricing
+remains exclusively in `prices.yaml`; being priceable does not automatically
+make a model an approved analysis candidate.
+
 ## Billing evidence
 
 Servers can pass content-blind, already-extracted gateway fields through the
@@ -111,21 +137,26 @@ from metergraph_core import (
     CostResult,
     GatewayBillingEvidence,
     LoadedCatalog,
+    ModelRegistry,
+    ModelRoute,
     Price,
     ResolvedPrice,
     load_catalog,
+    load_model_registry,
     normalize_gateway_evidence,
     parse_catalog,
     resolve_billing,
+    validate_model_registry,
 )
 ```
 
 ## Catalog maintenance
 
-The only manually maintained public catalog lives at
-`src/metergraph_core/data/prices.yaml`. Every record requires its provider
-source URL and effective date. Corrections close or add effective windows; they
-never rewrite historical prices in place. A catalog change updates the declared
-catalog version and produces a patch release of `metergraph-core`. Software
-version and catalog version are separate values because code and price data have
-different lifecycles.
+The two manually maintained public datasets live under
+`src/metergraph_core/data/`. Update `models.yaml` when model identity, display,
+routing, or managed candidate policy changes. Update `prices.yaml` when rates
+or billing rules change. Price corrections close or add effective windows;
+they never rewrite historical prices in place. Either data change increments
+its own declared version and produces a patch release of `metergraph-core`.
+Software and data versions remain separate because they have different
+lifecycles.

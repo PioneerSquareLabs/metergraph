@@ -49,7 +49,7 @@ an instrumented application; it does not construct ingest payloads directly.
 | Package | Where | What |
 |---|---|---|
 | `metergraph` (PyPI + npm) | [metergraphsdk](https://github.com/PioneerSquareLabs/metergraphsdk) | Zero-dependency capture SDKs for Python and TypeScript — OpenAI, Anthropic, and Gemini clients |
-| `metergraph-core` (PyPI) | [`core`](core) | Reusable price catalog + deterministic pricing engine; the only copy of `prices.yaml`. Reused by other MeterGraph systems |
+| `metergraph-core` (PyPI) | [`core`](core) | Reusable model registry, price catalog, and deterministic pricing engine; the canonical copies of `models.yaml` and `prices.yaml` |
 | `metergraph-server` | [`server`](server) | FastAPI + Postgres ingest and usage API; prices traffic through `metergraph-core` |
 | dashboard | [`dashboard`](dashboard) | React SPA served by the server |
 
@@ -87,6 +87,11 @@ cd dashboard && npm install && npm run dev
 ## Updating model prices
 
 Prices live in [`core/src/metergraph_core/data/prices.yaml`](core/src/metergraph_core/data/prices.yaml) — the single public catalog, effective-dated so history reprices correctly. To update: close the old window with `effective_to`, add a new entry with `effective_from` and a `source_url`, and open a PR. A catalog change updates the declared catalog version and produces a patch release of `metergraph-core`. Self-hosters can still mount a newer file with `MG_PRICES_PATH` without rebuilding. See [docs/prices.md](docs/prices.md).
+
+Model identity, provider routes, and managed candidate fields live separately
+in [`core/src/metergraph_core/data/models.yaml`](core/src/metergraph_core/data/models.yaml).
+Keeping these facts separate prevents a priceable model from becoming an
+analysis candidate implicitly.
 
 ## License
 

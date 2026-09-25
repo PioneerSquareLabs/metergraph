@@ -4,12 +4,13 @@
 Builds (or, with ``--no-build``, reuses) exactly one sdist and one wheel, then:
 
 1. checks the distribution name, version, and ``Requires-Python`` metadata;
-2. confirms each artifact ships ``__init__.py``, ``catalog.py``, ``loader.py``
-   and exactly one bundled ``data/prices.yaml``;
+2. confirms each artifact ships the public modules and exactly one bundled
+   ``data/models.yaml`` and ``data/prices.yaml``;
 3. rejects top-level test packages in the installed wheel;
 4. installs the wheel into a throwaway virtualenv that cannot see the source
    tree; and
-5. loads the bundled catalog there and reproduces the golden price.
+5. loads the bundled registry and catalog there and reproduces the golden
+   candidate field and price.
 
 Archive members are listed and read in memory only. This script never extracts
 untrusted archive paths onto disk.
@@ -33,7 +34,7 @@ CORE_DIR = Path(__file__).resolve().parents[2]  # core/
 DIST_DIR = CORE_DIR / "dist"
 
 EXPECTED_NAME = "metergraph-core"
-EXPECTED_VERSION = "0.2.32"
+EXPECTED_VERSION = "0.2.33"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
@@ -46,6 +47,7 @@ REQUIRED_MODULES = (
     "billing.py",
     "catalog.py",
     "loader.py",
+    "models.py",
     "retrieval.py",
 )
 
@@ -145,6 +147,12 @@ def _verify_wheel(wheel: Path) -> None:
             catalogs == ["metergraph_core/data/prices.yaml"],
             f"{wheel.name}: expected exactly one bundled catalog, found {catalogs}",
         )
+        registries = [n for n in names if n.endswith("data/models.yaml")]
+        _require(
+            registries == ["metergraph_core/data/models.yaml"],
+            f"{wheel.name}: expected exactly one bundled registry, found "
+            f"{registries}",
+        )
 
 
 def _verify_sdist(sdist: Path) -> None:
@@ -181,6 +189,12 @@ def _verify_sdist(sdist: Path) -> None:
             len(catalogs) == 1,
             f"{sdist.name}: expected exactly one bundled catalog, found {catalogs}",
         )
+        registries = [m for m in members if m.endswith("metergraph_core/data/models.yaml")]
+        _require(
+            len(registries) == 1,
+            f"{sdist.name}: expected exactly one bundled registry, found "
+            f"{registries}",
+        )
 
 
 def _venv_python(env_dir: Path) -> Path:
@@ -199,8 +213,10 @@ def _verify_isolated_install(wheel: Path) -> None:
             CostResult,
             RetrievalCostResult,
             load_catalog,
+            load_model_registry,
             normalize_gateway_evidence,
             resolve_billing,
+            validate_model_registry,
         )
         from decimal import Decimal
 
@@ -212,6 +228,15 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert loaded.currency == "USD", loaded.currency
         assert loaded.pricing_verified_at.isoformat() == {CATALOG_VERSION!r}
         assert len(loaded.content_hash) == 64, loaded.content_hash
+        registry = load_model_registry()
+        assert registry.version == "2026-09-25", registry.version
+        gateway_candidates = [route.id for route in registry.candidates("gateway")]
+        assert len(gateway_candidates) == 20, len(gateway_candidates)
+        assert gateway_candidates[:2] == [
+            "anthropic/claude-sonnet-5",
+            "anthropic/claude-opus-5",
+        ]
+        validate_model_registry(registry, loaded)
         deployment = loaded.snapshot.resolve_price(
             model="moonshotai/kimi-k3",
             channel="vercel-ai-gateway",
