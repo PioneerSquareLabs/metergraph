@@ -310,9 +310,19 @@ def test_installed_catalog_prices_gemini_31_pro_on_direct_google_api():
     assert priced.cost_usd == Decimal("0.00800000")
 
 
-def test_installed_catalog_does_not_price_retired_gemini_3_pro_after_shutdown():
+def test_installed_catalog_prices_retired_gemini_3_pro_at_its_redirect_rate():
+    # Google shut Gemini 3 Pro Preview down on 2026-03-09 and pointed the
+    # `gemini-3-pro-preview` name at gemini-3.1-pro-preview, so traffic sent
+    # under the old name after that date is real 3.1 Pro spend.
     catalog = load_catalog()
-    priced = catalog.price(
+    before = catalog.price(
+        model="gemini-3-pro-preview",
+        channel="google-api",
+        at=datetime(2026, 3, 8, tzinfo=timezone.utc),
+        input_tokens=1000,
+        output_tokens=500,
+    )
+    after = catalog.price(
         model="gemini-3-pro-preview",
         channel="google-api",
         at=datetime(2026, 9, 1, tzinfo=timezone.utc),
@@ -320,8 +330,11 @@ def test_installed_catalog_does_not_price_retired_gemini_3_pro_after_shutdown():
         output_tokens=500,
     )
 
-    assert priced.status == "unpriced"
-    assert priced.cost_usd is None
+    assert before.price_id == "google/gemini-3-pro:google-api:global:2025-11-18"
+    assert after.status == "priced"
+    assert after.canonical_model == "google/gemini-3-pro"
+    assert after.price_id == "google/gemini-3-pro:google-api:global:2026-03-09"
+    assert after.cost_usd == Decimal("0.00800000")
 
 
 _AT_NANO = datetime(2026, 3, 17, tzinfo=timezone.utc)
