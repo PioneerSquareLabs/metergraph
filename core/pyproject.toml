@@ -1,6 +1,6 @@
 [project]
 name = "metergraph-core"
-version = "0.2.32"
+version = "0.2.33"
 description = "Reusable MeterGraph catalog and deterministic billing engine"
 readme = "README.md"
 license = "Apache-2.0"
@@ -20,4 +20,4 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-metergraph_core = ["data/prices.yaml"]
+metergraph_core = ["data/models.yaml", "data/prices.yaml"]
