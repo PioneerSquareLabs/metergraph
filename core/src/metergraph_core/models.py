@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time, timezone
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Iterable, Mapping
+
+import yaml
+
+from .loader import LoadedCatalog
 
 
 EXECUTION_PROFILES = frozenset({"default", "bedrock"})
@@ -18,6 +23,7 @@ OFFER_GROUP_PROFILES = MappingProxyType(
         "bedrock": "bedrock",
     }
 )
+DEFAULT_MODEL_REGISTRY_PATH = Path(__file__).parent / "data" / "models.yaml"
 
 
 class ModelRegistryError(ValueError):
@@ -26,6 +32,7 @@ class ModelRegistryError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class ModelRoute:
+    key: str
     id: str
     canonical_id: str
     display_name: str
@@ -60,8 +67,8 @@ class ModelRegistry:
     def model(self, canonical_id: str) -> ModelDefinition:
         return self.models[canonical_id]
 
-    def route(self, candidate_id: str) -> ModelRoute:
-        return self.routes[candidate_id]
+    def route(self, route_key: str) -> ModelRoute:
+        return self.routes[route_key]
 
     def routes_for_execution_profile(self, profile: str) -> tuple[ModelRoute, ...]:
         if profile not in EXECUTION_PROFILES:
@@ -130,6 +137,7 @@ def parse_model_registry(document: Any) -> ModelRegistry:
 
     models: dict[str, ModelDefinition] = {}
     routes: dict[str, ModelRoute] = {}
+    candidate_profiles: set[tuple[str, str]] = set()
     for model_value in _list(root.get("models"), "models document models"):
         model = _mapping(model_value, "model entry")
         canonical_id = _text(model.get("canonical_id"), "model entry canonical_id")
@@ -145,9 +153,10 @@ def parse_model_registry(document: Any) -> ModelRegistry:
             raise ModelRegistryError(f"{canonical_id}: routes must not be empty")
         for route_value in route_values:
             route = _mapping(route_value, f"{canonical_id}: route")
+            route_key = _text(route.get("key"), f"{canonical_id}: route key")
             route_id = _text(route.get("id"), f"{canonical_id}: route id")
-            if route_id in routes:
-                raise ModelRegistryError(f"duplicate route id {route_id!r}")
+            if route_key in routes:
+                raise ModelRegistryError(f"duplicate route id/key {route_key!r}")
             profiles = _unique_text_list(
                 route.get("execution_profiles"),
                 f"{route_id}: execution_profiles",
@@ -158,7 +167,16 @@ def parse_model_registry(document: Any) -> ModelRegistry:
                 raise ModelRegistryError(
                     f"{route_id}: unknown execution profile {unknown!r}"
                 )
+            for profile in profiles:
+                candidate_profile = (profile, route_id)
+                if candidate_profile in candidate_profiles:
+                    raise ModelRegistryError(
+                        f"duplicate candidate id {route_id!r} in execution "
+                        f"profile {profile!r}"
+                    )
+                candidate_profiles.add(candidate_profile)
             parsed = ModelRoute(
+                key=route_key,
                 id=route_id,
                 canonical_id=canonical_id,
                 display_name=_text(
@@ -173,7 +191,7 @@ def parse_model_registry(document: Any) -> ModelRegistry:
                 ),
                 execution_profiles=profiles,
             )
-            routes[route_id] = parsed
+            routes[route_key] = parsed
             model_routes.append(parsed)
         models[canonical_id] = ModelDefinition(
             canonical_id=canonical_id,
@@ -224,3 +242,54 @@ def parse_model_registry(document: Any) -> ModelRegistry:
         routes=MappingProxyType(routes),
         offer_groups=MappingProxyType(offer_groups),
     )
+
+
+def load_model_registry(path: str | Path | None = None) -> ModelRegistry:
+    """Load the bundled model registry or an explicit replacement path."""
+    resolved = Path(path) if path is not None else DEFAULT_MODEL_REGISTRY_PATH
+    return parse_model_registry(yaml.safe_load(resolved.read_bytes()))
+
+
+def validate_model_registry(
+    registry: ModelRegistry, catalog: LoadedCatalog
+) -> None:
+    """Require every execution route to resolve in the pricing catalog."""
+    validation_time = datetime.combine(
+        date.fromisoformat(registry.version), time.min, tzinfo=timezone.utc
+    )
+    catalog_models = {
+        entry.get("canonical_id"): entry
+        for entry in catalog.document.get("models", [])
+    }
+    for route in registry.routes.values():
+        canonical = catalog.canonical_model_id(route.provider, route.model_id)
+        if canonical == route.model_id:
+            resolved = catalog.snapshot.resolve_price(
+                model=route.model_id,
+                channel=route.pricing_channel,
+                at=validation_time,
+            )
+            if resolved is not None:
+                canonical = resolved.canonical_model
+        if canonical != route.canonical_id:
+            raise ModelRegistryError(
+                f"{route.id}: pricing resolves canonical model {canonical!r}, "
+                f"expected {route.canonical_id!r}"
+            )
+        catalog_model = catalog_models.get(route.canonical_id)
+        active_channel = any(
+            price.get("channel") == route.pricing_channel
+            and date.fromisoformat(str(price.get("effective_from")))
+            <= validation_time.date()
+            and (
+                price.get("effective_to") is None
+                or validation_time.date()
+                < date.fromisoformat(str(price["effective_to"]))
+            )
+            for price in (catalog_model or {}).get("prices", [])
+        )
+        if not active_channel:
+            raise ModelRegistryError(
+                f"{route.id}: no price for pricing channel "
+                f"{route.pricing_channel!r}"
+            )

@@ -2,7 +2,13 @@ from types import MappingProxyType
 
 import pytest
 
-from metergraph_core.models import ModelRegistryError, parse_model_registry
+from metergraph_core import load_catalog
+from metergraph_core.models import (
+    ModelRegistryError,
+    load_model_registry,
+    parse_model_registry,
+    validate_model_registry,
+)
 
 
 def document():
@@ -15,6 +21,7 @@ def document():
                 "publisher": "openai",
                 "routes": [
                     {
+                        "key": "gateway:openai/gpt-5.6-sol",
                         "id": "openai/gpt-5.6-sol",
                         "provider": "vercel",
                         "model_id": "openai/gpt-5.6-sol",
@@ -22,6 +29,7 @@ def document():
                         "execution_profiles": ["default"],
                     },
                     {
+                        "key": "openai-direct:openai:gpt-5.6",
                         "id": "openai:gpt-5.6",
                         "provider": "openai",
                         "model_id": "gpt-5.6",
@@ -36,12 +44,12 @@ def document():
             {
                 "id": "gateway",
                 "credential": "AI_GATEWAY_API_KEY",
-                "routes": ["openai/gpt-5.6-sol"],
+                "routes": ["gateway:openai/gpt-5.6-sol"],
             },
             {
                 "id": "openai-direct",
                 "credential": "OPENAI_API_KEY",
-                "routes": ["openai:gpt-5.6"],
+                "routes": ["openai-direct:openai:gpt-5.6"],
             },
         ],
     }
@@ -56,7 +64,7 @@ def test_parse_model_registry_keeps_routes_immutable_and_distinct():
     assert registry.model("openai/gpt-5.6-sol").publisher == "openai"
     assert isinstance(registry.models, MappingProxyType)
     with pytest.raises(TypeError):
-        registry.routes["another/model"] = gateway
+        registry.routes["another:model"] = gateway
 
 
 def test_offer_groups_and_credentials_preserve_declared_order():
@@ -77,6 +85,7 @@ def test_offer_groups_and_credentials_preserve_declared_order():
     [
         ("duplicate_model", "duplicate canonical model"),
         ("duplicate_route", "duplicate route id"),
+        ("duplicate_candidate", "duplicate candidate id"),
         ("duplicate_offer_group", "duplicate offer group"),
         ("unknown_offer_group", "unknown offer group"),
         ("unknown_offer_route", "unknown route"),
@@ -97,12 +106,19 @@ def test_invalid_registry_references_fail_closed(mutation, message):
                 "routes": [{**value["models"][0]["routes"][0]}],
             }
         )
+    elif mutation == "duplicate_candidate":
+        value["models"][0]["routes"].append(
+            {
+                **value["models"][0]["routes"][0],
+                "key": "gateway:duplicate-key",
+            }
+        )
     elif mutation == "duplicate_offer_group":
         value["offer_groups"].append({**value["offer_groups"][0]})
     elif mutation == "unknown_offer_group":
         value["offer_groups"][0]["id"] = "another"
     elif mutation == "unknown_offer_route":
-        value["offer_groups"][0]["routes"] = ["missing/model"]
+        value["offer_groups"][0]["routes"] = ["missing:route"]
     elif mutation == "incompatible_offer_route":
         value["models"][0]["routes"][0]["execution_profiles"] = ["bedrock"]
     elif mutation == "unknown_execution_profile":
@@ -129,3 +145,93 @@ def test_registry_document_shape_is_required(mutation):
         value["offer_groups"] = {}
     with pytest.raises(ModelRegistryError):
         parse_model_registry(value)
+
+
+def test_bundled_registry_preserves_current_execution_and_product_fields():
+    registry = load_model_registry()
+    assert registry.version == "2026-09-25"
+    assert [route.id for route in registry.candidates("gateway")] == [
+        "anthropic/claude-sonnet-5",
+        "openai/gpt-5.6-luna",
+        "openai/gpt-5.6-terra",
+        "openai/gpt-6-luna",
+        "openai/gpt-6-sol",
+        "openai/gpt-6-astra",
+        "google/gemini-3.6-flash",
+        "moonshotai/kimi-k3",
+        "deepseek/deepseek-v4-pro",
+        "deepseek/deepseek-v4-flash",
+    ]
+    assert [route.id for route in registry.candidates("fireworks")] == [
+        "fireworks:accounts/fireworks/models/glm-5p2",
+        "fireworks:accounts/fireworks/models/qwen3p7-plus",
+    ]
+    assert [route.id for route in registry.candidates("openai-direct")] == [
+        "openai:gpt-5.6",
+        "openai:gpt-5.6-terra",
+        "openai:gpt-5.6-luna",
+        "openai:gpt-5.4",
+        "openai:gpt-5.4-mini",
+        "openai:gpt-5.4-nano",
+    ]
+    assert [route.id for route in registry.candidates("anthropic-direct")] == [
+        "anthropic:claude-opus-5",
+        "anthropic:claude-opus-4-8",
+        "anthropic:claude-sonnet-5",
+        "anthropic:claude-haiku-4-5",
+    ]
+    assert [route.id for route in registry.candidates("bedrock")] == [
+        "anthropic/claude-sonnet-5",
+        "openai/gpt-5.6-sol",
+        "openai/gpt-5.6-luna",
+        "openai/gpt-5.6-terra",
+        "google/gemma-3-27b-it",
+        "moonshotai/kimi-k2.5",
+        "deepseek/deepseek-v3.2",
+        "deepseek/deepseek-v3.1",
+    ]
+    assert len(registry.routes_for_execution_profile("default")) == 46
+    assert len(registry.routes_for_execution_profile("bedrock")) == 8
+
+
+def test_candidate_ids_may_repeat_across_execution_profiles():
+    value = document()
+    value["models"][0]["routes"].append(
+        {
+            "key": "bedrock:openai/gpt-5.6-sol",
+            "id": "openai/gpt-5.6-sol",
+            "provider": "bedrock",
+            "model_id": "us.openai.gpt-5.6-sol",
+            "pricing_channel": "aws-bedrock",
+            "execution_profiles": ["bedrock"],
+        }
+    )
+    value["offer_groups"].append(
+        {
+            "id": "bedrock",
+            "credential": None,
+            "routes": ["bedrock:openai/gpt-5.6-sol"],
+        }
+    )
+    registry = parse_model_registry(value)
+    assert registry.candidates("gateway")[0].id == "openai/gpt-5.6-sol"
+    assert registry.candidates("bedrock")[0].id == "openai/gpt-5.6-sol"
+    assert registry.candidates("bedrock")[0].provider == "bedrock"
+
+
+def test_bundled_registry_routes_resolve_in_pricing_catalog():
+    validate_model_registry(load_model_registry(), load_catalog())
+
+
+def test_validation_rejects_canonical_drift():
+    value = document()
+    value["models"][0]["canonical_id"] = "other/model"
+    with pytest.raises(ModelRegistryError, match="canonical model"):
+        validate_model_registry(parse_model_registry(value), load_catalog())
+
+
+def test_validation_rejects_pricing_channel_drift():
+    value = document()
+    value["models"][0]["routes"][0]["pricing_channel"] = "anthropic-api"
+    with pytest.raises(ModelRegistryError, match="pricing channel"):
+        validate_model_registry(parse_model_registry(value), load_catalog())
