@@ -38,12 +38,18 @@ The document has an independently versioned top-level `version` and an ordered
 - `publisher`: canonical publisher key.
 - `routes`: one or more executable routes. Each route has a stable candidate
   `id`, execution `provider`, provider-facing `model_id`, `pricing_channel`,
-  required `credential`, and ordered `managed_profiles` in which it is
-  offered. Initial profiles cover `gateway`, `fireworks`, `openai-direct`,
-  `anthropic-direct`, and `bedrock`.
+  optional route-specific `display_name`, and ordered `execution_profiles` in
+  which the runner can use it. Initial execution profiles are `default` and
+  `bedrock`. The route-specific name distinguishes direct routes when the UI
+  needs labels such as `GPT-5.6 Sol (direct)`.
+- `offer_groups`: top-level ordered records containing an ID, optional required
+  credential, and route IDs defining the product fields exposed for `gateway`,
+  `fireworks`, `openai-direct`, `anthropic-direct`, and `bedrock`.
 
-Route order is product policy. Loaders preserve document order so the app and
-pipeline present and execute the same ordered candidate field.
+Execution availability and product offering are deliberately separate. The
+pipeline's default execution profile contains a larger routable pool than the
+hosted app offers in its default gateway field. Loaders preserve document and
+offer-group order so each existing consumer keeps its exact current field.
 
 The registry is intentionally explicit. It does not infer provider availability
 from `prices.yaml`, because a historical price or alias is not evidence that a
@@ -56,7 +62,8 @@ Core will expose immutable typed values and loaders:
 - `load_model_registry(path=None) -> ModelRegistry`
 - `ModelRegistry.version`
 - `ModelRegistry.model(canonical_id)`
-- `ModelRegistry.candidates(profile)`
+- `ModelRegistry.routes_for_execution_profile(profile)`
+- `ModelRegistry.candidates(offer_group)`
 - `ModelRegistry.reachable_candidates(credentials)`
 
 The default loader reads the packaged `models.yaml`. An optional path supports
@@ -78,8 +85,9 @@ Core tests will validate both resources together:
 - Display names, publishers, credentials, profiles, and route fields are
   non-empty and drawn from declared values.
 
-The initial registry must reproduce the current pipeline and app sets exactly.
-This PR changes ownership only; it does not add, remove, or reorder candidates.
+The initial registry must reproduce the current pipeline execution pools and
+the app's separately ordered offer groups exactly. This PR changes ownership
+only; it does not add, remove, or reorder candidates.
 
 ## Version and rollout contract
 
