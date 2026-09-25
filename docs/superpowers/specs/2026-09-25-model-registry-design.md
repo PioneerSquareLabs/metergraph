@@ -71,8 +71,9 @@ Core will expose immutable typed values and loaders:
 
 The default loader reads the packaged `models.yaml`. An optional path supports
 validation and downstream tests without mutating package data. Unknown profiles,
-duplicate identifiers, malformed routes, and references to unknown credentials
-fail closed with `ModelRegistryError`.
+duplicate identifiers or physical routes, malformed routes, and offer groups
+whose credentials or providers do not match their declared routing path fail
+closed with `ModelRegistryError`.
 
 The public API returns route-specific candidate records. This keeps direct and
 gateway routes distinct even when they resolve to the same canonical model.

@@ -14,12 +14,31 @@ from .loader import LoadedCatalog
 
 
 EXECUTION_PROFILES = frozenset({"default", "bedrock"})
+ROUTE_PROVIDERS = frozenset({"anthropic", "bedrock", "fireworks", "openai", "vercel"})
 OFFER_GROUP_PROFILES = MappingProxyType(
     {
         "gateway": "default",
         "fireworks": "default",
         "openai-direct": "default",
         "anthropic-direct": "default",
+        "bedrock": "bedrock",
+    }
+)
+OFFER_GROUP_CREDENTIALS = MappingProxyType(
+    {
+        "gateway": "AI_GATEWAY_API_KEY",
+        "fireworks": "FIREWORKS_API_KEY",
+        "openai-direct": "OPENAI_API_KEY",
+        "anthropic-direct": "ANTHROPIC_API_KEY",
+        "bedrock": None,
+    }
+)
+OFFER_GROUP_PROVIDERS = MappingProxyType(
+    {
+        "gateway": "vercel",
+        "fireworks": "fireworks",
+        "openai-direct": "openai",
+        "anthropic-direct": "anthropic",
         "bedrock": "bedrock",
     }
 )
@@ -136,6 +155,7 @@ def parse_model_registry(document: Any) -> ModelRegistry:
     models: dict[str, ModelDefinition] = {}
     routes: dict[str, ModelRoute] = {}
     candidate_profiles: set[tuple[str, str]] = set()
+    physical_routes: set[tuple[str, str]] = set()
     for model_value in _list(root.get("models"), "models document models"):
         model = _mapping(model_value, "model entry")
         canonical_id = _text(model.get("canonical_id"), "model entry canonical_id")
@@ -145,6 +165,10 @@ def parse_model_registry(document: Any) -> ModelRegistry:
             model.get("display_name"), f"{canonical_id}: display_name"
         )
         publisher = _text(model.get("publisher"), f"{canonical_id}: publisher")
+        if canonical_id.split("/", 1)[0] != publisher:
+            raise ModelRegistryError(
+                f"{canonical_id}: publisher {publisher!r} does not match canonical id"
+            )
         model_routes: list[ModelRoute] = []
         route_values = _list(model.get("routes"), f"{canonical_id}: routes")
         if not route_values:
@@ -173,6 +197,18 @@ def parse_model_registry(document: Any) -> ModelRegistry:
                         f"profile {profile!r}"
                     )
                 candidate_profiles.add(candidate_profile)
+            provider = _text(route.get("provider"), f"{route_id}: needs provider")
+            if provider not in ROUTE_PROVIDERS:
+                raise ModelRegistryError(
+                    f"{route_id}: unknown route provider {provider!r}"
+                )
+            model_id = _text(route.get("model_id"), f"{route_id}: needs model_id")
+            physical_route = (provider, model_id)
+            if physical_route in physical_routes:
+                raise ModelRegistryError(
+                    f"{route_id}: duplicate physical route {physical_route!r}"
+                )
+            physical_routes.add(physical_route)
             parsed = ModelRoute(
                 key=route_key,
                 id=route_id,
@@ -181,8 +217,8 @@ def parse_model_registry(document: Any) -> ModelRegistry:
                     route.get("display_name", display_name),
                     f"{route_id}: display_name",
                 ),
-                provider=_text(route.get("provider"), f"{route_id}: needs provider"),
-                model_id=_text(route.get("model_id"), f"{route_id}: needs model_id"),
+                provider=provider,
+                model_id=model_id,
                 pricing_channel=_text(
                     route.get("pricing_channel"),
                     f"{route_id}: needs pricing_channel",
@@ -252,6 +288,11 @@ def parse_model_registry(document: Any) -> ModelRegistry:
             if credential_value is None
             else _text(credential_value, f"{group_id}: credential")
         )
+        expected_credential = OFFER_GROUP_CREDENTIALS[group_id]
+        if credential != expected_credential:
+            raise ModelRegistryError(
+                f"{group_id}: requires credential {expected_credential!r}"
+            )
         route_ids = _unique_text_list(
             group.get("routes"), f"{group_id}: routes"
         )
@@ -265,6 +306,12 @@ def parse_model_registry(document: Any) -> ModelRegistry:
                 raise ModelRegistryError(
                     f"{group_id}: route {route_id!r} is not available to "
                     f"execution profile {expected_profile!r}"
+                )
+            expected_provider = OFFER_GROUP_PROVIDERS[group_id]
+            if routes[route_id].provider != expected_provider:
+                raise ModelRegistryError(
+                    f"{group_id}: route {route_id!r} requires provider "
+                    f"{expected_provider!r}"
                 )
         offer_groups[group_id] = OfferGroup(
             id=group_id,
@@ -299,6 +346,26 @@ def validate_model_registry(
         for entry in catalog.document.get("models", [])
     }
     for route in registry.routes.values():
+        catalog_model = catalog_models.get(route.canonical_id)
+        if catalog_model is None:
+            raise ModelRegistryError(
+                f"{route.id}: unknown canonical model {route.canonical_id!r}"
+            )
+        deployment_alias = next(
+            (
+                alias
+                for alias in (catalog_model or {}).get("aliases", [])
+                if str(alias.get("alias", "")).strip().lower()
+                == route.model_id.lower()
+                and alias.get("channel") == route.pricing_channel
+            ),
+            None,
+        )
+        if deployment_alias is None:
+            raise ModelRegistryError(
+                f"{route.id}: model {route.model_id!r} has no pricing channel "
+                f"{route.pricing_channel!r}"
+            )
         canonical = catalog.canonical_model_id(route.provider, route.model_id)
         if canonical == route.model_id:
             resolved = catalog.snapshot.resolve_price(
@@ -313,7 +380,6 @@ def validate_model_registry(
                 f"{route.id}: pricing resolves canonical model {canonical!r}, "
                 f"expected {route.canonical_id!r}"
             )
-        catalog_model = catalog_models.get(route.canonical_id)
         active_channel = any(
             price.get("channel") == route.pricing_channel
             and date.fromisoformat(str(price.get("effective_from")))

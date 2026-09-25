@@ -105,11 +105,16 @@ def test_execution_profiles_preserve_declared_route_order():
         ("duplicate_model", "duplicate canonical model"),
         ("duplicate_route", "duplicate route id"),
         ("duplicate_candidate", "duplicate candidate id"),
+        ("duplicate_physical_route", "duplicate physical route"),
         ("duplicate_offer_group", "duplicate offer group"),
         ("unknown_offer_group", "unknown offer group"),
         ("unknown_offer_route", "unknown route"),
         ("incompatible_offer_route", "not available to execution profile"),
+        ("incompatible_offer_provider", "requires provider"),
+        ("unexpected_credential", "requires credential"),
         ("unknown_execution_profile", "unknown execution profile"),
+        ("unknown_provider", "unknown route provider"),
+        ("publisher_mismatch", "publisher"),
         ("blank_route_field", "needs provider"),
     ],
 )
@@ -119,10 +124,11 @@ def test_invalid_registry_references_fail_closed(mutation, message):
         value["models"].append({**value["models"][0]})
     elif mutation == "duplicate_route":
         value["models"].append(
-            {
-                **value["models"][0],
-                "canonical_id": "other/model",
-                "routes": [{**value["models"][0]["routes"][0]}],
+                {
+                    **value["models"][0],
+                    "canonical_id": "other/model",
+                    "publisher": "other",
+                    "routes": [{**value["models"][0]["routes"][0]}],
             }
         )
     elif mutation == "duplicate_candidate":
@@ -130,6 +136,14 @@ def test_invalid_registry_references_fail_closed(mutation, message):
             {
                 **value["models"][0]["routes"][0],
                 "key": "gateway:duplicate-key",
+            }
+        )
+    elif mutation == "duplicate_physical_route":
+        value["models"][0]["routes"].append(
+            {
+                **value["models"][0]["routes"][0],
+                "key": "gateway:duplicate-key",
+                "id": "openai/duplicate-id",
             }
         )
     elif mutation == "duplicate_offer_group":
@@ -140,8 +154,18 @@ def test_invalid_registry_references_fail_closed(mutation, message):
         value["offer_groups"][0]["routes"] = ["missing:route"]
     elif mutation == "incompatible_offer_route":
         value["models"][0]["routes"][0]["execution_profiles"] = ["bedrock"]
+    elif mutation == "incompatible_offer_provider":
+        value["offer_groups"][0]["routes"] = [
+            "openai-direct:openai:gpt-5.6"
+        ]
+    elif mutation == "unexpected_credential":
+        value["offer_groups"][0]["credential"] = "AI_GATEWAY_APY_KEY"
     elif mutation == "unknown_execution_profile":
         value["models"][0]["routes"][0]["execution_profiles"] = ["another"]
+    elif mutation == "unknown_provider":
+        value["models"][0]["routes"][0]["provider"] = "vercle"
+    elif mutation == "publisher_mismatch":
+        value["models"][0]["publisher"] = "opena1"
     else:
         value["models"][0]["routes"][0]["provider"] = "   "
     with pytest.raises(ModelRegistryError, match=message):
@@ -269,13 +293,14 @@ def test_bundled_registry_routes_resolve_in_pricing_catalog():
 def test_validation_rejects_canonical_drift():
     value = document()
     value["models"][0]["canonical_id"] = "other/model"
+    value["models"][0]["publisher"] = "other"
     with pytest.raises(ModelRegistryError, match="canonical model"):
         validate_model_registry(parse_model_registry(value), load_catalog())
 
 
 def test_validation_rejects_pricing_channel_drift():
     value = document()
-    value["models"][0]["routes"][0]["pricing_channel"] = "anthropic-api"
+    value["models"][0]["routes"][1]["pricing_channel"] = "aws-bedrock"
     with pytest.raises(ModelRegistryError, match="pricing channel"):
         validate_model_registry(parse_model_registry(value), load_catalog())
 

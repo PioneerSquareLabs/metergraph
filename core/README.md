@@ -91,9 +91,12 @@ Bedrock use different physical routes; each route therefore also has a unique
 internal `key`.
 
 Use `validate_model_registry(models, load_catalog())` to verify that every
-route resolves to its declared canonical model and has an active price on the
-registry version date. Pricing remains exclusively in `prices.yaml`; being
-priceable does not automatically make a model an approved analysis candidate.
+route's provider-facing model ID is declared on its exact pricing channel,
+resolves to its canonical model, and has an active price on the registry
+version date. The parser also rejects unknown route providers, mismatched
+offer-group credentials/providers, and duplicate physical routes. Pricing
+remains exclusively in `prices.yaml`; being priceable does not automatically
+make a model an approved analysis candidate.
 
 ## Billing evidence
 
