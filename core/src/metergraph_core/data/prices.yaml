@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-09-23"
+version: "2026-09-24"
 currency: USD
-pricing_verified_at: "2026-09-23"
+pricing_verified_at: "2026-09-24"
 models:
   - canonical_id: openai/gpt-6-sol
     publisher: openai
@@ -492,6 +492,39 @@ models:
           input_includes_cache_read: true
         source_url: https://developers.openai.com/api/docs/models/gpt-5.2
 
+  - canonical_id: anthropic/claude-fable-5.1
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-fable-5-1, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-fable-5-1, channel: anthropic-api}
+      - {provider: litellm, alias: claude-fable-5-1, channel: anthropic-api}
+      - {provider: unknown, alias: claude-fable-5-1, channel: anthropic-api}
+      - provider: anthropic
+        alias: anthropic/claude-fable-5.1
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+    prices:
+      # Cache hits are 0.025x input on Fable 5.1, not the usual 0.1x.
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-09-01"
+        input_per_mtok: 10.00
+        output_per_mtok: 50.00
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 12.50
+        cache_write_1h_per_mtok: 20.00
+        batch_input_per_mtok: 5.00
+        batch_output_per_mtok: 25.00
+        source_url: https://platform.claude.com/docs/en/about-claude/pricing
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-08-31"
+        input_per_mtok: 10.00
+        output_per_mtok: 50.00
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 12.50
+        source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-fable-5
     publisher: anthropic
     aliases:
@@ -917,6 +950,22 @@ models:
         rules:
           long_context: {threshold: 200000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://ai.google.dev/gemini-api/docs/pricing
+      # This name is retired but still accepted, and billed at the 3.1 Pro rate.
+      # Google's changelog, 2026-03-09: "The Gemini 3 Pro Preview model has been
+      # shut down. The gemini-3-pro-preview now points to gemini-3.1-pro-preview."
+      # (https://ai.google.dev/gemini-api/docs/changelog). The rate below is
+      # gemini-3.1-pro-preview's current google-api row.
+      - channel: google-api
+        region: global
+        effective_from: "2026-03-09"
+        input_per_mtok: 2.00
+        output_per_mtok: 12.00
+        cache_read_per_mtok: 0.20
+        batch_input_per_mtok: 1.00
+        batch_output_per_mtok: 6.00
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://ai.google.dev/gemini-api/docs/pricing
 
   - canonical_id: google/gemini-3.1-pro-preview
     publisher: google
@@ -1016,6 +1065,12 @@ models:
       - {provider: litellm, alias: models/gemini-3.5-flash-lite, channel: google-api}
       - {provider: unknown, alias: gemini-3.5-flash-lite, channel: google-api}
       - {provider: unknown, alias: models/gemini-3.5-flash-lite, channel: google-api}
+      # `google/gemini-3.5-flash-lite` under provider google already names the
+      # direct API, so the gateway spelling is carried under provider vercel.
+      - provider: vercel
+        alias: google/gemini-3.5-flash-lite
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
     prices:
       - channel: google-api
         region: global
@@ -1024,6 +1079,13 @@ models:
         output_per_mtok: 2.50
         cache_read_per_mtok: 0.03
         source_url: https://ai.google.dev/gemini-api/docs/pricing
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-07-21"
+        input_per_mtok: 0.30
+        output_per_mtok: 2.50
+        cache_read_per_mtok: 0.03
+        source_url: https://ai-gateway.vercel.sh/v1/models
 
   - canonical_id: google/gemini-2.5-pro
     publisher: google
@@ -1246,6 +1308,42 @@ models:
         input_per_mtok: 0.5
         output_per_mtok: 1.5
         cache_read_per_mtok: 0.05
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: mistral/ministral-14b
+    publisher: mistral
+    aliases:
+      - {provider: mistral, alias: ministral-14b-2512, channel: mistral-api}
+      - {provider: mistral, alias: ministral-14b-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral/ministral-14b-2512, channel: mistral-api}
+      - {provider: mistral, alias: mistral/ministral-14b-latest, channel: mistral-api}
+      - {provider: litellm, alias: ministral-14b-2512, channel: mistral-api}
+      - {provider: litellm, alias: ministral-14b-latest, channel: mistral-api}
+      - {provider: unknown, alias: ministral-14b-2512, channel: mistral-api}
+      - {provider: unknown, alias: ministral-14b-latest, channel: mistral-api}
+      - {provider: bedrock, alias: mistral.ministral-3-14b-instruct, channel: aws-bedrock}
+      - provider: mistral
+        alias: mistral/ministral-14b
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+    prices:
+      - channel: mistral-api
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.20
+        output_per_mtok: 0.20
+        source_url: https://mistral.ai/pricing/api
+      - channel: aws-bedrock
+        region: us-west-2
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.20
+        output_per_mtok: 0.20
+        source_url: https://aws.amazon.com/bedrock/pricing/
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2025-12-02"
+        input_per_mtok: 0.20
+        output_per_mtok: 0.20
+        cache_read_per_mtok: 0.02
         source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: deepseek/v3.2
     publisher: deepseek
@@ -1610,7 +1708,21 @@ models:
       - {provider: litellm, alias: models/gemini-flash-latest, channel: google-api}
       - {provider: litellm, alias: google/gemini-flash-latest, channel: google-api}
       - {provider: litellm, alias: google/models/gemini-flash-latest, channel: google-api}
+      - provider: google
+        alias: google/gemini-3.8-flash
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
     prices:
+      # The gateway publishes no end date for this rate. Google's direct rate
+      # doubles on 2027-01-01; if the gateway follows, this row needs an
+      # `effective_to` and a successor then.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-02"
+        input_per_mtok: 0.75
+        output_per_mtok: 3.75
+        cache_read_per_mtok: 0.075
+        source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: google-api
         region: global
         effective_from: "2026-09-01"

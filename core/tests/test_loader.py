@@ -40,7 +40,7 @@ def test_parse_retrieval_accepts_a_well_formed_entry():
 
 def test_bundled_catalog_has_identity_and_prices_a_call():
     loaded = load_catalog()
-    assert loaded.version == "2026-09-23"
+    assert loaded.version == "2026-09-24"
     assert len(loaded.content_hash) == 64
     result = loaded.snapshot.cost(
         provider="openai",
@@ -81,6 +81,67 @@ def test_bundled_catalog_prices_gpt6_gateway_candidates(
     assert result.cost_usd == (
         Decimal(output_rate) + Decimal(cache_read_rate)
     ) / 1_000
+
+
+@pytest.mark.parametrize(
+    ("model", "input_rate", "output_rate", "cache_read_rate"),
+    [
+        ("mistral/ministral-14b", "0.20", "0.20", "0.02"),
+        ("google/gemini-3.8-flash", "0.75", "3.75", "0.075"),
+        ("google/gemini-3.5-flash-lite", "0.30", "2.50", "0.03"),
+        ("anthropic/claude-fable-5.1", "10.00", "50.00", "0.25"),
+    ],
+)
+def test_bundled_catalog_prices_gateway_rows_added_2026_09_24(
+    model, input_rate, output_rate, cache_read_rate,
+):
+    # The gateway reports cached tokens inside input, so 1k input of which 1k
+    # was cached bills only the cache-read rate for input.
+    loaded = load_catalog()
+    result = loaded.price(
+        model=model,
+        channel="vercel-ai-gateway",
+        at=datetime(2026, 9, 24, 12, tzinfo=timezone.utc),
+        input_tokens=1_000,
+        output_tokens=1_000,
+        cache_read_tokens=1_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == model
+    assert result.cost_usd == (
+        Decimal(output_rate) + Decimal(cache_read_rate)
+    ) / 1_000
+
+
+@pytest.mark.parametrize(
+    ("model", "channel", "canonical", "input_rate", "output_rate"),
+    [
+        ("ministral-14b-2512", "mistral-api", "mistral/ministral-14b", "0.20", "0.20"),
+        ("ministral-14b-latest", "mistral-api", "mistral/ministral-14b", "0.20", "0.20"),
+        (
+            "mistral.ministral-3-14b-instruct", "aws-bedrock",
+            "mistral/ministral-14b", "0.20", "0.20",
+        ),
+        (
+            "claude-fable-5-1", "anthropic-api",
+            "anthropic/claude-fable-5.1", "10.00", "50.00",
+        ),
+    ],
+)
+def test_bundled_catalog_prices_direct_rows_added_2026_09_24(
+    model, channel, canonical, input_rate, output_rate,
+):
+    loaded = load_catalog(region="us-west-2")
+    result = loaded.price(
+        model=model,
+        channel=channel,
+        at=datetime(2026, 9, 24, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == canonical
+    assert result.cost_usd == Decimal(input_rate) + Decimal(output_rate)
 
 
 @pytest.mark.parametrize(
