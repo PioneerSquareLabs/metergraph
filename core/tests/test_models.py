@@ -235,3 +235,19 @@ def test_validation_rejects_pricing_channel_drift():
     value["models"][0]["routes"][0]["pricing_channel"] = "anthropic-api"
     with pytest.raises(ModelRegistryError, match="pricing channel"):
         validate_model_registry(parse_model_registry(value), load_catalog())
+
+
+def test_registry_api_is_public():
+    from metergraph_core import (
+        ModelDefinition,
+        ModelRegistry,
+        ModelRegistryError,
+        ModelRoute,
+        OfferGroup,
+        load_model_registry,
+        parse_model_registry,
+        validate_model_registry,
+    )
+
+    registry = load_model_registry()
+    assert registry.route("default:openai/gpt-6-luna").display_name == "GPT-6 Luna"
