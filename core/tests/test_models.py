@@ -40,6 +40,15 @@ def document():
                 ],
             }
         ],
+        "execution_profiles": [
+            {
+                "id": "default",
+                "routes": [
+                    "gateway:openai/gpt-5.6-sol",
+                    "openai-direct:openai:gpt-5.6",
+                ],
+            }
+        ],
         "offer_groups": [
             {
                 "id": "gateway",
@@ -78,6 +87,16 @@ def test_offer_groups_and_credentials_preserve_declared_order():
             {"OPENAI_API_KEY", "AI_GATEWAY_API_KEY"}
         )
     ] == ["openai/gpt-5.6-sol", "openai:gpt-5.6"]
+
+
+def test_execution_profiles_preserve_declared_route_order():
+    value = document()
+    value["execution_profiles"][0]["routes"].reverse()
+    registry = parse_model_registry(value)
+    assert [route.id for route in registry.routes_for_execution_profile("default")] == [
+        "openai:gpt-5.6",
+        "openai/gpt-5.6-sol",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -131,7 +150,13 @@ def test_invalid_registry_references_fail_closed(mutation, message):
 
 @pytest.mark.parametrize(
     "mutation",
-    ["missing_version", "models_not_list", "routes_not_list", "offer_groups_not_list"],
+    [
+        "missing_version",
+        "models_not_list",
+        "routes_not_list",
+        "execution_profiles_not_list",
+        "offer_groups_not_list",
+    ],
 )
 def test_registry_document_shape_is_required(mutation):
     value = document()
@@ -141,6 +166,8 @@ def test_registry_document_shape_is_required(mutation):
         value["models"] = {}
     elif mutation == "routes_not_list":
         value["models"][0]["routes"] = {}
+    elif mutation == "execution_profiles_not_list":
+        value["execution_profiles"] = {}
     else:
         value["offer_groups"] = {}
     with pytest.raises(ModelRegistryError):
@@ -152,15 +179,25 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
     assert registry.version == "2026-09-25"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
+        "anthropic/claude-opus-5",
+        "anthropic/claude-opus-4.8",
+        "anthropic/claude-haiku-4.5",
+        "anthropic/claude-3-haiku",
+        "openai/gpt-5.6-sol",
         "openai/gpt-5.6-luna",
         "openai/gpt-5.6-terra",
         "openai/gpt-6-luna",
         "openai/gpt-6-sol",
         "openai/gpt-6-astra",
+        "openai/gpt-5.4-mini",
+        "openai/gpt-5.4-nano",
+        "openai/gpt-5-mini",
         "google/gemini-3.6-flash",
+        "google/gemini-3.1-pro-preview",
         "moonshotai/kimi-k3",
         "deepseek/deepseek-v4-pro",
         "deepseek/deepseek-v4-flash",
+        "minimax/minimax-m3",
     ]
     assert [route.id for route in registry.candidates("fireworks")] == [
         "fireworks:accounts/fireworks/models/glm-5p2",
@@ -210,6 +247,12 @@ def test_candidate_ids_may_repeat_across_execution_profiles():
         {
             "id": "bedrock",
             "credential": None,
+            "routes": ["bedrock:openai/gpt-5.6-sol"],
+        }
+    )
+    value["execution_profiles"].append(
+        {
+            "id": "bedrock",
             "routes": ["bedrock:openai/gpt-5.6-sol"],
         }
     )

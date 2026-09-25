@@ -42,14 +42,17 @@ The document has an independently versioned top-level `version` and an ordered
   which the runner can use it. Initial execution profiles are `default` and
   `bedrock`. The route-specific name distinguishes direct routes when the UI
   needs labels such as `GPT-5.6 Sol (direct)`.
+- `execution_profiles`: top-level records that explicitly preserve each
+  pipeline pool's ordered route keys.
 - `offer_groups`: top-level ordered records containing an ID, optional required
   credential, and route IDs defining the product fields exposed for `gateway`,
   `fireworks`, `openai-direct`, `anthropic-direct`, and `bedrock`.
 
 Execution availability and product offering are deliberately separate. The
 pipeline's default execution profile contains a larger routable pool than the
-hosted app offers in its default gateway field. Loaders preserve document and
-offer-group order so each existing consumer keeps its exact current field.
+hosted app offers in its default gateway field. Loaders preserve explicit
+execution-profile and offer-group order so each existing consumer keeps its
+exact current field.
 
 The registry is intentionally explicit. It does not infer provider availability
 from `prices.yaml`, because a historical price or alias is not evidence that a

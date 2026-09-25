@@ -62,6 +62,7 @@ class ModelRegistry:
     version: str
     models: Mapping[str, ModelDefinition]
     routes: Mapping[str, ModelRoute]
+    execution_profiles: Mapping[str, tuple[str, ...]]
     offer_groups: Mapping[str, OfferGroup]
 
     def model(self, canonical_id: str) -> ModelDefinition:
@@ -71,12 +72,9 @@ class ModelRegistry:
         return self.routes[route_key]
 
     def routes_for_execution_profile(self, profile: str) -> tuple[ModelRoute, ...]:
-        if profile not in EXECUTION_PROFILES:
-            raise KeyError(profile)
         return tuple(
-            route
-            for route in self.routes.values()
-            if profile in route.execution_profiles
+            self.routes[route_key]
+            for route_key in self.execution_profiles[profile]
         )
 
     def candidates(self, offer_group: str) -> tuple[ModelRoute, ...]:
@@ -200,6 +198,44 @@ def parse_model_registry(document: Any) -> ModelRegistry:
             routes=tuple(model_routes),
         )
 
+    execution_profiles: dict[str, tuple[str, ...]] = {}
+    declared_candidate_profiles: set[tuple[str, str]] = set()
+    for profile_value in _list(
+        root.get("execution_profiles"), "models document execution_profiles"
+    ):
+        profile = _mapping(profile_value, "execution profile")
+        profile_id = _text(profile.get("id"), "execution profile id")
+        if profile_id not in EXECUTION_PROFILES:
+            raise ModelRegistryError(f"unknown execution profile {profile_id!r}")
+        if profile_id in execution_profiles:
+            raise ModelRegistryError(f"duplicate execution profile {profile_id!r}")
+        route_keys = _unique_text_list(
+            profile.get("routes"), f"{profile_id}: execution routes"
+        )
+        for route_key in route_keys:
+            if route_key not in routes:
+                raise ModelRegistryError(
+                    f"{profile_id}: execution profile references unknown route "
+                    f"{route_key!r}"
+                )
+            if profile_id not in routes[route_key].execution_profiles:
+                raise ModelRegistryError(
+                    f"{profile_id}: route {route_key!r} is not available to "
+                    f"execution profile {profile_id!r}"
+                )
+            declared_candidate_profiles.add((profile_id, route_key))
+        execution_profiles[profile_id] = route_keys
+    route_candidate_profiles = {
+        (profile, route.key)
+        for route in routes.values()
+        for profile in route.execution_profiles
+    }
+    if declared_candidate_profiles != route_candidate_profiles:
+        missing = sorted(route_candidate_profiles - declared_candidate_profiles)
+        raise ModelRegistryError(
+            f"execution profiles omit declared routes {missing!r}"
+        )
+
     offer_groups: dict[str, OfferGroup] = {}
     for group_value in _list(
         root.get("offer_groups"), "models document offer_groups"
@@ -240,6 +276,7 @@ def parse_model_registry(document: Any) -> ModelRegistry:
         version=version,
         models=MappingProxyType(models),
         routes=MappingProxyType(routes),
+        execution_profiles=MappingProxyType(execution_profiles),
         offer_groups=MappingProxyType(offer_groups),
     )
 

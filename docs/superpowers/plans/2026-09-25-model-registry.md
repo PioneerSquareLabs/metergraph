@@ -40,8 +40,8 @@
 **Interfaces:**
 - Consumes: plain Python mappings produced by `yaml.safe_load`.
 - Produces: `ModelRegistryError`, `ModelRoute`, `ModelDefinition`, `OfferGroup`, `ModelRegistry`, and `parse_model_registry(document: Any) -> ModelRegistry`.
-- `ModelRegistry.route(candidate_id: str) -> ModelRoute` returns one exact route or raises `KeyError`.
-- `ModelRegistry.routes_for_execution_profile(profile: str) -> tuple[ModelRoute, ...]` preserves model and route document order.
+- `ModelRegistry.route(route_key: str) -> ModelRoute` returns one exact route or raises `KeyError`.
+- `ModelRegistry.routes_for_execution_profile(profile: str) -> tuple[ModelRoute, ...]` preserves the explicit route order declared by that execution profile.
 - `ModelRegistry.candidates(offer_group: str) -> tuple[ModelRoute, ...]` preserves the offer group's declared order.
 - `ModelRegistry.reachable_candidates(credentials: Iterable[str]) -> tuple[ModelRoute, ...]` concatenates credential-backed offer groups in document order and deduplicates route IDs; groups without a credential are not inferred.
 
@@ -281,13 +281,13 @@ Expected: failures name missing `load_model_registry` and bundled data.
 
 Create version `2026-09-25` with every route from pipeline `origin/main` default and Bedrock evaluation configs. Define offer groups from internal `origin/main` constants:
 
-- `gateway`: the 10 `DEFAULT_CANDIDATE_MODELS` entries.
+- `gateway`: the 20 `DEFAULT_CANDIDATE_MODELS` entries.
 - `fireworks`: the 2 `FIREWORKS_CANDIDATE_MODELS` entries.
 - `openai-direct`: the 6 `OPENAI_CANDIDATE_MODELS` entries.
 - `anthropic-direct`: the 4 `ANTHROPIC_CANDIDATE_MODELS` entries.
 - `bedrock`: the 8 `BEDROCK_CANDIDATE_MODELS` entries.
 
-Every default pipeline route receives `execution_profiles: [default]`; every Bedrock route receives `execution_profiles: [bedrock]`. Preserve the pipeline config's exact route order and the app constants' exact offer-group order. Use route-level display overrides only where the current display differs from the canonical model name, notably the direct-provider routes. When a canonical model appears in both execution profiles, store both route records under the same model definition and keep their route IDs unique.
+Every default pipeline route receives `execution_profiles: [default]`; every Bedrock route receives `execution_profiles: [bedrock]`. Declare ordered top-level execution-profile route lists so grouping routes under canonical models cannot change the pipeline config's order. Preserve the app constants' exact offer-group order. Use route-level display overrides only where the current display differs from the canonical model name, notably the direct-provider routes. When a canonical model appears in both execution profiles, store both route records under the same model definition and keep their route keys unique.
 
 - [ ] **Step 4: Implement loading and price-catalog validation**
 
