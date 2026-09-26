@@ -1,0 +1,22 @@
+{
+  "name": "oss-content-blind",
+  "deployment_profile": "oss",
+  "transport": ["stdio", "http"],
+  "tools": {
+    "metergraph_get_workspace_context": {"privacy_class": "metadata", "required_scope": "agent:read", "available": true},
+    "metergraph_get_capabilities": {"privacy_class": "metadata", "required_scope": "agent:read", "available": true},
+    "metergraph_list_routes": {"privacy_class": "metadata", "required_scope": "agent:read", "available": true},
+    "metergraph_get_usage": {"privacy_class": "metadata", "required_scope": "agent:read", "available": true},
+    "metergraph_get_ingestion_health": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
+    "metergraph_list_incidents": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
+    "metergraph_query_traces": {"privacy_class": "metadata", "required_scope": "agent:read", "available": true},
+    "metergraph_list_reports": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
+    "metergraph_get_report": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
+    "metergraph_get_report_evidence": {"privacy_class": "content", "required_scope": "agent:read", "available": false},
+    "metergraph_get_trace": {"privacy_class": "content", "required_scope": "agent:read", "available": false},
+    "metergraph_replay_trace": {"privacy_class": "replay", "required_scope": "agent:replay", "available": false}
+  },
+  "content_included_by_default": false,
+  "bounds": {"max_days": 90, "max_rows": 200, "max_response_bytes": 5242880},
+  "unsupported_error_code": "unsupported_capability"
+}

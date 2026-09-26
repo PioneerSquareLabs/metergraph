@@ -8,7 +8,7 @@ from fastapi import FastAPI, Header, Response
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import db, ingest, prices, usage
+from . import agent, db, ingest, prices, usage
 
 
 def create_app() -> FastAPI:
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Metergraph OSS", lifespan=lifespan)
     app.include_router(ingest.router)
     app.include_router(usage.router)
+    app.include_router(agent.router)
 
     @app.get("/healthz")
     def healthz():
