@@ -1,4 +1,4 @@
-version: '2026-09-25.2'
+version: '2026-09-26'
 models:
 - canonical_id: openai/gpt-5.6-sol
   display_name: GPT-5.6 Sol
@@ -405,6 +405,17 @@ models:
     pricing_channel: vercel-ai-gateway
     execution_profiles:
     - default
+- canonical_id: zai/glm-5.3-flash
+  display_name: GLM 5.3 Flash
+  publisher: zai
+  routes:
+  - key: default:zai/glm-5.3-flash
+    id: zai/glm-5.3-flash
+    provider: vercel
+    model_id: zai/glm-5.3-flash
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
 - canonical_id: openai/gpt-5.4-mini
   display_name: GPT-5.4 Mini
   publisher: openai
@@ -581,6 +592,7 @@ execution_profiles:
   - default:xai/grok-4.1-fast-non-reasoning
   - default:mistral/ministral-14b
   - default:nvidia/nemotron-3-super-120b-a12b
+  - default:zai/glm-5.3-flash
   - default:openai/gpt-5.4-mini
   - default:openai/gpt-5.4-nano
   - default:anthropic/claude-opus-4.8
@@ -645,6 +657,7 @@ offer_groups:
   - default:xai/grok-4.1-fast-non-reasoning
   - default:mistral/ministral-14b
   - default:nvidia/nemotron-3-super-120b-a12b
+  - default:zai/glm-5.3-flash
 - id: fireworks
   credential: FIREWORKS_API_KEY
   routes:
