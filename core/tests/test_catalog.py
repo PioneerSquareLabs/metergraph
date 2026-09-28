@@ -5,6 +5,7 @@ import pytest
 
 from metergraph_core import (
     CatalogError,
+    CatalogSnapshot,
     counts_cache_read_in_input,
     direct_channel_for_provider,
     load_catalog,
@@ -955,3 +956,175 @@ def test_gateway_only_providers_have_no_direct_channel():
     # "moonshotai" has left this set: it now carries its own spellings on
     # moonshot-api, so it is no longer reachable only through the gateway.
     assert resolved == {"xai", "vercel"}
+
+
+@pytest.mark.parametrize(
+    ("model", "price_id"),
+    [
+        # Version suffix on the bare, geographic, and global ids.
+        ("anthropic.claude-opus-5-v1:0", "anthropic/claude-opus-5:aws-bedrock:global:2026-07-24"),
+        ("anthropic.claude-opus-5-v2", "anthropic/claude-opus-5:aws-bedrock:global:2026-07-24"),
+        ("us.anthropic.claude-opus-5-v1:0", "anthropic/claude-opus-5:aws-bedrock-geo:global:2026-07-24"),
+        ("global.anthropic.claude-opus-5-v1:0", "anthropic/claude-opus-5:aws-bedrock:global:2026-07-24"),
+        ("anthropic.claude-sonnet-4-6-v1:0", "anthropic/claude-sonnet-4.6:aws-bedrock:global:2026-02-17"),
+        ("eu.anthropic.claude-sonnet-4-6-v1:0", "anthropic/claude-sonnet-4.6:aws-bedrock-geo:global:2026-02-17"),
+    ],
+)
+@pytest.mark.parametrize("provider", ["bedrock", "aws", "amazon-bedrock"])
+def test_bedrock_version_suffix_falls_back_to_catalog_id(provider, model, price_id):
+    result = SNAPSHOT.cost(
+        provider=provider,
+        model=model,
+        at=_at("2026-09-20"),
+        input_tokens=1_000,
+        output_tokens=1_000,
+    )
+    assert result.status == "priced"
+    assert result.price_id == price_id
+
+
+@pytest.mark.parametrize(
+    "model",
+    [
+        "anthropic.claude-sonnet-5-v1:0",
+        "us.anthropic.claude-sonnet-5-v1:0",
+        "global.anthropic.claude-sonnet-5-v1:0",
+        "global.anthropic.claude-sonnet-5",
+    ],
+)
+def test_bedrock_sonnet_5_versioned_ids_price_in_its_region(model):
+    snapshot = load_catalog(region="us-west-2").snapshot
+    result = snapshot.cost(
+        provider="bedrock",
+        model=model,
+        at=_at("2026-09-20"),
+        input_tokens=1_000_000,
+        output_tokens=0,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == "anthropic/claude-sonnet-5"
+    assert result.price_id == "anthropic/claude-sonnet-5:aws-bedrock:us-west-2:2026-06-30"
+
+
+def test_bedrock_global_prefix_falls_back_on_the_in_region_channel():
+    resolved = SNAPSHOT.resolve_price(
+        model="global.anthropic.claude-sonnet-4-6-v1:0",
+        channel="aws-bedrock",
+        at=_at("2026-09-20"),
+    )
+    assert resolved is not None
+    assert resolved.canonical_model == "anthropic/claude-sonnet-4.6"
+    assert resolved.price.pricing_channel == "aws-bedrock"
+
+
+def _bedrock_catalog(*entries):
+    models = []
+    for canonical, alias, channel in entries:
+        models.append({
+            "canonical_id": canonical,
+            "publisher": "acme",
+            "aliases": [{"provider": "bedrock", "alias": alias, "channel": channel}],
+            "prices": [{
+                "channel": channel,
+                "region": "global",
+                "effective_from": "2026-01-01",
+                "input_per_mtok": 1,
+                "output_per_mtok": 1,
+                "source_url": "https://example.test",
+            }],
+        })
+    _, aliases, prices = parse_catalog({
+        "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-09-01",
+        "models": models,
+    })
+    return CatalogSnapshot(aliases, prices, region="global")
+
+
+def test_bedrock_exact_alias_wins_over_normalization():
+    snapshot = _bedrock_catalog(
+        ("acme/model", "acme.model", "aws-bedrock"),
+        ("acme/model-v2", "acme.model-v2:0", "aws-bedrock"),
+        ("acme/global-model", "global.acme.model", "aws-bedrock"),
+    )
+    at = _at("2026-09-20")
+
+    def canonical(model):
+        return snapshot.cost(
+            provider="bedrock", model=model, at=at, input_tokens=1, output_tokens=1
+        ).canonical_model
+
+    assert canonical("acme.model-v2:0") == "acme/model-v2"
+    assert canonical("acme.model-v1:0") == "acme/model"
+    assert canonical("global.acme.model-v1:0") == "acme/global-model"
+    assert snapshot.resolve_price(
+        model="acme.model-v2:0", channel="aws-bedrock", at=at
+    ).canonical_model == "acme/model-v2"
+    assert snapshot.resolve_price(
+        model="global.acme.model-v1:0", channel="aws-bedrock", at=at
+    ).canonical_model == "acme/global-model"
+    # A real catalog id that already carries a suffix still matches exactly.
+    assert SNAPSHOT.cost(
+        provider="bedrock", model="deepseek.v3-v1:0", at=at,
+        input_tokens=1, output_tokens=1,
+    ).canonical_model == "deepseek/v3.1"
+
+
+def test_bedrock_global_prefix_never_reaches_a_geo_price():
+    snapshot = _bedrock_catalog(("acme/model", "acme.model", "aws-bedrock-geo"))
+    assert snapshot.cost(
+        provider="bedrock",
+        model="global.acme.model-v1:0",
+        at=_at("2026-09-20"),
+        input_tokens=1,
+        output_tokens=1,
+    ).status == "unpriced"
+    assert snapshot.resolve_price(
+        model="global.acme.model", channel="aws-bedrock-geo", at=_at("2026-09-20")
+    ) is None
+    # The version suffix alone still resolves on the geo channel.
+    assert snapshot.resolve_price(
+        model="acme.model-v1:0", channel="aws-bedrock-geo", at=_at("2026-09-20")
+    ) is not None
+
+
+@pytest.mark.parametrize(
+    ("provider", "model"),
+    [
+        # Normalization is Bedrock-only.
+        ("anthropic", "claude-sonnet-5-v1:0"),
+        ("anthropic", "global.anthropic.claude-haiku-4-5-20251001-v1:0"),
+        ("litellm", "anthropic.claude-sonnet-4-6-v1:0"),
+        ("openai", "gpt-4o-v1:0"),
+        # Geographic prefixes are never stripped to the bare in-region id.
+        ("bedrock", "apac.anthropic.claude-opus-5-v1:0"),
+        # Only a trailing `-vN` or `-vN:M` is a version suffix.
+        ("bedrock", "anthropic.claude-opus-5-v1:0:200k"),
+        ("bedrock", "anthropic.claude-opus-5-v1.0"),
+        ("bedrock", "anthropic.claude-opus-5v1:0"),
+        ("bedrock", "global."),
+    ],
+)
+def test_bedrock_normalization_does_not_widen_matching(provider, model):
+    result = SNAPSHOT.cost(
+        provider=provider,
+        model=model,
+        at=_at("2026-09-20"),
+        input_tokens=1_000,
+        output_tokens=1_000,
+    )
+    assert result.status == "unpriced"
+    assert result.reasons == ("unknown_model",)
+
+
+@pytest.mark.parametrize(
+    "channel", ["anthropic-api", "vercel-ai-gateway", "google-vertex-ai"]
+)
+def test_version_suffix_is_not_stripped_off_bedrock_channels(channel):
+    assert SNAPSHOT.resolve_price(
+        model="claude-opus-5-v1:0", channel=channel, at=_at("2026-09-20")
+    ) is None
+    assert SNAPSHOT.resolve_price(
+        model="anthropic/claude-opus-5-v1:0", channel=channel, at=_at("2026-09-20")
+    ) is None

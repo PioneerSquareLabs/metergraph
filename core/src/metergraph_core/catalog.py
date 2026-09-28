@@ -1,5 +1,6 @@
 """Effective-dated model catalog and deterministic token-cost enrichment."""
 
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -69,6 +70,35 @@ _INPUT_INCLUDES_CACHE_READ_PAIRS = frozenset({
     ("deepseek", "deepseek-api"),
     ("xai", "xai-api"),
 })
+
+
+# Bedrock ids carry a model-version suffix (`anthropic.claude-sonnet-5-v1:0`)
+# and may name the global inference profile (`global.`). Both are fallbacks
+# tried only after an exact match fails, and only on Bedrock. Geographic
+# profile prefixes (`us.`, `eu.`, ...) are never stripped: they bill on
+# aws-bedrock-geo, and the bare id would price them at the lower rate.
+_BEDROCK_CHANNEL = "aws-bedrock"
+_BEDROCK_CHANNELS = frozenset({_BEDROCK_CHANNEL, "aws-bedrock-geo"})
+_BEDROCK_VERSION_SUFFIX = re.compile(r"-v\d+(?::\d+)?$")
+_BEDROCK_GLOBAL_PREFIX = "global."
+
+
+def _bedrock_fallback_ids(model_key: str) -> tuple[tuple[str, bool], ...]:
+    """Candidate ids for an unmatched Bedrock model, most specific first.
+
+    Each candidate is paired with whether it dropped the ``global.`` prefix;
+    such a match is only valid on the in-region ``aws-bedrock`` channel.
+    """
+    unversioned = _BEDROCK_VERSION_SUFFIX.sub("", model_key)
+    candidates: list[tuple[str, bool]] = []
+    if unversioned != model_key:
+        candidates.append((unversioned, False))
+    if model_key.startswith(_BEDROCK_GLOBAL_PREFIX):
+        for name in dict.fromkeys((model_key, unversioned)):
+            bare = name[len(_BEDROCK_GLOBAL_PREFIX):]
+            if bare:
+                candidates.append((bare, True))
+    return tuple(candidates)
 
 
 def counts_cache_read_in_input(
@@ -474,6 +504,13 @@ class CatalogSnapshot:
         model_key = str(model or "").strip().lower()
         channel_key = str(channel or "").strip().lower()
         alias = self._deployment_aliases.get((model_key, channel_key))
+        if alias is None and channel_key in _BEDROCK_CHANNELS:
+            for candidate, dropped_global in _bedrock_fallback_ids(model_key):
+                if dropped_global and channel_key != _BEDROCK_CHANNEL:
+                    continue
+                alias = self._deployment_aliases.get((candidate, channel_key))
+                if alias is not None:
+                    break
         if alias is None:
             return None
         price = self._price_for(alias, at)
@@ -503,6 +540,15 @@ class CatalogSnapshot:
         provider_key = _PROVIDER_ALIASES.get(provider_key, provider_key)
         model_key = str(model or "").strip().lower()
         alias = self._aliases.get((provider_key, model_key))
+        if alias is None and provider_key == "bedrock":
+            for candidate, dropped_global in _bedrock_fallback_ids(model_key):
+                found = self._aliases.get((provider_key, candidate))
+                if found is None or found.pricing_channel not in _BEDROCK_CHANNELS:
+                    continue
+                if dropped_global and found.pricing_channel != _BEDROCK_CHANNEL:
+                    continue
+                alias = found
+                break
         if alias is None:
             return CostResult(None, None, None, "unpriced", ("unknown_model",))
         price = self._price_for(alias, at)

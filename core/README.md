@@ -69,6 +69,13 @@ and surrounding whitespace, applies the configured region fallback and
 effective-date windows, and returns `None` when no exact model/channel price
 exists. It never substitutes a direct-provider price for a gateway price.
 
+On Bedrock only (provider `bedrock` for `cost`, channel `aws-bedrock` or
+`aws-bedrock-geo` for `resolve_price`), an id with no exact alias falls back to
+the id without its model-version suffix (`anthropic.claude-sonnet-5-v1:0` to
+`anthropic.claude-sonnet-5`) and then without a `global.` inference-profile
+prefix, the latter only onto an `aws-bedrock` alias. Geographic prefixes such as
+`us.` or `eu.` are never stripped, because they bill on `aws-bedrock-geo`.
+
 `LoadedCatalog.currency` is currently always `USD`, and
 `LoadedCatalog.pricing_verified_at` records when the bundled catalog was last
 checked against its linked provider sources.
