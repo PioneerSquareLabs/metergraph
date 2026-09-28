@@ -6,18 +6,34 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-09-24"
+version: "2026-09-28"
 currency: USD
-pricing_verified_at: "2026-09-24"
+pricing_verified_at: "2026-09-28"
 models:
   - canonical_id: openai/gpt-6-sol
     publisher: openai
     aliases:
+      - {provider: openai, alias: gpt-6-sol, channel: openai-api}
+      - {provider: litellm, alias: gpt-6-sol, channel: openai-api}
+      - {provider: unknown, alias: gpt-6-sol, channel: openai-api}
       - provider: openai
         alias: openai/gpt-6-sol
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
     prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 2.00
+        output_per_mtok: 10.00
+        cache_read_per_mtok: 0.20
+        cache_write_5m_per_mtok: 2.50
+        batch_input_per_mtok: 1.00
+        batch_output_per_mtok: 5.00
+        rules:
+          input_includes_cache_read: true
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://developers.openai.com/api/docs/models/gpt-6-sol
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-09-23"
@@ -33,11 +49,27 @@ models:
   - canonical_id: openai/gpt-6-luna
     publisher: openai
     aliases:
+      - {provider: openai, alias: gpt-6-luna, channel: openai-api}
+      - {provider: litellm, alias: gpt-6-luna, channel: openai-api}
+      - {provider: unknown, alias: gpt-6-luna, channel: openai-api}
       - provider: openai
         alias: openai/gpt-6-luna
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
     prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 0.10
+        output_per_mtok: 0.50
+        cache_read_per_mtok: 0.01
+        cache_write_5m_per_mtok: 0.125
+        batch_input_per_mtok: 0.05
+        batch_output_per_mtok: 0.25
+        rules:
+          input_includes_cache_read: true
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://developers.openai.com/api/docs/models/gpt-6-luna
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-09-23"
@@ -53,11 +85,27 @@ models:
   - canonical_id: openai/gpt-6-astra
     publisher: openai
     aliases:
+      - {provider: openai, alias: gpt-6-astra, channel: openai-api}
+      - {provider: litellm, alias: gpt-6-astra, channel: openai-api}
+      - {provider: unknown, alias: gpt-6-astra, channel: openai-api}
       - provider: openai
         alias: openai/gpt-6-astra
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
     prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2026-09-03"
+        input_per_mtok: 10.00
+        output_per_mtok: 50.00
+        cache_read_per_mtok: 1.00
+        cache_write_5m_per_mtok: 12.50
+        batch_input_per_mtok: 5.00
+        batch_output_per_mtok: 25.00
+        rules:
+          input_includes_cache_read: true
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://developers.openai.com/api/docs/models/gpt-6-astra
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-09-23"

@@ -40,7 +40,7 @@ def test_parse_retrieval_accepts_a_well_formed_entry():
 
 def test_bundled_catalog_has_identity_and_prices_a_call():
     loaded = load_catalog()
-    assert loaded.version == "2026-09-24"
+    assert loaded.version == "2026-09-28"
     assert len(loaded.content_hash) == 64
     result = loaded.snapshot.cost(
         provider="openai",
@@ -81,6 +81,83 @@ def test_bundled_catalog_prices_gpt6_gateway_candidates(
     assert result.cost_usd == (
         Decimal(output_rate) + Decimal(cache_read_rate)
     ) / 1_000
+
+
+@pytest.mark.parametrize(
+    ("model", "input_rate", "output_rate", "cache_read_rate", "batch_output_rate"),
+    [
+        ("openai/gpt-6-luna", "0.10", "0.50", "0.01", "0.25"),
+        ("openai/gpt-6-sol", "2.00", "10.00", "0.20", "5.00"),
+        ("openai/gpt-6-astra", "10.00", "50.00", "1.00", "25.00"),
+    ],
+)
+def test_bundled_catalog_prices_gpt6_on_the_direct_openai_api(
+    model, input_rate, output_rate, cache_read_rate, batch_output_rate,
+):
+    # OpenAI reports cached tokens inside input, so 2k input with 1k cached
+    # bills 1k at the input rate and 1k at the cache-read rate.
+    loaded = load_catalog()
+    at = datetime(2026, 9, 28, 12, tzinfo=timezone.utc)
+    result = loaded.price(
+        model=model,
+        channel="openai-api",
+        at=at,
+        input_tokens=2_000,
+        output_tokens=1_000,
+        cache_read_tokens=1_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == model
+    assert result.price_id.startswith(f"{model}:openai-api:global:")
+    assert result.cost_usd == (
+        Decimal(input_rate) + Decimal(output_rate) + Decimal(cache_read_rate)
+    ) / 1_000
+
+    batch = loaded.price(
+        model=model,
+        channel="openai-api",
+        at=at,
+        input_tokens=0,
+        output_tokens=1_000,
+        batch=True,
+    )
+    assert batch.cost_usd == Decimal(batch_output_rate) / 1_000
+
+
+@pytest.mark.parametrize(
+    ("provider", "model", "canonical"),
+    [
+        ("openai", "gpt-6-luna", "openai/gpt-6-luna"),
+        ("litellm", "gpt-6-sol", "openai/gpt-6-sol"),
+        ("unknown", "gpt-6-astra", "openai/gpt-6-astra"),
+    ],
+)
+def test_bare_gpt6_names_resolve_to_the_direct_openai_api(provider, model, canonical):
+    loaded = load_catalog()
+    result = loaded.snapshot.cost(
+        provider=provider,
+        model=model,
+        at=datetime(2026, 9, 28, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=0,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == canonical
+    assert ":openai-api:" in result.price_id
+
+
+def test_gpt6_luna_direct_long_context_doubles_input_and_lifts_output():
+    loaded = load_catalog()
+    result = loaded.price(
+        model="openai/gpt-6-luna",
+        channel="openai-api",
+        at=datetime(2026, 9, 28, 12, tzinfo=timezone.utc),
+        input_tokens=300_000,
+        output_tokens=100_000,
+    )
+    assert result.status == "priced"
+    # 0.3M x $0.20 + 0.1M x $0.75, the published >272K rates.
+    assert result.cost_usd == Decimal("0.06") + Decimal("0.075")
 
 
 @pytest.mark.parametrize(
