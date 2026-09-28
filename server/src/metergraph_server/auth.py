@@ -7,8 +7,8 @@ from fastapi import HTTPException, Request
 from .sessions import is_valid_session_token
 
 
-def _tokens() -> list[str]:
-    raw = os.environ.get("MG_TOKENS", "")
+def _tokens(name: str = "MG_TOKENS") -> list[str]:
+    raw = os.environ.get(name, "")
     return [token.strip() for token in raw.split(",") if token.strip()]
 
 
@@ -45,6 +45,16 @@ def require_ingest_token(request: Request) -> None:
     app_tokens = _tokens()
     if _is_app_token(presented, app_tokens) or is_valid_session_token(
         presented, app_tokens
+    ):
+        return
+    raise HTTPException(401, "invalid token")
+
+
+def require_agent_token(request: Request) -> None:
+    """Authenticate read-only Agent Access with agent or application tokens."""
+    presented = _presented_token(request)
+    if _is_app_token(presented, _tokens("MG_AGENT_TOKENS")) or _is_app_token(
+        presented, _tokens("MG_TOKENS")
     ):
         return
     raise HTTPException(401, "invalid token")

@@ -69,6 +69,49 @@ Never stored by this server: prompts, completions, tool-call arguments or result
 
 Without `METERGRAPH_INGEST_URL`, the SDK points at Metergraph's hosted service, and **without a `METERGRAPH_APP_TOKEN` capture is entirely disabled** — nothing is ever sent silently. The hosted tier adds the evaluation layer: model-swap recommendations, replay campaigns, judge-qualified evals, canary rollouts. Content capture (`capture_text`) is an explicit opt-in that only has effect against the hosted service; this server discards content regardless of SDK configuration.
 
+## Coding agent access (MCP)
+
+The self-hosted server exposes a read-only, metadata-only Agent Access API. It
+can provide workspace context, capability discovery, routes, usage, and trace
+metadata. Content, prompts, completions, tool arguments, ingestion health,
+incidents, imported reports, trace details, and replay are unavailable because
+the OSS server is content-blind and does not contain the hosted pipeline or
+detector data.
+
+Set one or more read-only agent tokens with `MG_AGENT_TOKENS`. Values are
+comma-separated. To rotate a token, add the new token to the list and restart
+the server, update clients to use it, then remove the old token and restart
+again. `MG_TOKENS` tokens can also read Agent Access, but `MG_AGENT_TOKENS`
+tokens cannot ingest telemetry.
+
+For a local coding-agent client, configure the stdio bridge:
+
+```json
+{
+  "mcpServers": {
+    "metergraph": {
+      "command": "metergraph-mcp",
+      "env": {
+        "METERGRAPH_URL": "http://localhost:8787",
+        "METERGRAPH_AGENT_TOKEN": "replace-with-agent-token"
+      }
+    }
+  }
+}
+```
+
+The same transport is available over HTTP:
+
+```bash
+curl -sS http://localhost:8787/v1/agent/mcp \
+  -H 'Authorization: Bearer replace-with-agent-token' \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+See [docs/agent-access.md](docs/agent-access.md) for the shared contract,
+tool availability, bounds, and error behavior.
+
 ## Development
 
 The SDKs live in their own repo: [metergraphsdk](https://github.com/PioneerSquareLabs/metergraphsdk). Everything else — the server, dashboard, public catalog, and the reusable pricing core — lives in this one repository; you still clone a single server repo. The `metergraph-core` package is carved out so other MeterGraph systems can reuse the exact catalog and pricing behavior.
