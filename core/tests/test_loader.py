@@ -40,7 +40,7 @@ def test_parse_retrieval_accepts_a_well_formed_entry():
 
 def test_bundled_catalog_has_identity_and_prices_a_call():
     loaded = load_catalog()
-    assert loaded.version == "2026-09-28"
+    assert loaded.version == "2026-09-29"
     assert len(loaded.content_hash) == 64
     result = loaded.snapshot.cost(
         provider="openai",
@@ -385,3 +385,104 @@ def test_bundled_catalog_prices_aws_bedrock_analysis_models(
     assert result.canonical_model == canonical
     assert result.cost_usd == Decimal(input_rate) / 10 + Decimal(output_rate)
     assert loaded.canonical_model_id("bedrock", model) == canonical
+
+
+def test_sonnet_5_5_prices_the_published_direct_rates():
+    loaded = load_catalog()
+    at = datetime(2026, 9, 29, 12, tzinfo=timezone.utc)
+    result = loaded.price(
+        model="claude-sonnet-5-5",
+        channel="anthropic-api",
+        at=at,
+        input_tokens=1_000,
+        output_tokens=1_000,
+        cache_read_tokens=1_000,
+        cache_write_5m_tokens=1_000,
+        cache_write_1h_tokens=1_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == "anthropic/claude-sonnet-5.5"
+    assert result.price_id == "anthropic/claude-sonnet-5.5:anthropic-api:global:2026-09-28"
+    assert result.cost_usd == sum(
+        Decimal(rate) for rate in ("2.00", "10.00", "0.20", "2.50", "4.00")
+    ) / 1_000
+
+    batch = loaded.price(
+        model="claude-sonnet-5-5", channel="anthropic-api", at=at,
+        input_tokens=1_000, output_tokens=1_000, batch=True,
+    )
+    assert batch.cost_usd == (Decimal("1.00") + Decimal("5.00")) / 1_000
+
+
+def test_sonnet_5_5_gateway_row_prices_the_published_rates():
+    # The gateway reports cached tokens inside input.
+    loaded = load_catalog()
+    result = loaded.price(
+        model="anthropic/claude-sonnet-5.5",
+        channel="vercel-ai-gateway",
+        at=datetime(2026, 9, 29, 12, tzinfo=timezone.utc),
+        input_tokens=2_000,
+        output_tokens=1_000,
+        cache_read_tokens=1_000,
+    )
+    assert result.status == "priced"
+    assert result.cost_usd == (
+        Decimal("2.00") + Decimal("10.00") + Decimal("0.20")
+    ) / 1_000
+
+
+def test_sonnet_5_5_is_not_priced_before_its_release():
+    loaded = load_catalog()
+    result = loaded.price(
+        model="claude-sonnet-5-5",
+        channel="anthropic-api",
+        at=datetime(2026, 9, 27, 12, tzinfo=timezone.utc),
+        input_tokens=1_000,
+        output_tokens=1_000,
+    )
+    assert result.status != "priced"
+
+
+_VERTEX_GEMINI_FLASH = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash"]
+
+
+@pytest.mark.parametrize("model", _VERTEX_GEMINI_FLASH)
+def test_vertex_prices_gemini_flash_at_the_introductory_rate(model):
+    loaded = load_catalog()
+    result = loaded.snapshot.cost(
+        provider="vertex-ai",
+        model=model,
+        at=datetime(2026, 9, 29, 12, tzinfo=timezone.utc),
+        input_tokens=2_000,
+        output_tokens=1_000,
+        cache_read_tokens=1_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == f"google/{model}"
+    assert result.price_id.startswith(f"google/{model}:google-vertex-ai:global:")
+    assert result.cost_usd == (
+        Decimal("0.75") + Decimal("3.75") + Decimal("0.075")
+    ) / 1_000
+
+
+@pytest.mark.parametrize("model", _VERTEX_GEMINI_FLASH)
+def test_vertex_gemini_flash_doubles_in_2027(model):
+    loaded = load_catalog()
+    result = loaded.price(
+        model=model,
+        channel="google-vertex-ai",
+        at=datetime(2027, 1, 1, tzinfo=timezone.utc),
+        input_tokens=1_000,
+        output_tokens=1_000,
+    )
+    assert result.status == "priced"
+    assert result.price_id == f"google/{model}:google-vertex-ai:global:2027-01-01"
+    assert result.cost_usd == (Decimal("1.50") + Decimal("7.50")) / 1_000
+
+
+@pytest.mark.parametrize("model", _VERTEX_GEMINI_FLASH)
+def test_a_vertex_row_leaves_the_direct_channel_unambiguous(model):
+    # Search replay derives a workload's provider from its model's one direct
+    # channel; the Vertex alias must not make that ambiguous.
+    assert load_catalog().infer_direct_channel(model) == "google-api"
+
