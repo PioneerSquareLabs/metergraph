@@ -160,6 +160,142 @@ def test_gpt6_luna_direct_long_context_doubles_input_and_lifts_output():
     assert result.cost_usd == Decimal("0.06") + Decimal("0.075")
 
 
+# (input, output, cache read, 5m write, 1h write, batch output or None)
+_ANTHROPIC_ROWS_2026_09_28 = [
+    ("anthropic/claude-opus-5.5", "anthropic-api",
+     ("4.00", "20.00", "0.20", "5.00", "8.00", "10.00")),
+    ("anthropic/claude-opus-5.5", "aws-bedrock",
+     ("4.00", "20.00", "0.20", "5.00", "8.00", None)),
+    ("anthropic/claude-opus-5.5", "aws-bedrock-geo",
+     ("4.40", "22.00", "0.22", "5.50", "8.80", None)),
+    ("anthropic/claude-haiku-4.5", "aws-bedrock",
+     ("1.00", "5.00", "0.10", "1.25", "2.00", "2.50")),
+    ("anthropic/claude-haiku-4.5", "aws-bedrock-geo",
+     ("1.10", "5.50", "0.11", "1.375", "2.20", "2.75")),
+    ("anthropic/claude-fable-5.1", "aws-bedrock-geo",
+     ("11.00", "55.00", "0.275", "13.75", "22.00", None)),
+]
+
+
+@pytest.mark.parametrize(("model", "channel", "rates"), _ANTHROPIC_ROWS_2026_09_28)
+def test_bundled_catalog_prices_anthropic_rows_added_2026_09_28(model, channel, rates):
+    # Anthropic and Bedrock report input exclusive of cache reads and writes,
+    # so each 1k-token bucket bills at its own rate.
+    input_rate, output_rate, read_rate, write_5m_rate, write_1h_rate, batch_out = rates
+    loaded = load_catalog()
+    at = datetime(2026, 9, 28, 12, tzinfo=timezone.utc)
+    result = loaded.price(
+        model=model,
+        channel=channel,
+        at=at,
+        input_tokens=1_000,
+        output_tokens=1_000,
+        cache_read_tokens=1_000,
+        cache_write_5m_tokens=1_000,
+        cache_write_1h_tokens=1_000,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == model
+    assert result.price_id.startswith(f"{model}:{channel}:global:")
+    assert result.cost_usd == sum(
+        Decimal(rate)
+        for rate in (input_rate, output_rate, read_rate, write_5m_rate, write_1h_rate)
+    ) / 1_000
+
+    batch = loaded.price(
+        model=model,
+        channel=channel,
+        at=at,
+        input_tokens=0,
+        output_tokens=1_000,
+        batch=True,
+    )
+    if batch_out is None:
+        # No published batch rate: flagged, not presented as a batch price.
+        assert batch.status == "partial"
+        assert batch.reasons == ("batch_rate_unavailable",)
+    else:
+        assert batch.cost_usd == Decimal(batch_out) / 1_000
+
+
+def test_opus_5_5_gateway_row_prices_the_published_rates():
+    # The gateway reports cached tokens inside input.
+    loaded = load_catalog()
+    result = loaded.price(
+        model="anthropic/claude-opus-5.5",
+        channel="vercel-ai-gateway",
+        at=datetime(2026, 9, 28, 12, tzinfo=timezone.utc),
+        input_tokens=2_000,
+        output_tokens=1_000,
+        cache_read_tokens=1_000,
+    )
+    assert result.status == "priced"
+    assert result.cost_usd == (
+        Decimal("4.00") + Decimal("20.00") + Decimal("0.20")
+    ) / 1_000
+
+
+@pytest.mark.parametrize(
+    ("provider", "model", "canonical", "channel"),
+    [
+        ("anthropic", "claude-opus-5-5", "anthropic/claude-opus-5.5", "anthropic-api"),
+        ("litellm", "claude-opus-5-5", "anthropic/claude-opus-5.5", "anthropic-api"),
+        ("unknown", "claude-opus-5-5", "anthropic/claude-opus-5.5", "anthropic-api"),
+        (
+            "bedrock", "global.anthropic.claude-opus-5-5",
+            "anthropic/claude-opus-5.5", "aws-bedrock",
+        ),
+        (
+            "bedrock", "us.anthropic.claude-opus-5-5",
+            "anthropic/claude-opus-5.5", "aws-bedrock-geo",
+        ),
+        (
+            "bedrock", "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+            "anthropic/claude-haiku-4.5", "aws-bedrock",
+        ),
+        (
+            "bedrock", "anthropic.claude-haiku-4-5",
+            "anthropic/claude-haiku-4.5", "aws-bedrock",
+        ),
+        (
+            "bedrock", "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            "anthropic/claude-haiku-4.5", "aws-bedrock-geo",
+        ),
+        (
+            "bedrock", "us.anthropic.claude-fable-5-1",
+            "anthropic/claude-fable-5.1", "aws-bedrock-geo",
+        ),
+    ],
+)
+def test_anthropic_ids_from_traffic_resolve_to_their_channel(
+    provider, model, canonical, channel,
+):
+    loaded = load_catalog()
+    result = loaded.snapshot.cost(
+        provider=provider,
+        model=model,
+        at=datetime(2026, 9, 28, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=0,
+    )
+    assert result.status == "priced"
+    assert result.canonical_model == canonical
+    assert f":{channel}:" in result.price_id
+
+
+def test_fable_5_1_has_no_global_bedrock_price():
+    # AWS publishes Fable 5.1 only for geo/in-region inference.
+    loaded = load_catalog()
+    result = loaded.snapshot.cost(
+        provider="bedrock",
+        model="global.anthropic.claude-fable-5-1",
+        at=datetime(2026, 9, 28, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=0,
+    )
+    assert result.status == "unpriced"
+
+
 @pytest.mark.parametrize(
     ("model", "input_rate", "output_rate", "cache_read_rate"),
     [

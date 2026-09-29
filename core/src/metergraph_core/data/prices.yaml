@@ -551,6 +551,9 @@ models:
         alias: anthropic/claude-fable-5.1
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      # AWS prices Fable 5.1 only on geo/in-region inference, not on the
+      # global profile, so no aws-bedrock alias.
+      - {provider: bedrock, alias: us.anthropic.claude-fable-5-1, channel: aws-bedrock-geo}
     prices:
       # Cache hits are 0.025x input on Fable 5.1, not the usual 0.1x.
       - channel: anthropic-api
@@ -572,6 +575,16 @@ models:
         cache_read_per_mtok: 0.25
         cache_write_5m_per_mtok: 12.50
         source_url: https://ai-gateway.vercel.sh/v1/models
+      # AWS lists no Bedrock batch price for Fable 5.1.
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-09-01"
+        input_per_mtok: 11.00
+        output_per_mtok: 55.00
+        cache_read_per_mtok: 0.275
+        cache_write_5m_per_mtok: 13.75
+        cache_write_1h_per_mtok: 22.00
+        source_url: https://aws.amazon.com/bedrock/pricing/
 
   - canonical_id: anthropic/claude-fable-5
     publisher: anthropic
@@ -615,6 +628,63 @@ models:
         cache_read_per_mtok: 1.0
         cache_write_5m_per_mtok: 12.5
         source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: anthropic/claude-opus-5.5
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-opus-5-5, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-opus-5-5, channel: anthropic-api}
+      - {provider: litellm, alias: claude-opus-5-5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-opus-5-5, channel: anthropic-api}
+      - provider: anthropic
+        alias: anthropic/claude-opus-5.5
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: bedrock, alias: anthropic.claude-opus-5-5, channel: aws-bedrock}
+      - {provider: bedrock, alias: global.anthropic.claude-opus-5-5, channel: aws-bedrock}
+      - {provider: bedrock, alias: us.anthropic.claude-opus-5-5, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: eu.anthropic.claude-opus-5-5, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: jp.anthropic.claude-opus-5-5, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: au.anthropic.claude-opus-5-5, channel: aws-bedrock-geo}
+    prices:
+      # Cache hits are 0.05x input on Opus 5.5, not the usual 0.1x.
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 4.00
+        output_per_mtok: 20.00
+        cache_read_per_mtok: 0.20
+        cache_write_5m_per_mtok: 5.00
+        cache_write_1h_per_mtok: 8.00
+        batch_input_per_mtok: 2.00
+        batch_output_per_mtok: 10.00
+        source_url: https://platform.claude.com/docs/en/about-claude/pricing
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 4.00
+        output_per_mtok: 20.00
+        cache_read_per_mtok: 0.20
+        cache_write_5m_per_mtok: 5.00
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      # AWS lists no Bedrock batch price for Opus 5.5.
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 4.00
+        output_per_mtok: 20.00
+        cache_read_per_mtok: 0.20
+        cache_write_5m_per_mtok: 5.00
+        cache_write_1h_per_mtok: 8.00
+        source_url: https://aws.amazon.com/bedrock/pricing/
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 4.40
+        output_per_mtok: 22.00
+        cache_read_per_mtok: 0.22
+        cache_write_5m_per_mtok: 5.50
+        cache_write_1h_per_mtok: 8.80
+        source_url: https://aws.amazon.com/bedrock/pricing/
   - canonical_id: anthropic/claude-opus-5
     publisher: anthropic
     aliases:
@@ -859,6 +929,15 @@ models:
         alias: anthropic/claude-haiku-4.5
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      # Messages-API ids are undated; InvokeModel ids carry the snapshot date.
+      - {provider: bedrock, alias: anthropic.claude-haiku-4-5, channel: aws-bedrock}
+      - {provider: bedrock, alias: anthropic.claude-haiku-4-5-20251001, channel: aws-bedrock}
+      - {provider: bedrock, alias: global.anthropic.claude-haiku-4-5, channel: aws-bedrock}
+      - {provider: bedrock, alias: global.anthropic.claude-haiku-4-5-20251001, channel: aws-bedrock}
+      - {provider: bedrock, alias: us.anthropic.claude-haiku-4-5, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: us.anthropic.claude-haiku-4-5-20251001, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: eu.anthropic.claude-haiku-4-5, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: eu.anthropic.claude-haiku-4-5-20251001, channel: aws-bedrock-geo}
     prices:
       - channel: anthropic-api
         region: global
@@ -879,6 +958,28 @@ models:
         cache_read_per_mtok: 0.10
         cache_write_5m_per_mtok: 1.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2025-10-15"
+        input_per_mtok: 1.00
+        output_per_mtok: 5.00
+        cache_read_per_mtok: 0.10
+        cache_write_5m_per_mtok: 1.25
+        cache_write_1h_per_mtok: 2.00
+        batch_input_per_mtok: 0.50
+        batch_output_per_mtok: 2.50
+        source_url: https://aws.amazon.com/bedrock/pricing/
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2025-10-15"
+        input_per_mtok: 1.10
+        output_per_mtok: 5.50
+        cache_read_per_mtok: 0.11
+        cache_write_5m_per_mtok: 1.375
+        cache_write_1h_per_mtok: 2.20
+        batch_input_per_mtok: 0.55
+        batch_output_per_mtok: 2.75
+        source_url: https://aws.amazon.com/bedrock/pricing/
 
   - canonical_id: anthropic/claude-sonnet-4.6
     publisher: anthropic
