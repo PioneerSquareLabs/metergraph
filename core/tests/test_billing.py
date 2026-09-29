@@ -187,7 +187,7 @@ def test_a_verified_gateway_prices_a_model_the_catalog_cannot():
     assert decision.cost_status == "priced"
 
 
-@pytest.mark.parametrize("endpoint", ["chat.completions", "responses"])
+@pytest.mark.parametrize("endpoint", ["chat.completions", "responses", "messages"])
 def test_each_endpoint_a_gateway_is_verified_on_qualifies(endpoint):
     decision = resolve_billing(
         CATALOG_PRICED, normalize_gateway_evidence(_portkey_row(endpoint=endpoint))

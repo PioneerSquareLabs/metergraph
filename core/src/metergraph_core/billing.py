@@ -34,7 +34,11 @@ class _QualifiedSource:
 # the per-request and per-query charges a token rate cannot express. Portkey was
 # checked across a 46,241-call export: its figure matches published rates for
 # Anthropic, xAI and Perplexity to the cent, and for OpenAI once the per-search
-# charge is counted -- 20,590 of 20,590 rows, exactly.
+# charge is counted -- 20,590 of 20,590 rows, exactly. Anthropic's calls come
+# back in the Messages API shape, which the relay reports as `messages`; before
+# that endpoint was listed here every Anthropic call fell back to the catalog,
+# and a model the catalog did not know yet (Opus 5.5, 2,154 calls in one
+# customer's week) was stored at $0 with the gateway's figure sitting unused.
 _QUALIFIED_SOURCES = (
     _QualifiedSource(
         gateway="openrouter",
@@ -46,7 +50,7 @@ _QUALIFIED_SOURCES = (
     ),
     _QualifiedSource(
         gateway="portkey",
-        endpoints=frozenset({"chat.completions", "responses"}),
+        endpoints=frozenset({"chat.completions", "responses", "messages"}),
         cost_source="portkey.cost",
     ),
 )
