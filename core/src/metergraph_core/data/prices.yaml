@@ -871,6 +871,38 @@ models:
         cache_read_per_mtok: 0.5
         cache_write_5m_per_mtok: 6.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: anthropic/claude-sonnet-5.5
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-sonnet-5-5, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-sonnet-5-5, channel: anthropic-api}
+      - {provider: litellm, alias: claude-sonnet-5-5, channel: anthropic-api}
+      - {provider: unknown, alias: claude-sonnet-5-5, channel: anthropic-api}
+      - provider: anthropic
+        alias: anthropic/claude-sonnet-5.5
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+    prices:
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-09-28"
+        input_per_mtok: 2.00
+        output_per_mtok: 10.00
+        cache_read_per_mtok: 0.20
+        cache_write_5m_per_mtok: 2.50
+        cache_write_1h_per_mtok: 4.00
+        batch_input_per_mtok: 1.00
+        batch_output_per_mtok: 5.00
+        source_url: https://platform.claude.com/docs/en/about-claude/pricing
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-28"
+        input_per_mtok: 2.00
+        output_per_mtok: 10.00
+        cache_read_per_mtok: 0.20
+        cache_write_5m_per_mtok: 2.50
+        source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-sonnet-5
     publisher: anthropic
     aliases:
@@ -1758,6 +1790,7 @@ models:
   - canonical_id: google/gemini-3.6-flash
     publisher: google
     aliases:
+      - {provider: vertex-ai, alias: gemini-3.6-flash, channel: google-vertex-ai}
       - {provider: google, alias: gemini-3.6-flash, channel: google-api}
       - {provider: google, alias: google/models/gemini-3.6-flash, channel: google-api}
       - {provider: google, alias: models/gemini-3.6-flash, channel: google-api}
@@ -1770,6 +1803,23 @@ models:
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
     prices:
+      # Vertex lists the direct API's introductory rate, and the same
+      # 2027-01-01 increase.
+      - channel: google-vertex-ai
+        region: global
+        effective_from: "2026-08-20"
+        effective_to: "2027-01-01"
+        input_per_mtok: 0.75
+        output_per_mtok: 3.75
+        cache_read_per_mtok: 0.075
+        source_url: https://cloud.google.com/vertex-ai/generative-ai/pricing
+      - channel: google-vertex-ai
+        region: global
+        effective_from: "2027-01-01"
+        input_per_mtok: 1.50
+        output_per_mtok: 7.50
+        cache_read_per_mtok: 0.15
+        source_url: https://cloud.google.com/vertex-ai/generative-ai/pricing
       - channel: google-api
         region: global
         effective_from: "2026-07-21"
@@ -1813,6 +1863,7 @@ models:
   - canonical_id: google/gemini-3.7-flash
     publisher: google
     aliases:
+      - {provider: vertex-ai, alias: gemini-3.7-flash, channel: google-vertex-ai}
       - {provider: litellm, alias: gemini-3.7-flash, channel: google-api}
       - {provider: litellm, alias: models/gemini-3.7-flash, channel: google-api}
       - {provider: unknown, alias: gemini-3.7-flash, channel: google-api}
@@ -1825,6 +1876,23 @@ models:
       - {provider: google, alias: google/models/gemini-3.7-flash, channel: google-api}
       - {provider: google, alias: models/gemini-3.7-flash, channel: google-api}
     prices:
+      # Vertex lists the direct API's introductory rate, and the same
+      # 2027-01-01 increase.
+      - channel: google-vertex-ai
+        region: global
+        effective_from: "2026-08-18"
+        effective_to: "2027-01-01"
+        input_per_mtok: 0.75
+        output_per_mtok: 3.75
+        cache_read_per_mtok: 0.075
+        source_url: https://cloud.google.com/vertex-ai/generative-ai/pricing
+      - channel: google-vertex-ai
+        region: global
+        effective_from: "2027-01-01"
+        input_per_mtok: 1.50
+        output_per_mtok: 7.50
+        cache_read_per_mtok: 0.15
+        source_url: https://cloud.google.com/vertex-ai/generative-ai/pricing
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-08-25"
@@ -1843,6 +1911,7 @@ models:
   - canonical_id: google/gemini-3.8-flash
     publisher: google
     aliases:
+      - {provider: vertex-ai, alias: gemini-3.8-flash, channel: google-vertex-ai}
       - {provider: google, alias: gemini-3.8-flash, channel: google-api}
       - {provider: google, alias: models/gemini-3.8-flash, channel: google-api}
       - {provider: google, alias: gemini-flash-latest, channel: google-api}
@@ -1862,6 +1931,23 @@ models:
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
     prices:
+      # Vertex lists the direct API's introductory rate, and the same
+      # 2027-01-01 increase.
+      - channel: google-vertex-ai
+        region: global
+        effective_from: "2026-09-01"
+        effective_to: "2027-01-01"
+        input_per_mtok: 0.75
+        output_per_mtok: 3.75
+        cache_read_per_mtok: 0.075
+        source_url: https://cloud.google.com/vertex-ai/generative-ai/pricing
+      - channel: google-vertex-ai
+        region: global
+        effective_from: "2027-01-01"
+        input_per_mtok: 1.50
+        output_per_mtok: 7.50
+        cache_read_per_mtok: 0.15
+        source_url: https://cloud.google.com/vertex-ai/generative-ai/pricing
       # The gateway publishes no end date for this rate. Google's direct rate
       # doubles on 2027-01-01; if the gateway follows, this row needs an
       # `effective_to` and a successor then.
