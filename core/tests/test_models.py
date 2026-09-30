@@ -223,13 +223,12 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-09-29"
+    assert registry.version == "2026-09-30"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
         "anthropic/claude-opus-4.8",
         "anthropic/claude-haiku-4.5",
-        "anthropic/claude-3-haiku",
         "openai/gpt-5.6-sol",
         "openai/gpt-5.6-luna",
         "openai/gpt-5.6-terra",
@@ -292,7 +291,7 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v3.2",
         "deepseek/deepseek-v3.1",
     ]
-    assert len(registry.routes_for_execution_profile("default")) == 50
+    assert len(registry.routes_for_execution_profile("default")) == 49
     assert len(registry.routes_for_execution_profile("bedrock")) == 8
 
 
@@ -388,6 +387,32 @@ def test_low_cost_gateway_models_are_priced_candidates(
     assert resolved.canonical_model == model
     assert resolved.price.input_per_mtok == Decimal(input_rate)
     assert resolved.price.output_per_mtok == Decimal(output_rate)
+
+
+def test_a_retired_model_is_priced_but_never_offered_or_routed():
+    # Anthropic retired Claude 3 Haiku on 2026-04-20: a request to it fails, so
+    # it cannot be a candidate. Its price stays, for the traffic captured
+    # while it was served.
+    registry = load_model_registry()
+    offered = {
+        route.id
+        for group in registry.offer_groups
+        for route in registry.candidates(group)
+    }
+    assert "anthropic/claude-3-haiku" not in offered
+    for profile in ("default", "bedrock"):
+        assert "anthropic/claude-3-haiku" not in {
+            route.canonical_id for route in registry.routes_for_execution_profile(profile)
+        }
+    assert "default:anthropic/claude-3-haiku" not in registry.routes
+
+    resolved = load_catalog().snapshot.resolve_price(
+        model="claude-3-haiku",
+        channel="anthropic-api",
+        at=datetime(2026, 3, 1, tzinfo=timezone.utc),
+    )
+    assert resolved is not None
+    assert resolved.canonical_model == "anthropic/claude-3-haiku"
 
 
 def test_validation_rejects_canonical_drift():
