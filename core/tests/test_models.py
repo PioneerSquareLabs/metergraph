@@ -223,7 +223,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-09-26"
+    assert registry.version == "2026-09-29"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -260,6 +260,9 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "mistral/ministral-14b",
         "nvidia/nemotron-3-super-120b-a12b",
         "zai/glm-5.3-flash",
+        "deepseek/deepseek-v4.1-flash",
+        "alibaba/qwen3.8-flash",
+        "inception/mercury-2.5",
     ]
     assert [route.id for route in registry.candidates("fireworks")] == [
         "fireworks:accounts/fireworks/models/glm-5p2",
@@ -289,7 +292,7 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v3.2",
         "deepseek/deepseek-v3.1",
     ]
-    assert len(registry.routes_for_execution_profile("default")) == 47
+    assert len(registry.routes_for_execution_profile("default")) == 50
     assert len(registry.routes_for_execution_profile("bedrock")) == 8
 
 
@@ -352,6 +355,39 @@ def test_glm_5_3_flash_is_a_priced_gateway_candidate():
     assert resolved.canonical_model == "zai/glm-5.3-flash"
     assert resolved.price.input_per_mtok == Decimal("0.15")
     assert resolved.price.output_per_mtok == Decimal("0.50")
+
+
+@pytest.mark.parametrize(
+    ("model", "display_name", "input_rate", "output_rate"),
+    [
+        ("deepseek/deepseek-v4.1-flash", "DeepSeek V4.1 Flash", "0.30", "1.20"),
+        ("alibaba/qwen3.8-flash", "Qwen 3.8 Flash", "0.15", "0.47"),
+        ("inception/mercury-2.5", "Mercury 2.5", "0.04", "0.15"),
+    ],
+)
+def test_low_cost_gateway_models_are_priced_candidates(
+    model, display_name, input_rate, output_rate,
+):
+    registry = load_model_registry()
+    route = registry.route(f"default:{model}")
+    assert route in registry.candidates("gateway")
+    assert route in registry.reachable_candidates({"AI_GATEWAY_API_KEY"})
+    assert (route.canonical_id, route.display_name) == (model, display_name)
+    assert (route.provider, route.model_id, route.pricing_channel) == (
+        "vercel",
+        model,
+        "vercel-ai-gateway",
+    )
+
+    resolved = load_catalog().snapshot.resolve_price(
+        model=route.model_id,
+        channel=route.pricing_channel,
+        at=datetime(2026, 9, 29, tzinfo=timezone.utc),
+    )
+    assert resolved is not None
+    assert resolved.canonical_model == model
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
 
 
 def test_validation_rejects_canonical_drift():

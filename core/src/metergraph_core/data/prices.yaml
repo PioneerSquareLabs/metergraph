@@ -2593,6 +2593,37 @@ models:
         output_per_mtok: 6.0
         cache_read_per_mtok: 0.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: alibaba/qwen3.8-flash
+    publisher: alibaba
+    aliases:
+      - provider: alibaba
+        alias: alibaba/qwen3.8-flash
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-08-26"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.47
+        cache_read_per_mtok: 0.016
+        cache_write_5m_per_mtok: 0.20
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: inception/mercury-2.5
+    publisher: inception
+    aliases:
+      - provider: inception
+        alias: inception/mercury-2.5
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-08"
+        input_per_mtok: 0.04
+        output_per_mtok: 0.15
+        cache_read_per_mtok: 0.004
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: amazon/nova-2-lite
     publisher: amazon
     aliases:
