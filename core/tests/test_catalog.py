@@ -94,7 +94,7 @@ def test_cache_write_tiers_use_their_respective_rates():
         ("vertex-ai", "claude-opus-4-6", "google-vertex-ai", Decimal("33.00000000")),
     ],
 )
-def test_zucca_models_resolve_on_their_observed_billing_channels(
+def test_representative_models_resolve_on_their_observed_billing_channels(
     provider, model, expected_channel, expected_cost
 ):
     result = SNAPSHOT.cost(
