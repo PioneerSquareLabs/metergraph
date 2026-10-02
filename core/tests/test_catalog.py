@@ -51,6 +51,17 @@ def test_resolve_price_by_deployment_identity_and_channel():
 
 
 def test_resolve_price_does_not_guess_another_channel():
+    # Direct-only pricing must not cross channels.
+    direct = SNAPSHOT.resolve_price(
+        model="openai/gpt-5.6-cyber", channel="openai-api", at=_at("2026-10-02")
+    )
+    assert direct is not None
+    assert SNAPSHOT.resolve_price(
+        model="openai/gpt-5.6-cyber",
+        channel="vercel-ai-gateway",
+        at=_at("2026-10-02"),
+    ) is None
+    # A gateway route does not reach back before its own window either.
     assert SNAPSHOT.resolve_price(
         model="openai/gpt-4o",
         channel="vercel-ai-gateway",
