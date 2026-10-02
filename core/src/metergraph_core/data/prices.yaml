@@ -2319,6 +2319,14 @@ models:
         alias: deepseek/deepseek-v4.1-flash
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: accounts/fireworks/models/deepseek-v4p1-flash
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/deepseek-v4p1-flash
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
     prices:
       - channel: deepseek-api
         region: global
@@ -2341,6 +2349,14 @@ models:
         output_per_mtok: 1.20
         cache_read_per_mtok: 0.03
         source_url: https://ai-gateway.vercel.sh/v1/models
+      # Displayed serverless billing rates take precedence over conflicting prose.
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-09-10"
+        input_per_mtok: 0.30
+        output_per_mtok: 1.20
+        cache_read_per_mtok: 0.006
+        source_url: https://fireworks.ai/models/deepseek-ai/deepseek-v4p1-flash
 
   - canonical_id: meta/muse-spark-1.3
     publisher: meta
@@ -2365,6 +2381,14 @@ models:
         alias: thinkingmachines/inkling
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: accounts/fireworks/models/inkling
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/inkling
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -2373,6 +2397,13 @@ models:
         output_per_mtok: 4.05
         cache_read_per_mtok: 0.17
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-07-14"
+        input_per_mtok: 1.00
+        output_per_mtok: 4.05
+        cache_read_per_mtok: 0.17
+        source_url: https://fireworks.ai/models/fireworks/inkling
 
   - canonical_id: zai/glm-5.2
     publisher: zai
@@ -2414,6 +2445,14 @@ models:
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
       - {provider: litellm, alias: kimi-k3, channel: moonshot-api}
+      - provider: fireworks
+        alias: accounts/fireworks/models/kimi-k3
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/kimi-k3
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -2438,6 +2477,13 @@ models:
         output_per_mtok: 15.0
         cache_read_per_mtok: 0.3
         source_url: https://platform.kimi.ai/docs/pricing/chat
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-07-19"
+        input_per_mtok: 3.00
+        output_per_mtok: 15.00
+        cache_read_per_mtok: 0.30
+        source_url: https://fireworks.ai/models/fireworks/kimi-k3
   - canonical_id: moonshotai/kimi-k2.5
     publisher: moonshotai
     aliases:
@@ -2473,6 +2519,14 @@ models:
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
       - {provider: litellm, alias: minimax-m3, channel: minimax-api}
+      - provider: fireworks
+        alias: accounts/fireworks/models/minimax-m3
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/minimax-m3
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -2491,6 +2545,15 @@ models:
         rules:
           long_context: {threshold: 512000, input_multiplier: 2.0, output_multiplier: 2.0}
         source_url: https://platform.minimax.io/docs/guides/pricing-paygo
+      # Displayed serverless billing rates take precedence over conflicting prose.
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-06-11"
+        input_per_mtok: 0.30
+        output_per_mtok: 1.20
+        cache_read_per_mtok: 0.06
+        source_url: https://fireworks.ai/models/fireworks/minimax-m3
+  # Verified availability keeps the row open past a declared retirement.
   - canonical_id: fireworks/glm-5p2
     publisher: fireworks
     aliases:
@@ -2508,8 +2571,8 @@ models:
         effective_from: "2026-08-24"
         input_per_mtok: 1.40
         output_per_mtok: 4.40
-        cache_read_per_mtok: 0.26
-        source_url: https://fireworks.ai/blog/glm-5p2
+        cache_read_per_mtok: 0.14
+        source_url: https://fireworks.ai/models/fireworks/glm-5p2
 
   - canonical_id: fireworks/qwen3p7-plus
     publisher: fireworks
@@ -2530,6 +2593,87 @@ models:
         output_per_mtok: 1.60
         cache_read_per_mtok: 0.08
         source_url: https://fireworks.ai/blog/qwen-3p7-plus
+
+  # Ember-1 has no creator identity beyond its Fireworks listing.
+  - canonical_id: fireworks/ember-1
+    publisher: fireworks
+    aliases:
+      - provider: fireworks
+        alias: accounts/fireworks/models/ember-1
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/ember-1
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 3.00
+        output_per_mtok: 15.00
+        cache_read_per_mtok: 0.30
+        source_url: https://fireworks.ai/models/fireworks/ember-1
+
+  - canonical_id: openai/gpt-oss-120b
+    publisher: openai
+    aliases:
+      - provider: fireworks
+        alias: accounts/fireworks/models/gpt-oss-120b
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/gpt-oss-120b
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: fireworks-api
+        region: global
+        effective_from: "2025-08-04"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.60
+        cache_read_per_mtok: 0.015
+        source_url: https://fireworks.ai/models/fireworks/gpt-oss-120b
+
+  - canonical_id: nvidia/nemotron-3-ultra-nvfp4
+    publisher: nvidia
+    aliases:
+      - provider: fireworks
+        alias: accounts/fireworks/models/nemotron-3-ultra-nvfp4
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/nemotron-3-ultra-nvfp4
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-06-02"
+        input_per_mtok: 0.60
+        output_per_mtok: 2.40
+        cache_read_per_mtok: 0.12
+        source_url: https://fireworks.ai/models/fireworks/nemotron-3-ultra-nvfp4
+
+  - canonical_id: nvidia/nemotron-lightning-3.5-30b-a3b
+    publisher: nvidia
+    aliases:
+      - provider: fireworks
+        alias: accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/nemotron-lightning-3p5-30b-a3b
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-08-07"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.20
+        cache_read_per_mtok: 0.01
+        source_url: https://fireworks.ai/models/fireworks/nemotron-lightning-3p5-30b-a3b
 
   - canonical_id: xai/grok-4.1-fast-reasoning
     publisher: xai
@@ -2785,7 +2929,7 @@ models:
         source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: fireworks-api
         region: global
-        effective_from: "2026-08-14"
+        effective_from: "2026-08-28"
         input_per_mtok: 1.40
         output_per_mtok: 4.40
         cache_read_per_mtok: 0.26
@@ -2951,6 +3095,14 @@ models:
       - {provider: vercel, alias: alibaba/qwen3.8-max, channel: vercel-ai-gateway}
       - {provider: litellm, alias: qwen3.8-max, channel: alibaba-api}
       - {provider: unknown, alias: qwen3.8-max, channel: alibaba-api}
+      - provider: fireworks
+        alias: accounts/fireworks/models/qwen3p8-max
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
+      - provider: fireworks
+        alias: fireworks:accounts/fireworks/models/qwen3p8-max
+        channel: fireworks-api
+        rules: {input_includes_cache_read: true}
     prices:
       - channel: alibaba-api
         region: global
@@ -2967,6 +3119,13 @@ models:
         output_per_mtok: 6.0
         cache_read_per_mtok: 0.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: fireworks-api
+        region: global
+        effective_from: "2026-08-05"
+        input_per_mtok: 2.00
+        output_per_mtok: 6.00
+        cache_read_per_mtok: 0.25
+        source_url: https://fireworks.ai/models/fireworks/qwen3p8-max
   - canonical_id: alibaba/qwen3.8-flash
     publisher: alibaba
     aliases:

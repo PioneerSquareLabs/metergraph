@@ -1748,3 +1748,238 @@ def test_installed_catalog_leaves_no_gap_or_overlap_at_the_reprice_hour():
     began = {str(row["effective_from"]) for row in rows}
 
     assert "2026-09-10T04:00:00+00:00" in ended & began
+
+
+_AT_FIREWORKS_REFRESH = datetime(2026, 10, 2, tzinfo=timezone.utc)
+
+# Current generative serverless offerings and their channel-local rates.
+_FIREWORKS_SERVERLESS = [
+    ("ember-1", "fireworks/ember-1", "2026-09-22", "3.00", "0.30", "15.00"),
+    ("deepseek-v4p1-flash", "deepseek/deepseek-v4.1-flash", "2026-09-10", "0.30", "0.006", "1.20"),
+    ("glm-5p3-flash", "zai/glm-5.3-flash", "2026-08-26", "0.15", "0.03", "0.50"),
+    ("glm-5p3", "zai/glm-5.3", "2026-08-28", "1.40", "0.26", "4.40"),
+    ("kimi-k3", "moonshotai/kimi-k3", "2026-07-19", "3.00", "0.30", "15.00"),
+    ("qwen3p8-max", "alibaba/qwen3.8-max", "2026-08-05", "2.00", "0.25", "6.00"),
+    ("glm-5p2", "fireworks/glm-5p2", "2026-08-24", "1.40", "0.14", "4.40"),
+    ("minimax-m3", "minimax/minimax-m3", "2026-06-11", "0.30", "0.06", "1.20"),
+    ("gpt-oss-120b", "openai/gpt-oss-120b", "2025-08-04", "0.15", "0.015", "0.60"),
+    ("nemotron-3-ultra-nvfp4", "nvidia/nemotron-3-ultra-nvfp4", "2026-06-02", "0.60", "0.12", "2.40"),
+    ("nemotron-lightning-3p5-30b-a3b", "nvidia/nemotron-lightning-3.5-30b-a3b", "2026-08-07", "0.05", "0.01", "0.20"),
+    ("inkling", "thinkingmachines/inkling", "2026-07-14", "1.00", "0.17", "4.05"),
+]
+_FIREWORKS_PATH = "accounts/fireworks/models/"
+
+_fireworks_offerings = pytest.mark.parametrize(
+    "slug,canonical,start,input_rate,cached_rate,output_rate",
+    _FIREWORKS_SERVERLESS,
+    ids=[row[0] for row in _FIREWORKS_SERVERLESS],
+)
+# Accepted Fireworks model-path forms.
+_fireworks_alias_forms = pytest.mark.parametrize(
+    "prefix", ["", "fireworks:"], ids=["exact-path", "prefixed"]
+)
+
+
+@_fireworks_offerings
+@_fireworks_alias_forms
+def test_installed_catalog_prices_fireworks_serverless_at_one_million_tokens(
+    prefix, slug, canonical, start, input_rate, cached_rate, output_rate
+):
+    catalog = load_catalog()
+    model = prefix + _FIREWORKS_PATH + slug
+
+    resolved = catalog.price(
+        model=model, channel="fireworks-api", at=_AT_FIREWORKS_REFRESH,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == canonical
+    assert resolved.price_id == f"{canonical}:fireworks-api:global:{start}"
+    assert resolved.cost_usd == Decimal(input_rate) + Decimal(output_rate)
+
+    observed = catalog.snapshot.cost(
+        provider="fireworks", model=model, at=_AT_FIREWORKS_REFRESH,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert observed.status == "priced"
+    assert observed.price_id == resolved.price_id
+    assert observed.cost_usd == resolved.cost_usd
+
+
+@_fireworks_offerings
+@_fireworks_alias_forms
+def test_installed_catalog_bills_fireworks_cache_reads_out_of_input(
+    prefix, slug, canonical, start, input_rate, cached_rate, output_rate
+):
+    """Cached prompt tokens are not billed again as input."""
+    catalog = load_catalog()
+
+    cached = catalog.price(
+        model=prefix + _FIREWORKS_PATH + slug, channel="fireworks-api",
+        at=_AT_FIREWORKS_REFRESH,
+        input_tokens=1_000_000, output_tokens=0, cache_read_tokens=1_000_000,
+    )
+    assert cached.status == "priced"
+    assert cached.cost_usd == Decimal(cached_rate)
+
+
+@_fireworks_offerings
+@_fireworks_alias_forms
+def test_installed_catalog_starts_fireworks_serverless_at_its_availability_boundary(
+    prefix, slug, canonical, start, input_rate, cached_rate, output_rate
+):
+    catalog = load_catalog()
+    model = prefix + _FIREWORKS_PATH + slug
+    boundary = datetime.fromisoformat(start).replace(tzinfo=timezone.utc)
+
+    before = catalog.price(
+        model=model, channel="fireworks-api", at=boundary - timedelta(minutes=1),
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    at_start = catalog.price(
+        model=model, channel="fireworks-api", at=boundary,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+
+    assert before.status == "unpriced"
+    assert before.cost_usd is None
+    assert at_start.status == "priced"
+    assert at_start.cost_usd == Decimal(input_rate) + Decimal(output_rate)
+
+
+@_fireworks_offerings
+def test_installed_catalog_sources_fireworks_serverless_from_its_model_page(
+    slug, canonical, start, input_rate, cached_rate, output_rate
+):
+    catalog = load_catalog()
+
+    resolved = catalog.snapshot.resolve_price(
+        model=_FIREWORKS_PATH + slug, channel="fireworks-api",
+        at=_AT_FIREWORKS_REFRESH,
+    )
+    assert resolved is not None
+    assert resolved.price.effective_to is None
+    assert resolved.price.cache_read_per_mtok == Decimal(cached_rate)
+    assert resolved.rules["input_includes_cache_read"] is True
+    assert resolved.price.source_url.startswith("https://fireworks.ai/models/")
+    assert resolved.price.source_url.endswith(f"/{slug}")
+
+
+@pytest.mark.parametrize(
+    "slug,other_model,other_channel,other_cost",
+    # Creator models retain channel-local pricing.
+    [("deepseek-v4p1-flash", "deepseek/deepseek-v4.1-flash", "vercel-ai-gateway", "1.50"),
+     ("kimi-k3", "kimi-k3", "moonshot-api", "18.00"),
+     ("kimi-k3", "moonshotai/kimi-k3", "vercel-ai-gateway", "18.00"),
+     ("qwen3p8-max", "qwen3.8-max", "alibaba-api", "8.00"),
+     # Direct-provider tiering does not cross channels.
+     ("minimax-m3", "minimax-m3", "minimax-api", "3.00"),
+     ("inkling", "thinkingmachines/inkling", "vercel-ai-gateway", "5.05"),
+     ("glm-5p3", "zai/glm-5.3", "vercel-ai-gateway", "5.80")],
+)
+def test_installed_catalog_keeps_fireworks_paths_on_the_fireworks_channel(
+    slug, other_model, other_channel, other_cost
+):
+    catalog = load_catalog()
+    tokens = {"input_tokens": 1_000_000, "output_tokens": 1_000_000}
+
+    off_channel = catalog.price(
+        model=_FIREWORKS_PATH + slug, channel=other_channel,
+        at=_AT_FIREWORKS_REFRESH, **tokens,
+    )
+    assert off_channel.status == "unpriced"
+    assert off_channel.cost_usd is None
+
+    other = catalog.price(
+        model=other_model, channel=other_channel, at=_AT_FIREWORKS_REFRESH, **tokens,
+    )
+    assert other.status == "priced"
+    assert ":fireworks-api:" not in other.price_id
+    assert other.cost_usd == Decimal(other_cost)
+
+    fireworks = catalog.price(
+        model=_FIREWORKS_PATH + slug, channel="fireworks-api",
+        at=_AT_FIREWORKS_REFRESH, **tokens,
+    )
+    assert fireworks.canonical_model == other.canonical_model
+    assert ":fireworks-api:" in fireworks.price_id
+
+
+def test_installed_catalog_prices_deepseek_v41_flash_on_fireworks_at_the_serverless_block_rate():
+    """Displayed serverless rates govern when page prose conflicts."""
+    catalog = load_catalog()
+    rows = [
+        price
+        for model in catalog.document["models"]
+        if model["canonical_id"] == "deepseek/deepseek-v4.1-flash"
+        for price in model["prices"]
+        if price["channel"] == "fireworks-api"
+    ]
+
+    assert len(rows) == 1
+    assert rows[0].get("effective_to") is None
+    assert Decimal(str(rows[0]["input_per_mtok"])) == Decimal("0.30")
+    assert Decimal(str(rows[0]["cache_read_per_mtok"])) == Decimal("0.006")
+    assert Decimal(str(rows[0]["output_per_mtok"])) == Decimal("1.20")
+
+    weekend = catalog.price(
+        model="accounts/fireworks/models/deepseek-v4p1-flash",
+        channel="fireworks-api", at=datetime(2026, 9, 26, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert weekend.status == "priced"
+    assert weekend.cost_usd == Decimal("1.50")
+
+
+def test_installed_catalog_keeps_glm_52_open_on_fireworks_past_its_declared_deprecation():
+    """Verified availability outranks a declared retirement date."""
+    catalog = load_catalog()
+
+    for moment in (datetime(2026, 9, 25, tzinfo=timezone.utc), _AT_FIREWORKS_REFRESH):
+        resolved = catalog.price(
+            model="accounts/fireworks/models/glm-5p2", channel="fireworks-api",
+            at=moment, input_tokens=1_000_000, output_tokens=0,
+            cache_read_tokens=1_000_000,
+        )
+        assert resolved.status == "priced"
+        assert resolved.cost_usd == Decimal("0.14")
+
+
+@pytest.mark.parametrize("slug", ["qwen3-reranker-8b", "qwen3-embedding-8b"])
+@_fireworks_alias_forms
+def test_installed_catalog_leaves_fireworks_retrieval_only_models_unpriced(prefix, slug):
+    """Retrieval-only offerings remain outside generation pricing."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=prefix + _FIREWORKS_PATH + slug, channel="fireworks-api",
+        at=_AT_FIREWORKS_REFRESH, input_tokens=1_000_000, output_tokens=0,
+    )
+    assert resolved.status == "unpriced"
+    assert resolved.cost_usd is None
+
+
+def test_installed_catalog_gives_each_fireworks_path_one_canonical_model():
+    """Each Fireworks path belongs to one canonical model."""
+    catalog = load_catalog()
+    owners: dict[str, set[str]] = {}
+    spellings: set[str] = set()
+    for model in catalog.document["models"]:
+        for alias in model["aliases"]:
+            if alias["channel"] != "fireworks-api":
+                continue
+            assert alias["provider"] == "fireworks"
+            assert alias["rules"]["input_includes_cache_read"] is True
+            spellings.add(alias["alias"])
+            owners.setdefault(
+                alias["alias"].removeprefix("fireworks:"), set()
+            ).add(model["canonical_id"])
+
+    expected = {
+        _FIREWORKS_PATH + slug: {canonical}
+        for slug, canonical, *_ in _FIREWORKS_SERVERLESS
+    }
+    assert {path: owners.get(path) for path in expected} == expected
+    assert all(len(canonicals) == 1 for canonicals in owners.values())
+    for path in owners:
+        assert {path, f"fireworks:{path}"} <= spellings
