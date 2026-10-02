@@ -2949,7 +2949,13 @@ models:
   - canonical_id: anthropic/claude-haiku-3.5
     publisher: anthropic
     aliases:
-      - {provider: anthropic, alias: anthropic/claude-haiku-3.5, channel: anthropic-api}
+      - provider: anthropic
+        alias: anthropic/claude-haiku-3.5
+        channel: vercel-ai-gateway
+        effective_from: "2024-10-22"
+        effective_to: "2026-07-12"
+        rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+        source_url: https://www.reddit.com/r/claudexplorers/comments/1vpjoft/on_claude_model_deprecations_retirements/
       - {provider: anthropic, alias: claude-3-5-haiku-20241022, channel: anthropic-api}
       - provider: anthropic
         alias: claude-3-5-haiku-latest
@@ -2970,6 +2976,15 @@ models:
         batch_input_per_mtok: 0.4
         batch_output_per_mtok: 2
         source_url: https://docs.anthropic.com/en/docs/about-claude/pricing
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2024-10-22"
+        effective_to: "2026-07-12"
+        input_per_mtok: 0.8
+        output_per_mtok: 4
+        cache_read_per_mtok: 0.08
+        cache_write_5m_per_mtok: 1
+        source_url: https://vercel.com/ai-gateway/models/claude-haiku-3.5/providers
   - canonical_id: anthropic/claude-mythos-5
     publisher: anthropic
     aliases:

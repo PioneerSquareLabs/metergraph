@@ -919,6 +919,29 @@ def test_installed_catalog_ends_claude_35_haiku_without_contradictory_evidence()
     assert exact_after_retirement.canonical_model == "anthropic/claude-haiku-3.5"
 
 
+def test_installed_catalog_prices_claude_35_haiku_until_gateway_shutdown():
+    catalog = load_catalog()
+
+    before = catalog.snapshot.cost(
+        provider="anthropic",
+        model="anthropic/claude-haiku-3.5",
+        at=datetime(2026, 7, 11, 23, 59, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    after = catalog.snapshot.cost(
+        provider="anthropic",
+        model="anthropic/claude-haiku-3.5",
+        at=datetime(2026, 7, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert before.status == "priced"
+    assert before.cost_usd == Decimal("4.80000000")
+    assert after.status == "unpriced"
+
+
 @pytest.mark.parametrize("model", ["gemini-3.6-flash", "gemini-3.7-flash"])
 @pytest.mark.parametrize(
     "batch,before_cost,after_cost",
