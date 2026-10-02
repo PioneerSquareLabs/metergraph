@@ -34,10 +34,11 @@ CORE_DIR = Path(__file__).resolve().parents[2]  # core/
 DIST_DIR = CORE_DIR / "dist"
 
 EXPECTED_NAME = "metergraph-core"
-EXPECTED_VERSION = "0.2.50"
+EXPECTED_VERSION = "0.2.51"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
+GOLDEN_PINNED_PRICE_ID = "openai/gpt-6.1-sol:aws-bedrock:us-east-1:2026-09-29"
 GOLDEN_RETRIEVAL_COST = "14.00000000"
 GOLDEN_RETRIEVAL_PRICE_ID = "google-api:google_search_grounding:global:2026-08-26"
 CATALOG_VERSION = "2026-10-02"
@@ -246,6 +247,21 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert str(deployment.price.input_per_mtok) == "2.9"
         assert str(deployment.price.output_per_mtok) == "14.0"
         assert deployment.price.source_url == "https://vercel.com/ai-gateway/models/kimi-k3/providers"
+        def pinned_cost(region):
+            return load_catalog(region=region).snapshot.cost(
+                provider="bedrock",
+                model="openai.gpt-6.1-sol",
+                at=datetime(2026, 10, 2, tzinfo=timezone.utc),
+                input_tokens=100_000,
+                output_tokens=0,
+            )
+
+        pinned = pinned_cost("us-east-1")
+        assert pinned.price_id == {GOLDEN_PINNED_PRICE_ID!r}, pinned.price_id
+        assert str(pinned.cost_usd) == "0.22000000", pinned.cost_usd
+        unserved = pinned_cost("us-west-2")
+        assert unserved.status == "unpriced", unserved.status
+        assert unserved.reasons == ("no_effective_alias",), unserved.reasons
         result = loaded.snapshot.cost(
             provider="openai",
             model="gpt-5.4-mini",
