@@ -886,7 +886,7 @@ def test_installed_catalog_prices_google_latest_aliases(provider, model, canonic
     assert result.cost_usd == Decimal(cost)
 
 
-def test_installed_catalog_keeps_observed_claude_35_haiku_alias_and_price():
+def test_installed_catalog_ends_claude_35_haiku_without_contradictory_evidence():
     catalog = load_catalog()
 
     before = catalog.snapshot.cost(
@@ -896,29 +896,27 @@ def test_installed_catalog_keeps_observed_claude_35_haiku_alias_and_price():
         input_tokens=1_000_000,
         output_tokens=1_000_000,
     )
-    alias_after_declared_retirement = catalog.snapshot.cost(
+    alias_after_retirement = catalog.snapshot.cost(
         provider="anthropic",
         model="claude-3-5-haiku-latest",
-        at=datetime(2026, 9, 30, tzinfo=timezone.utc),
+        at=datetime(2026, 2, 19, tzinfo=timezone.utc),
         input_tokens=1_000_000,
         output_tokens=1_000_000,
     )
-    exact_after_declared_retirement = catalog.snapshot.cost(
+    exact_after_retirement = catalog.snapshot.cost(
         provider="anthropic",
         model="claude-3-5-haiku-20241022",
-        at=datetime(2026, 9, 30, tzinfo=timezone.utc),
+        at=datetime(2026, 2, 19, tzinfo=timezone.utc),
         input_tokens=1_000_000,
         output_tokens=1_000_000,
     )
 
     assert before.status == "priced"
     assert before.cost_usd == Decimal("4.80000000")
-    assert alias_after_declared_retirement.status == "priced"
-    assert alias_after_declared_retirement.canonical_model == "anthropic/claude-haiku-3.5"
-    assert alias_after_declared_retirement.cost_usd == Decimal("4.80000000")
-    assert exact_after_declared_retirement.status == "priced"
-    assert exact_after_declared_retirement.canonical_model == "anthropic/claude-haiku-3.5"
-    assert exact_after_declared_retirement.cost_usd == Decimal("4.80000000")
+    assert alias_after_retirement.status == "unpriced"
+    assert alias_after_retirement.canonical_model is None
+    assert exact_after_retirement.status == "unpriced"
+    assert exact_after_retirement.canonical_model == "anthropic/claude-haiku-3.5"
 
 
 @pytest.mark.parametrize("model", ["gemini-3.6-flash", "gemini-3.7-flash"])
