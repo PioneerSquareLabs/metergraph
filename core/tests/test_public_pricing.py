@@ -886,6 +886,97 @@ def test_installed_catalog_prices_google_latest_aliases(provider, model, canonic
     assert result.cost_usd == Decimal(cost)
 
 
+def test_installed_catalog_ends_claude_35_haiku_without_contradictory_evidence():
+    catalog = load_catalog()
+
+    before = catalog.snapshot.cost(
+        provider="anthropic",
+        model="claude-3-5-haiku-latest",
+        at=datetime(2026, 2, 18, 23, 59, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    alias_after_retirement = catalog.snapshot.cost(
+        provider="anthropic",
+        model="claude-3-5-haiku-latest",
+        at=datetime(2026, 2, 19, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    exact_after_retirement = catalog.snapshot.cost(
+        provider="anthropic",
+        model="claude-3-5-haiku-20241022",
+        at=datetime(2026, 2, 19, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert before.status == "priced"
+    assert before.cost_usd == Decimal("4.80000000")
+    assert alias_after_retirement.status == "unpriced"
+    assert alias_after_retirement.canonical_model is None
+    assert exact_after_retirement.status == "unpriced"
+    assert exact_after_retirement.canonical_model == "anthropic/claude-haiku-3.5"
+
+
+def test_installed_catalog_prices_claude_35_haiku_until_gateway_shutdown():
+    catalog = load_catalog()
+
+    before = catalog.snapshot.cost(
+        provider="anthropic",
+        model="anthropic/claude-haiku-3.5",
+        at=datetime(2026, 7, 11, 23, 59, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    after = catalog.snapshot.cost(
+        provider="anthropic",
+        model="anthropic/claude-haiku-3.5",
+        at=datetime(2026, 7, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert before.status == "priced"
+    assert before.cost_usd == Decimal("4.80000000")
+    assert after.status == "unpriced"
+
+
+@pytest.mark.parametrize("model", ["gemini-3.6-flash", "gemini-3.7-flash"])
+@pytest.mark.parametrize(
+    "batch,before_cost,after_cost",
+    [
+        (False, "4.50000000", "9.00000000"),
+        (True, "2.25000000", "4.50000000"),
+    ],
+)
+def test_installed_catalog_ends_gemini_flash_introductory_rates_on_2027(
+    model, batch, before_cost, after_cost,
+):
+    catalog = load_catalog()
+
+    before = catalog.snapshot.cost(
+        provider="google",
+        model=model,
+        at=datetime(2026, 12, 31, 23, 59, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        batch=batch,
+    )
+    after = catalog.snapshot.cost(
+        provider="google",
+        model=model,
+        at=datetime(2027, 1, 1, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        batch=batch,
+    )
+
+    assert before.status == after.status == "priced"
+    assert before.cost_usd == Decimal(before_cost)
+    assert after.cost_usd == Decimal(after_cost)
+
+
 @pytest.mark.parametrize(
     "provider,model,canonical,cost",
     [
