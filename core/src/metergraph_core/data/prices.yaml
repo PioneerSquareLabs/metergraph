@@ -20,6 +20,9 @@ models:
         alias: openai/gpt-6-sol
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: bedrock, alias: global.openai.gpt-6-sol, channel: aws-bedrock, price_region: global}
+      - {provider: bedrock, alias: us.openai.gpt-6-sol, channel: aws-bedrock-geo, price_region: global}
+      - {provider: bedrock, alias: openai.gpt-6-sol, channel: aws-bedrock, price_region: us-east-1}
     prices:
       - channel: openai-api
         region: global
@@ -45,6 +48,37 @@ models:
           varies_by_provider: true
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://ai-gateway.vercel.sh/v1/models
+      # The 5m field stores AWS's unsplit cache-write rate.
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 2.20
+        output_per_mtok: 11.00
+        cache_read_per_mtok: 0.22
+        cache_write_5m_per_mtok: 2.75
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-sol.html
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 2.00
+        output_per_mtok: 10.00
+        cache_read_per_mtok: 0.20
+        cache_write_5m_per_mtok: 2.50
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-sol.html
+      - channel: aws-bedrock
+        region: us-east-1
+        effective_from: "2026-09-22"
+        input_per_mtok: 2.20
+        output_per_mtok: 11.00
+        cache_read_per_mtok: 0.22
+        cache_write_5m_per_mtok: 2.75
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-sol.html
 
   - canonical_id: openai/gpt-6-luna
     publisher: openai
@@ -56,6 +90,9 @@ models:
         alias: openai/gpt-6-luna
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: bedrock, alias: global.openai.gpt-6-luna, channel: aws-bedrock, price_region: global}
+      - {provider: bedrock, alias: us.openai.gpt-6-luna, channel: aws-bedrock-geo, price_region: global}
+      - {provider: bedrock, alias: openai.gpt-6-luna, channel: aws-bedrock, price_region: us-east-1}
     prices:
       - channel: openai-api
         region: global
@@ -81,6 +118,37 @@ models:
           varies_by_provider: true
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://ai-gateway.vercel.sh/v1/models
+      # The 5m field stores AWS's unsplit cache-write rate.
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 0.11
+        output_per_mtok: 0.55
+        cache_read_per_mtok: 0.011
+        cache_write_5m_per_mtok: 0.1375
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-luna.html
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2026-09-22"
+        input_per_mtok: 0.10
+        output_per_mtok: 0.50
+        cache_read_per_mtok: 0.01
+        cache_write_5m_per_mtok: 0.125
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-luna.html
+      - channel: aws-bedrock
+        region: us-east-1
+        effective_from: "2026-09-22"
+        input_per_mtok: 0.11
+        output_per_mtok: 0.55
+        cache_read_per_mtok: 0.011
+        cache_write_5m_per_mtok: 0.1375
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-luna.html
 
   - canonical_id: openai/gpt-6-astra
     publisher: openai
@@ -92,6 +160,9 @@ models:
         alias: openai/gpt-6-astra
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true, input_includes_cache_write: true}
+      - {provider: bedrock, alias: global.openai.gpt-6-astra, channel: aws-bedrock, price_region: global}
+      - {provider: bedrock, alias: us.openai.gpt-6-astra, channel: aws-bedrock-geo, price_region: global}
+      - {provider: bedrock, alias: openai.gpt-6-astra, channel: aws-bedrock, price_region: [us-east-1, us-west-2]}
     prices:
       - channel: openai-api
         region: global
@@ -117,6 +188,76 @@ models:
           varies_by_provider: true
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://ai-gateway.vercel.sh/v1/models
+      # The 5m field stores AWS's 30-minute cache-write rate.
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-09-08"
+        input_per_mtok: 11.00
+        output_per_mtok: 55.00
+        cache_read_per_mtok: 1.10
+        cache_write_5m_per_mtok: 13.75
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-astra.html
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2026-09-08"
+        input_per_mtok: 10.00
+        output_per_mtok: 50.00
+        cache_read_per_mtok: 1.00
+        cache_write_5m_per_mtok: 12.50
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-astra.html
+      - channel: aws-bedrock
+        region: us-east-1
+        effective_from: "2026-09-08"
+        input_per_mtok: 11.00
+        output_per_mtok: 55.00
+        cache_read_per_mtok: 1.10
+        cache_write_5m_per_mtok: 13.75
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-astra.html
+      - channel: aws-bedrock
+        region: us-west-2
+        effective_from: "2026-09-08"
+        input_per_mtok: 11.00
+        output_per_mtok: 55.00
+        cache_read_per_mtok: 1.10
+        cache_write_5m_per_mtok: 13.75
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-astra.html
+
+  - canonical_id: openai/gpt-6.1-sol
+    publisher: openai
+    aliases:
+      # No global inference profile is available.
+      - {provider: bedrock, alias: us.openai.gpt-6.1-sol, channel: aws-bedrock-geo, price_region: global}
+      - {provider: bedrock, alias: openai.gpt-6.1-sol, channel: aws-bedrock, price_region: us-east-1}
+    prices:
+      # The 5m field stores AWS's unsplit cache-write rate.
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-09-29"
+        input_per_mtok: 2.20
+        output_per_mtok: 11.00
+        cache_read_per_mtok: 0.11
+        cache_write_5m_per_mtok: 2.75
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-1-sol.html
+      - channel: aws-bedrock
+        region: us-east-1
+        effective_from: "2026-09-29"
+        input_per_mtok: 2.20
+        output_per_mtok: 11.00
+        cache_read_per_mtok: 0.11
+        cache_write_5m_per_mtok: 2.75
+        rules:
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-openai-gpt-6-1-sol.html
 
   - canonical_id: openai/gpt-5.6-sol
     publisher: openai
@@ -2450,6 +2591,7 @@ models:
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
       - {provider: bedrock, alias: us.xai.grok-4.6, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: global.xai.grok-4.6, channel: aws-bedrock}
       - {provider: litellm, alias: grok-4.6, channel: xai-api}
       - {provider: litellm, alias: grok-4.6-latest, channel: xai-api, effective_from: "2026-08-12", source_url: https://docs.x.ai/developers/release-notes}
       - {provider: x-ai, alias: xai/grok-4.6, channel: xai-api}
@@ -2465,10 +2607,17 @@ models:
 
       - channel: aws-bedrock-geo
         region: global
-        effective_from: "2026-08-01"
+        effective_from: "2026-08-18"
         input_per_mtok: 2.2
         output_per_mtok: 6.6
         cache_read_per_mtok: 0.55
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-xai-grok-4-6.html
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2026-08-18"
+        input_per_mtok: 2.0
+        output_per_mtok: 6.0
+        cache_read_per_mtok: 0.5
         source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-xai-grok-4-6.html
       - channel: xai-api
         region: global
@@ -2491,6 +2640,8 @@ models:
       - {<<: *grok-47-direct, provider: litellm, alias: grok-4.7-latest}
       - {<<: *grok-47-direct, provider: unknown}
       - {<<: *grok-47-direct, provider: unknown, alias: grok-4.7-latest}
+      - {provider: bedrock, alias: us.xai.grok-4.7, channel: aws-bedrock-geo}
+      - {provider: bedrock, alias: global.xai.grok-4.7, channel: aws-bedrock}
     prices:
       - channel: xai-api
         region: global
@@ -2510,6 +2661,20 @@ models:
         rules:
           long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
         source_url: https://docs.x.ai/developers/advanced-api-usage/regions
+      - channel: aws-bedrock-geo
+        region: global
+        effective_from: "2026-09-28"
+        input_per_mtok: 2.2
+        output_per_mtok: 6.6
+        cache_read_per_mtok: 0.55
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-xai-grok-4-7.html
+      - channel: aws-bedrock
+        region: global
+        effective_from: "2026-09-28"
+        input_per_mtok: 2.0
+        output_per_mtok: 6.0
+        cache_read_per_mtok: 0.5
+        source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-xai-grok-4-7.html
   - canonical_id: google/gemini-3-flash-preview
     publisher: google
     aliases:

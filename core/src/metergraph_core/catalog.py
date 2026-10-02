@@ -81,6 +81,7 @@ _BEDROCK_CHANNEL = "aws-bedrock"
 _BEDROCK_CHANNELS = frozenset({_BEDROCK_CHANNEL, "aws-bedrock-geo"})
 _BEDROCK_VERSION_SUFFIX = re.compile(r"-v\d+(?::\d+)?$")
 _BEDROCK_GLOBAL_PREFIX = "global."
+_GLOBAL_REGION = "global"
 
 
 def _bedrock_fallback_ids(model_key: str) -> tuple[tuple[str, bool], ...]:
@@ -166,6 +167,13 @@ class Alias:
     effective_from: datetime | None = None
     effective_to: datetime | None = None
     source_url: str | None = None
+    # Limits an identifier to matching regions; global matches every snapshot.
+    price_region: tuple[str, ...] = ()
+
+
+def _crosses_price_region(alias: Alias) -> bool:
+    """Whether global-prefix fallback would cross a price-region boundary."""
+    return bool(alias.price_region) and alias.price_region != (_GLOBAL_REGION,)
 
 
 def _effective_windows_overlap(left: Alias, right: Alias) -> bool:
@@ -477,20 +485,36 @@ class CatalogSnapshot:
         for candidates in self._prices.values():
             candidates.sort(key=lambda price: price.effective_from, reverse=True)
 
-    @staticmethod
-    def _alias_for(candidates: tuple[Alias, ...], at: datetime) -> Alias | None:
+    def _alias_for(self, candidates: tuple[Alias, ...], at: datetime) -> Alias | None:
         when = _coerce_datetime(at)
-        for alias in candidates:
-            if (alias.effective_from is None or alias.effective_from <= when) and (
-                alias.effective_to is None or when < alias.effective_to
-            ):
+        effective = [
+            alias
+            for alias in candidates
+            if (alias.effective_from is None or alias.effective_from <= when)
+            and (alias.effective_to is None or when < alias.effective_to)
+        ]
+        # Regional pins constrain availability; global pins match everywhere.
+        for region in dict.fromkeys((self._region, _GLOBAL_REGION)):
+            for alias in effective:
+                if region in alias.price_region:
+                    return alias
+        for alias in effective:
+            if not alias.price_region:
                 return alias
         return None
+
+    def _price_regions(self, alias: Alias) -> tuple[str, ...]:
+        if not alias.price_region:
+            return tuple(dict.fromkeys((self._region, "*", _GLOBAL_REGION)))
+        for region in (self._region, _GLOBAL_REGION):
+            if region in alias.price_region:
+                return (region,)
+        return ()
 
     def _price_for(self, alias: Alias, at: datetime) -> Price | None:
         at = at if at.tzinfo else at.replace(tzinfo=timezone.utc)
         candidates = self._prices.get((alias.model_id, alias.pricing_channel), [])
-        for region in dict.fromkeys((self._region, "*", "global")):
+        for region in self._price_regions(alias):
             for price in candidates:
                 if price.region.lower() != region:
                     continue
@@ -551,6 +575,8 @@ class CatalogSnapshot:
                     continue
                 candidates = self._deployment_aliases.get((candidate, channel_key), ())
                 alias = self._alias_for(candidates, when)
+                if alias is not None and dropped_global and _crosses_price_region(alias):
+                    alias = None
                 if alias is not None:
                     break
         if alias is None:
@@ -592,7 +618,10 @@ class CatalogSnapshot:
                 found = self._alias_for(fallback, when)
                 if found is None or found.pricing_channel not in _BEDROCK_CHANNELS:
                     continue
-                if dropped_global and found.pricing_channel != _BEDROCK_CHANNEL:
+                if dropped_global and (
+                    found.pricing_channel != _BEDROCK_CHANNEL
+                    or _crosses_price_region(found)
+                ):
                     continue
                 alias = found
                 break

@@ -54,12 +54,25 @@ An alias without either effective field remains valid for all timestamps, which
 preserves existing fixed aliases. A dated alias requires its own provider
 `source_url`.
 
+An alias may set `price_region` to limit where the id is valid. A regional pin
+(`price_region: us-east-1`, or a list such as `[us-east-1, us-west-2]`) resolves
+only when `MG_REGION` is a listed region, and then uses that region's price row.
+In any other deployment the alias does not resolve and the call is `unpriced`
+with `no_effective_alias`; a regional pin never imports its region's price into
+another deployment. `price_region: global` is valid in every deployment and
+always uses the `global` row, because the id itself names the global profile. A
+pinned alias never falls back to `*` or to another region; a missing row is
+`unpriced` with `no_effective_price`. On Bedrock, a `global.`-prefixed id that
+has no alias of its own does not fall back onto a bare id pinned to a non-global
+region.
+
 ## Cost status
 
 Every stored call gets a `cost_status`:
 - `priced` — fully priced from the catalog
 - `partial` — priced, but something was missing (e.g. cache rate unavailable); the stored cost is a lower bound
-- `unpriced` — unknown model, no effective alias, or no effective price window;
+- `unpriced` — unknown model, no alias effective at the call time or valid in
+  the loaded region, or no effective price window;
   the dashboard surfaces these so you know to update the catalog
 
 ## Updating
