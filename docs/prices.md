@@ -43,7 +43,11 @@ models:
 - `varies_by_provider: true` — a gateway's top-level rate is indicative; the provider it routes to may bill a different rate (Vercel AI Gateway). Informational: it does not change the computed cost.
 - `uncaptured_fees: true` — provider charges fees tokens can't express; rows are marked `partial`.
 
-`currency` is required and currently limited to `USD`.
+`currency` is required and currently limited to `USD`. A price row may set its
+own `currency` (a three-letter ISO 4217 code, uppercased on load) when a
+provider publishes that price in another currency; a row without one inherits
+the document's. A non-USD row prices into `CostResult.cost`/`currency` and
+leaves `cost_usd` unset, and the bundled catalog carries no such rows.
 `pricing_verified_at` is the ISO date when the catalog was last checked against
 the linked provider sources. A price's own effective window still controls
 historical selection.

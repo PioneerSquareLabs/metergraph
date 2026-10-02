@@ -6,6 +6,8 @@ from typing import Any, Mapping
 
 from .catalog import CostResult
 
+_USD = "USD"
+
 @dataclass(frozen=True, slots=True)
 class _QualifiedSource:
     """A gateway whose reported amount this module will bill from.
@@ -70,7 +72,12 @@ class GatewayBillingEvidence:
 
 @dataclass(frozen=True, slots=True)
 class BillingDecision:
-    """Effective cost plus the independent evidence used to select it."""
+    """Effective cost plus the independent evidence used to select it.
+
+    The ``*_usd`` fields hold dollar amounts only. ``cost``/``cost_currency``
+    and ``catalog_cost``/``catalog_cost_currency`` carry the same amounts in
+    their native currency, which is where a non-USD catalog price appears.
+    """
 
     cost_usd: Decimal | None
     cost_status: str
@@ -81,6 +88,10 @@ class BillingDecision:
     catalog_price_id: str | None
     catalog_reasons: tuple[str, ...]
     cost_discrepancy_status: str | None = None
+    cost: Decimal | None = None
+    cost_currency: str | None = None
+    catalog_cost: Decimal | None = None
+    catalog_cost_currency: str | None = None
 
 
 def _text(value: Any, *, limit: int = 128) -> str | None:
@@ -153,16 +164,21 @@ def resolve_billing(
         else None
     )
 
+    # Gateway evidence is USD by definition; a catalog amount keeps its own
+    # currency. The two are never compared.
     if reported_cost is not None:
         cost_usd = reported_cost
+        cost, currency = reported_cost, _USD
         cost_status = "priced"
         provenance = "gateway_reported"
-    elif catalog_result.cost_usd is not None:
+    elif catalog_result.cost is not None:
         cost_usd = catalog_result.cost_usd
+        cost, currency = catalog_result.cost, catalog_result.currency
         cost_status = catalog_result.status
         provenance = "catalog"
     else:
         cost_usd = None
+        cost, currency = None, None
         cost_status = catalog_result.status
         provenance = "none"
 
@@ -175,4 +191,8 @@ def resolve_billing(
         catalog_cost_usd=catalog_result.cost_usd,
         catalog_price_id=catalog_result.price_id,
         catalog_reasons=catalog_result.reasons,
+        cost=cost,
+        cost_currency=currency,
+        catalog_cost=catalog_result.cost,
+        catalog_cost_currency=catalog_result.currency,
     )
