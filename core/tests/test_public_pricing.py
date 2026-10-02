@@ -660,6 +660,114 @@ def test_installed_catalog_prices_grok_under_both_namespaces(alias, canonical):
     assert resolved.canonical_model == canonical
 
 
+def test_installed_catalog_prices_grok_4_7_at_both_context_tiers():
+    catalog = load_catalog()
+    released = datetime(2026, 9, 21, tzinfo=timezone.utc)
+
+    before = catalog.snapshot.cost(
+        provider="xai",
+        model="grok-4.7",
+        at=released - timedelta(seconds=1),
+        input_tokens=100_000,
+        output_tokens=100_000,
+    )
+    short = catalog.snapshot.cost(
+        provider="xai",
+        model="grok-4.7",
+        at=released,
+        input_tokens=100_000,
+        output_tokens=100_000,
+    )
+    long = catalog.snapshot.cost(
+        provider="xai",
+        model="grok-4.7",
+        at=released,
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert before.status == "unpriced"
+    assert short.status == "priced"
+    assert short.canonical_model == "xai/grok-4.7"
+    assert short.cost_usd == Decimal("0.80000000")
+    assert long.status == "priced"
+    assert long.cost_usd == Decimal("16.00000000")
+
+
+def test_installed_catalog_prices_grok_4_7_cached_input():
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="xai",
+        model="grok-4.7-latest",
+        at=datetime(2026, 10, 2, tzinfo=timezone.utc),
+        input_tokens=100_000,
+        output_tokens=0,
+        cache_read_tokens=100_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == "xai/grok-4.7"
+    assert result.cost_usd == Decimal("0.05000000")
+
+
+def test_installed_catalog_prices_grok_4_7_on_the_us_regional_endpoint():
+    catalog = load_catalog(region="us")
+
+    result = catalog.snapshot.cost(
+        provider="xai",
+        model="grok-4.7",
+        at=datetime(2026, 10, 2, tzinfo=timezone.utc),
+        input_tokens=100_000,
+        output_tokens=100_000,
+    )
+    cached = catalog.snapshot.cost(
+        provider="xai",
+        model="grok-4.7",
+        at=datetime(2026, 10, 2, tzinfo=timezone.utc),
+        input_tokens=100_000,
+        output_tokens=0,
+        cache_read_tokens=100_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.88000000")
+    assert cached.status == "priced"
+    assert cached.cost_usd == Decimal("0.05500000")
+
+
+@pytest.mark.parametrize(
+    "model,released_at",
+    [
+        ("grok-4.5", "2026-07-08T00:00:00+00:00"),
+        ("grok-4.6", "2026-08-12T00:00:00+00:00"),
+    ],
+)
+def test_installed_catalog_starts_recent_grok_prices_on_release_day(
+    model, released_at,
+):
+    catalog = load_catalog()
+    release = datetime.fromisoformat(released_at)
+
+    before = catalog.snapshot.cost(
+        provider="xai",
+        model=model,
+        at=release - timedelta(seconds=1),
+        input_tokens=100_000,
+        output_tokens=100_000,
+    )
+    released = catalog.snapshot.cost(
+        provider="xai",
+        model=model,
+        at=release,
+        input_tokens=100_000,
+        output_tokens=100_000,
+    )
+
+    assert before.status == "unpriced"
+    assert released.status == "priced"
+
+
 def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api():
     catalog = load_catalog()
 
