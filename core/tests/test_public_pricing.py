@@ -783,7 +783,7 @@ def test_installed_catalog_prices_gemini_35_flash_lite_on_the_direct_api(model):
     assert resolved.status == "priced"
     assert resolved.canonical_model == "google/gemini-3.5-flash-lite"
     assert resolved.price_id == (
-        "google/gemini-3.5-flash-lite:google-api:global:2026-05-19"
+        "google/gemini-3.5-flash-lite:google-api:global:2026-07-21"
     )
     assert resolved.cost_usd == Decimal("2.80000000")
 
@@ -864,10 +864,10 @@ _AT_CATALOG_REFRESH = datetime(2026, 9, 11, tzinfo=timezone.utc)
         ("unknown", "models/gemini-flash-latest", "google/gemini-3.8-flash", "4.50000000"),
         ("litellm", "google/gemini-flash-latest", "google/gemini-3.8-flash", "4.50000000"),
         ("google", "google/models/gemini-flash-latest", "google/gemini-3.8-flash", "4.50000000"),
-        ("google", "gemini-flash-lite-latest", "google/gemini-2.5-flash-lite", "0.50000000"),
-        ("unknown", "models/gemini-flash-lite-latest", "google/gemini-2.5-flash-lite", "0.50000000"),
-        ("litellm", "google/gemini-flash-lite-latest", "google/gemini-2.5-flash-lite", "0.50000000"),
-        ("google", "google/models/gemini-flash-lite-latest", "google/gemini-2.5-flash-lite", "0.50000000"),
+        ("google", "gemini-flash-lite-latest", "google/gemini-3.5-flash-lite", "2.80000000"),
+        ("unknown", "models/gemini-flash-lite-latest", "google/gemini-3.5-flash-lite", "2.80000000"),
+        ("litellm", "google/gemini-flash-lite-latest", "google/gemini-3.5-flash-lite", "2.80000000"),
+        ("google", "google/models/gemini-flash-lite-latest", "google/gemini-3.5-flash-lite", "2.80000000"),
     ],
 )
 def test_installed_catalog_prices_google_latest_aliases(provider, model, canonical, cost):
@@ -1106,6 +1106,60 @@ def test_installed_catalog_keeps_deepseeks_pre_september_rates_for_older_calls()
 
     assert result.status == "priced"
     assert result.cost_usd == Decimal("1.30500000")
+
+
+@pytest.mark.parametrize(
+    "moment,canonical,status",
+    [
+        ("2026-01-20T23:59:00+00:00", None, "unpriced"),
+        ("2026-01-21T00:00:00+00:00", "google/gemini-3-flash-preview", "priced"),
+        ("2026-05-19T00:00:00+00:00", "google/gemini-3.5-flash", "priced"),
+        ("2026-07-21T00:00:00+00:00", "google/gemini-3.6-flash", "priced"),
+        ("2026-08-13T00:00:00+00:00", "google/gemini-3.7-flash", "priced"),
+        ("2026-09-02T00:00:00+00:00", "google/gemini-3.8-flash", "priced"),
+    ],
+)
+def test_installed_catalog_resolves_geminis_moving_flash_alias(
+    moment, canonical, status,
+):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="google",
+        model="gemini-flash-latest",
+        at=datetime.fromisoformat(moment),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == status
+    assert result.canonical_model == canonical
+
+
+@pytest.mark.parametrize(
+    "moment,canonical,status",
+    [
+        ("2026-03-02T23:59:00+00:00", None, "unpriced"),
+        ("2026-03-03T00:00:00+00:00", "google/gemini-3.1-flash-lite", "unpriced"),
+        ("2026-05-07T00:00:00+00:00", "google/gemini-3.1-flash-lite", "priced"),
+        ("2026-07-21T00:00:00+00:00", "google/gemini-3.5-flash-lite", "priced"),
+    ],
+)
+def test_installed_catalog_resolves_geminis_moving_flash_lite_alias(
+    moment, canonical, status,
+):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="google",
+        model="gemini-flash-lite-latest",
+        at=datetime.fromisoformat(moment),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == status
+    assert result.canonical_model == canonical
 
 
 @pytest.mark.parametrize("alias", ["deepseek-chat", "deepseek-reasoner"])
