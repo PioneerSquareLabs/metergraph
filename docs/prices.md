@@ -66,11 +66,16 @@ Every stored call gets a `cost_status`:
 
 1. Never edit a historical price or moving alias entry. Close its window with
    `effective_to` and add a new entry.
-2. Include a `source_url` for every price.
-3. Open a PR; CI validates structure, dates, and window overlaps.
-4. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
-5. Self-hosters: mount an updated file with `MG_PRICES_PATH=/path/to/prices.yaml` — no rebuild needed.
-6. If a change adds, removes, or renames a route used by
+2. Treat verified successful calls as stronger availability evidence than a
+   provider's declared retirement date. When calls are observed after that
+   date, keep the alias and its last verified price effective until evidence
+   establishes that availability ended or the rate changed. Do not create an
+   unpriced interval from a lifecycle announcement alone.
+3. Include a `source_url` for every price.
+4. Open a PR; CI validates structure, dates, and window overlaps.
+5. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
+6. Self-hosters: mount an updated file with `MG_PRICES_PATH=/path/to/prices.yaml` — no rebuild needed.
+7. If a change adds, removes, or renames a route used by
    `core/src/metergraph_core/data/models.yaml`, update that registry in the same
    release and run its cross-catalog validation. A price entry alone never adds
    a model to a managed candidate field.
