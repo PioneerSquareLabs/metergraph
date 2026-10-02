@@ -886,6 +886,41 @@ def test_installed_catalog_prices_google_latest_aliases(provider, model, canonic
     assert result.cost_usd == Decimal(cost)
 
 
+@pytest.mark.parametrize("model", ["gemini-3.6-flash", "gemini-3.7-flash"])
+@pytest.mark.parametrize(
+    "batch,before_cost,after_cost",
+    [
+        (False, "4.50000000", "9.00000000"),
+        (True, "2.25000000", "4.50000000"),
+    ],
+)
+def test_installed_catalog_ends_gemini_flash_introductory_rates_on_2027(
+    model, batch, before_cost, after_cost,
+):
+    catalog = load_catalog()
+
+    before = catalog.snapshot.cost(
+        provider="google",
+        model=model,
+        at=datetime(2026, 12, 31, 23, 59, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        batch=batch,
+    )
+    after = catalog.snapshot.cost(
+        provider="google",
+        model=model,
+        at=datetime(2027, 1, 1, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+        batch=batch,
+    )
+
+    assert before.status == after.status == "priced"
+    assert before.cost_usd == Decimal(before_cost)
+    assert after.cost_usd == Decimal(after_cost)
+
+
 @pytest.mark.parametrize(
     "provider,model,canonical,cost",
     [
