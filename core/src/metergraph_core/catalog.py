@@ -163,6 +163,21 @@ class Alias:
     pricing_channel: str
     rules: Mapping[str, Any]
     publisher: str | None = None
+    effective_from: datetime | None = None
+    effective_to: datetime | None = None
+    source_url: str | None = None
+
+
+def _effective_windows_overlap(left: Alias, right: Alias) -> bool:
+    return (
+        left.effective_to is None
+        or right.effective_from is None
+        or right.effective_from < left.effective_to
+    ) and (
+        right.effective_to is None
+        or left.effective_from is None
+        or left.effective_from < right.effective_to
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -421,34 +436,56 @@ def _price_tokens(
 class CatalogSnapshot:
     def __init__(
         self,
-        aliases: Mapping[tuple[str, str], Alias],
+        aliases: Mapping[tuple[str, str], Alias | tuple[Alias, ...] | list[Alias]],
         prices: list[Price],
         *,
         region: str,
     ) -> None:
-        self._aliases = dict(aliases)
+        self._aliases = {
+            key: (value,) if isinstance(value, Alias) else tuple(value)
+            for key, value in aliases.items()
+        }
         self._prices: dict[tuple[str, str], list[Price]] = {}
-        self._deployment_aliases: dict[tuple[str, str], Alias] = {}
+        deployment_aliases: dict[tuple[str, str], list[Alias]] = {}
         self._region = region.strip().lower()
-        for (_, observed_model), alias in aliases.items():
-            channel = alias.pricing_channel.strip().lower()
-            for model in (observed_model, alias.canonical_id):
-                key = (model.strip().lower(), channel)
-                existing = self._deployment_aliases.get(key)
-                if existing is not None and (
-                    existing.canonical_id != alias.canonical_id
-                    or dict(existing.rules) != dict(alias.rules)
-                ):
-                    raise ValueError(
-                        f"ambiguous deployment alias {model!r} for channel {channel!r}"
-                    )
-                self._deployment_aliases[key] = alias
+        for (_, observed_model), candidates in self._aliases.items():
+            for alias in candidates:
+                channel = alias.pricing_channel.strip().lower()
+                for model in (observed_model, alias.canonical_id):
+                    key = (model.strip().lower(), channel)
+                    deployment_aliases.setdefault(key, []).append(alias)
+        self._deployment_aliases = {
+            key: tuple(candidates) for key, candidates in deployment_aliases.items()
+        }
+        for (model, channel), candidates in self._deployment_aliases.items():
+            for index, alias in enumerate(candidates):
+                for other in candidates[index + 1:]:
+                    if not _effective_windows_overlap(alias, other):
+                        continue
+                    if (
+                        alias.canonical_id != other.canonical_id
+                        or dict(alias.rules) != dict(other.rules)
+                    ):
+                        raise ValueError(
+                            f"ambiguous deployment alias {model!r} "
+                            f"for channel {channel!r}"
+                        )
         for price in prices:
             self._prices.setdefault((price.model_id, price.pricing_channel), []).append(
                 price
             )
         for candidates in self._prices.values():
             candidates.sort(key=lambda price: price.effective_from, reverse=True)
+
+    @staticmethod
+    def _alias_for(candidates: tuple[Alias, ...], at: datetime) -> Alias | None:
+        when = _coerce_datetime(at)
+        for alias in candidates:
+            if (alias.effective_from is None or alias.effective_from <= when) and (
+                alias.effective_to is None or when < alias.effective_to
+            ):
+                return alias
+        return None
 
     def _price_for(self, alias: Alias, at: datetime) -> Price | None:
         at = at if at.tzinfo else at.replace(tzinfo=timezone.utc)
@@ -476,19 +513,21 @@ class CatalogSnapshot:
         model_key = model.strip().lower()
         canonical_ids = {
             alias.canonical_id
-            for (known_model, _channel), alias in self._deployment_aliases.items()
+            for (known_model, _channel), candidates in self._deployment_aliases.items()
             if known_model == model_key
+            for alias in candidates
         }
         if len(canonical_ids) != 1:
             return None
         channels: set[str] = set()
         for canonical_id in canonical_ids:
-            for alias in self._deployment_aliases.values():
-                if alias.canonical_id != canonical_id:
-                    continue
-                channel = direct_channel_for_provider(alias.publisher)
-                if channel is not None and (canonical_id, channel) in self._prices:
-                    channels.add(channel)
+            for candidates in self._deployment_aliases.values():
+                for alias in candidates:
+                    if alias.canonical_id != canonical_id:
+                        continue
+                    channel = direct_channel_for_provider(alias.publisher)
+                    if channel is not None and (canonical_id, channel) in self._prices:
+                        channels.add(channel)
         return next(iter(channels)) if len(channels) == 1 else None
 
     def resolve_price(
@@ -503,17 +542,20 @@ class CatalogSnapshot:
 
         model_key = str(model or "").strip().lower()
         channel_key = str(channel or "").strip().lower()
-        alias = self._deployment_aliases.get((model_key, channel_key))
+        when = _coerce_datetime(at)
+        candidates = self._deployment_aliases.get((model_key, channel_key), ())
+        alias = self._alias_for(candidates, when)
         if alias is None and channel_key in _BEDROCK_CHANNELS:
             for candidate, dropped_global in _bedrock_fallback_ids(model_key):
                 if dropped_global and channel_key != _BEDROCK_CHANNEL:
                     continue
-                alias = self._deployment_aliases.get((candidate, channel_key))
+                candidates = self._deployment_aliases.get((candidate, channel_key), ())
+                alias = self._alias_for(candidates, when)
                 if alias is not None:
                     break
         if alias is None:
             return None
-        price = self._price_for(alias, at)
+        price = self._price_for(alias, when)
         if price is None:
             return None
         return ResolvedPrice(
@@ -539,10 +581,15 @@ class CatalogSnapshot:
         provider_key = str(provider or "").strip().lower()
         provider_key = _PROVIDER_ALIASES.get(provider_key, provider_key)
         model_key = str(model or "").strip().lower()
-        alias = self._aliases.get((provider_key, model_key))
+        when = _coerce_datetime(at)
+        candidates = self._aliases.get((provider_key, model_key), ())
+        alias_known = bool(candidates)
+        alias = self._alias_for(candidates, when)
         if alias is None and provider_key == "bedrock":
             for candidate, dropped_global in _bedrock_fallback_ids(model_key):
-                found = self._aliases.get((provider_key, candidate))
+                fallback = self._aliases.get((provider_key, candidate), ())
+                alias_known = alias_known or bool(fallback)
+                found = self._alias_for(fallback, when)
                 if found is None or found.pricing_channel not in _BEDROCK_CHANNELS:
                     continue
                 if dropped_global and found.pricing_channel != _BEDROCK_CHANNEL:
@@ -550,8 +597,12 @@ class CatalogSnapshot:
                 alias = found
                 break
         if alias is None:
+            if alias_known:
+                return CostResult(
+                    None, None, None, "unpriced", ("no_effective_alias",)
+                )
             return CostResult(None, None, None, "unpriced", ("unknown_model",))
-        price = self._price_for(alias, at)
+        price = self._price_for(alias, when)
         if price is None:
             return CostResult(
                 alias.canonical_id,
@@ -564,7 +615,7 @@ class CatalogSnapshot:
         cost, reasons = _price_tokens(
             price,
             {**price.rules, **alias.rules},
-            at=_coerce_datetime(at),
+            at=when,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             cache_read_tokens=cache_read_tokens,

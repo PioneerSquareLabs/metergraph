@@ -15,6 +15,7 @@ from .catalog import (
     CostResult,
     Price,
     _decimal,
+    _effective_windows_overlap,
     normalize_provider,
 )
 from .retrieval import RetrievalCatalog, RetrievalCostResult, RetrievalPrice
@@ -167,14 +168,14 @@ def _catalog_metadata(document: dict[str, Any]) -> tuple[str, date]:
 
 def parse_catalog(
     document: Any,
-) -> tuple[str, dict[tuple[str, str], Alias], list[Price]]:
+) -> tuple[str, dict[tuple[str, str], tuple[Alias, ...]], list[Price]]:
     if not isinstance(document, dict) or not isinstance(document.get("models"), list):
         raise CatalogError("prices document must have a models list")
     version = str(document.get("version") or "")
     if not version:
         raise CatalogError("prices document must have a version")
     _catalog_metadata(document)
-    aliases: dict[tuple[str, str], Alias] = {}
+    aliases: dict[tuple[str, str], list[Alias]] = {}
     prices: list[Price] = []
     for entry in document["models"]:
         canonical = str(entry.get("canonical_id") or "")
@@ -187,19 +188,58 @@ def parse_catalog(
             channel = str(alias.get("channel") or "")
             if not provider or not name or not channel:
                 raise CatalogError(f"{canonical}: alias needs provider/alias/channel")
+            effective_from = (
+                _date(
+                    alias.get("effective_from"),
+                    field="effective_from",
+                    model=f"{canonical} alias {name}",
+                )
+                if alias.get("effective_from") is not None
+                else None
+            )
+            effective_to = (
+                _date(
+                    alias.get("effective_to"),
+                    field="effective_to",
+                    model=f"{canonical} alias {name}",
+                )
+                if alias.get("effective_to") is not None
+                else None
+            )
+            if (
+                effective_from is not None
+                and effective_to is not None
+                and effective_to <= effective_from
+            ):
+                raise CatalogError(
+                    f"{canonical} alias {name}: effective_to before effective_from"
+                )
+            source_url = str(alias.get("source_url") or "").strip() or None
+            if (effective_from is not None or effective_to is not None) and not source_url:
+                raise CatalogError(
+                    f"{canonical} alias {name}: effective alias needs source_url"
+                )
+            parsed_alias = Alias(
+                model_id=canonical,
+                canonical_id=canonical,
+                pricing_channel=channel,
+                rules=_freeze(alias.get("rules") or {}),
+                publisher=publisher,
+                effective_from=effective_from,
+                effective_to=effective_to,
+                source_url=source_url,
+            )
             keys = [(provider, name)]
             for synonym in _PROVIDER_SYNONYMS.get(provider, ()):
                 keys.append((synonym, name))
             for key in keys:
-                if key in aliases:
-                    raise CatalogError(f"{canonical}: duplicate alias {key}")
-                aliases[key] = Alias(
-                    model_id=canonical,
-                    canonical_id=canonical,
-                    pricing_channel=channel,
-                    rules=_freeze(alias.get("rules") or {}),
-                    publisher=publisher,
-                )
+                candidates = aliases.setdefault(key, [])
+                for other in candidates:
+                    if _effective_windows_overlap(parsed_alias, other):
+                        raise CatalogError(
+                            f"{canonical}: overlapping alias windows for {key}"
+                        )
+                candidates.append(parsed_alias)
         seen_windows: list[tuple[str, str, datetime, datetime | None]] = []
         for price in entry.get("prices") or []:
             channel = str(price.get("channel") or "")
@@ -252,7 +292,7 @@ def parse_catalog(
                     publisher=publisher,
                 )
             )
-    return version, aliases, prices
+    return version, {key: tuple(value) for key, value in aliases.items()}, prices
 
 
 def parse_retrieval(document: Any) -> list[RetrievalPrice]:
