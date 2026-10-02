@@ -1108,6 +1108,80 @@ def test_installed_catalog_keeps_deepseeks_pre_september_rates_for_older_calls()
     assert result.cost_usd == Decimal("1.30500000")
 
 
+@pytest.mark.parametrize("alias", ["deepseek-chat", "deepseek-reasoner"])
+@pytest.mark.parametrize(
+    "moment,canonical,cost,status",
+    [
+        ("2025-11-30T23:59:00+00:00", None, None, "unpriced"),
+        ("2025-12-01T00:00:00+00:00", "deepseek/v3.2", None, "unpriced"),
+        ("2026-04-24T00:00:00+00:00", "deepseek/v4-flash", "0.42000000", "priced"),
+        ("2026-09-10T03:59:00+00:00", "deepseek/v4-flash", "0.42000000", "priced"),
+        ("2026-09-10T04:00:00+00:00", "deepseek/deepseek-v4.1-flash", "0.75000000", "priced"),
+    ],
+)
+def test_installed_catalog_resolves_deepseeks_moving_legacy_aliases(
+    alias, moment, canonical, cost, status,
+):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="deepseek",
+        model=alias,
+        at=datetime.fromisoformat(moment),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == status
+    assert result.canonical_model == canonical
+    assert result.cost_usd == (Decimal(cost) if cost is not None else None)
+
+
+@pytest.mark.parametrize(
+    "alias",
+    ["deepseek-v4-flash", "deepseek-v4-flash-vision-exp"],
+)
+def test_installed_catalog_resolves_retired_flash_names_to_v41(alias):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="deepseek",
+        model=alias,
+        at=datetime(2026, 9, 16, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == "deepseek/deepseek-v4.1-flash"
+    assert result.cost_usd == Decimal("0.75")
+
+
+@pytest.mark.parametrize(
+    "provider,model",
+    [
+        ("deepseek", "deepseek/deepseek-chat"),
+        ("litellm", "deepseek-chat"),
+        ("litellm", "deepseek/deepseek-chat"),
+        ("unknown", "deepseek/deepseek-chat"),
+    ],
+)
+def test_installed_catalog_prices_captured_deepseek_chat_spellings(provider, model):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider=provider,
+        model=model,
+        at=datetime(2026, 9, 16, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == "deepseek/deepseek-v4.1-flash"
+    assert result.cost_usd == Decimal("0.75")
+
+
 def test_installed_catalog_prices_deepseeks_current_flash_name_and_its_legacy_one():
     """A retired name the provider still accepts has to keep costing what the
     provider bills for it, even though it resolves to a different model."""
@@ -1126,7 +1200,7 @@ def test_installed_catalog_prices_deepseeks_current_flash_name_and_its_legacy_on
     # Off-peak: half of the published 0.30 input and 1.20 output.
     assert current.cost_usd == legacy.cost_usd == Decimal("0.75")
     assert current.canonical_model == "deepseek/deepseek-v4.1-flash"
-    assert legacy.canonical_model == "deepseek/v4-flash"
+    assert legacy.canonical_model == "deepseek/deepseek-v4.1-flash"
 
 
 @pytest.mark.parametrize(

@@ -40,7 +40,7 @@ def test_parse_retrieval_accepts_a_well_formed_entry():
 
 def test_bundled_catalog_has_identity_and_prices_a_call():
     loaded = load_catalog()
-    assert loaded.version == "2026-09-29"
+    assert loaded.version == "2026-10-01"
     assert len(loaded.content_hash) == 64
     result = loaded.snapshot.cost(
         provider="openai",
@@ -485,4 +485,3 @@ def test_a_vertex_row_leaves_the_direct_channel_unambiguous(model):
     # Search replay derives a workload's provider from its model's one direct
     # channel; the Vertex alias must not make that ambiguous.
     assert load_catalog().infer_direct_channel(model) == "google-api"
-
