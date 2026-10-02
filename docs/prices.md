@@ -70,7 +70,8 @@ Every stored call gets a `cost_status`:
    provider's declared retirement date. When calls are observed after that
    date, keep the alias and its last verified price effective until evidence
    establishes that availability ended or the rate changed. Do not create an
-   unpriced interval from a lifecycle announcement alone.
+   unpriced interval from a lifecycle announcement when verified calls
+   contradict it.
 3. Include a `source_url` for every price.
 4. Open a PR; CI validates structure, dates, and window overlaps.
 5. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
