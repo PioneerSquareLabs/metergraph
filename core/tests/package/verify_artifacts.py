@@ -34,7 +34,7 @@ CORE_DIR = Path(__file__).resolve().parents[2]  # core/
 DIST_DIR = CORE_DIR / "dist"
 
 EXPECTED_NAME = "metergraph-core"
-EXPECTED_VERSION = "0.2.52"
+EXPECTED_VERSION = "0.2.53"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
@@ -246,6 +246,7 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert deployment is not None
         assert str(deployment.price.input_per_mtok) == "2.9"
         assert str(deployment.price.output_per_mtok) == "14.0"
+        assert deployment.currency == deployment.price.currency == "USD"
         assert deployment.price.source_url == "https://vercel.com/ai-gateway/models/kimi-k3/providers"
         def pinned_cost(region):
             return load_catalog(region=region).snapshot.cost(
@@ -272,6 +273,11 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert result.price_id == {GOLDEN_PRICE_ID!r}, result.price_id
         assert str(result.cost_usd) == {GOLDEN_COST!r}, result.cost_usd
         assert result.status == "priced", result.status
+        # The bundled catalog is USD, so the generic amount mirrors cost_usd.
+        assert result.cost == result.cost_usd, result
+        assert result.currency == "USD", result.currency
+        legacy = CostResult("m", "p", Decimal("0.5"), "priced")
+        assert legacy.cost == Decimal("0.5") and legacy.currency == "USD", legacy
         retrieval = loaded.price_retrieval(
             channel="google-api",
             operation="google_search_grounding",
@@ -301,6 +307,9 @@ def _verify_isolated_install(wheel: Path) -> None:
         )
         assert decision.cost_usd == Decimal("0.00482"), decision
         assert decision.cost_provenance == "gateway_reported", decision
+        assert decision.cost == Decimal("0.00482"), decision
+        assert decision.cost_currency == "USD", decision
+        assert decision.catalog_cost is None, decision
         print("GOLDEN", result.cost_usd)
         """
     )

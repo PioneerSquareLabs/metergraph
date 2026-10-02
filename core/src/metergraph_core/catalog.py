@@ -9,6 +9,7 @@ from typing import Any, Mapping
 
 _MILLION = Decimal("1000000")
 _COST_QUANTUM = Decimal("0.00000001")
+_USD = "USD"
 _PROVIDER_ALIASES = {
     "amazon-bedrock": "bedrock",
     "aws": "bedrock",
@@ -209,15 +210,46 @@ class Price:
     # imply one: google-vertex-ai serves Anthropic's models beside Google's,
     # and the two report cache reads differently.
     publisher: str | None = None
+    # The currency the provider publishes this row in (ISO 4217 code).
+    currency: str = _USD
 
 
 @dataclass(frozen=True, slots=True)
 class CostResult:
+    """A computed token cost.
+
+    ``cost`` is the amount in ``currency``. ``cost_usd`` carries the same amount
+    only when that currency is USD, so a native-currency figure never appears
+    in a field named for dollars.
+    """
+
     canonical_model: str | None
     price_id: str | None
     cost_usd: Decimal | None
     status: str
     reasons: tuple[str, ...] = ()
+    cost: Decimal | None = None
+    currency: str | None = None
+
+    def __post_init__(self) -> None:
+        # Legacy USD construction supplies only cost_usd; mirror it.
+        if self.cost is None and self.currency is None and self.cost_usd is not None:
+            object.__setattr__(self, "cost", self.cost_usd)
+            object.__setattr__(self, "currency", _USD)
+
+
+def _cost_result(
+    canonical_model: str, price: Price, cost: Decimal, reasons: list[str]
+) -> CostResult:
+    return CostResult(
+        canonical_model,
+        price.id,
+        cost if price.currency == _USD else None,
+        "partial" if reasons else "priced",
+        tuple(dict.fromkeys(reasons)),
+        cost=cost,
+        currency=price.currency,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -227,6 +259,11 @@ class ResolvedPrice:
     canonical_model: str
     price: Price
     rules: Mapping[str, Any]
+
+    @property
+    def currency(self) -> str:
+        """The selected price's currency; derived so it cannot diverge."""
+        return self.price.currency
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -653,13 +690,7 @@ class CatalogSnapshot:
             cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
         )
-        return CostResult(
-            alias.canonical_id,
-            price.id,
-            cost,
-            "partial" if reasons else "priced",
-            tuple(dict.fromkeys(reasons)),
-        )
+        return _cost_result(alias.canonical_id, price, cost, reasons)
 
     def price_deployment(
         self,
@@ -701,10 +732,4 @@ class CatalogSnapshot:
             cache_write_1h_tokens=cache_write_1h_tokens,
             batch=batch,
         )
-        return CostResult(
-            resolved.canonical_model,
-            resolved.price.id,
-            cost,
-            "partial" if reasons else "priced",
-            tuple(dict.fromkeys(reasons)),
-        )
+        return _cost_result(resolved.canonical_model, resolved.price, cost, reasons)

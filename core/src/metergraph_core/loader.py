@@ -1,6 +1,7 @@
 """Parse and load the bundled prices.yaml into a CatalogSnapshot."""
 
 import hashlib
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -165,6 +166,19 @@ def _price_region(value: Any, *, model: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(region.strip().lower() for region in regions))
 
 
+_CURRENCY_CODE = re.compile(r"[A-Za-z]{3}")
+
+
+def _row_currency(value: Any, *, inherited: str, model: str) -> str:
+    """A price row's currency: the document's unless the row states its own,
+    which must be a three-letter code and is folded to uppercase."""
+    if value is None:
+        return inherited
+    if not isinstance(value, str) or not _CURRENCY_CODE.fullmatch(value.strip()):
+        raise CatalogError(f"{model}: invalid currency {value!r}")
+    return value.strip().upper()
+
+
 def _catalog_metadata(document: dict[str, Any]) -> tuple[str, date]:
     currency = str(document.get("currency") or "").strip().upper()
     if currency != "USD":
@@ -188,7 +202,7 @@ def parse_catalog(
     version = str(document.get("version") or "")
     if not version:
         raise CatalogError("prices document must have a version")
-    _catalog_metadata(document)
+    currency, _ = _catalog_metadata(document)
     aliases: dict[tuple[str, str], list[Alias]] = {}
     prices: list[Price] = []
     for entry in document["models"]:
@@ -307,6 +321,9 @@ def parse_catalog(
                     effective_to=effective_to,
                     source_url=str(price["source_url"]).strip(),
                     publisher=publisher,
+                    currency=_row_currency(
+                        price.get("currency"), inherited=currency, model=canonical
+                    ),
                 )
             )
     return version, {key: tuple(value) for key, value in aliases.items()}, prices
