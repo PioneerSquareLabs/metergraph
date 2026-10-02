@@ -2438,9 +2438,9 @@ models:
     publisher: xai
     aliases:
       - {provider: unknown, alias: grok-4.6, channel: xai-api}
-      - {provider: unknown, alias: grok-4.6-latest, channel: xai-api}
+      - {provider: unknown, alias: grok-4.6-latest, channel: xai-api, effective_from: "2026-08-12", source_url: https://docs.x.ai/developers/release-notes}
       - {provider: x-ai, alias: grok-4.6, channel: xai-api}
-      - {provider: x-ai, alias: grok-4.6-latest, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.6-latest, channel: xai-api, effective_from: "2026-08-12", source_url: https://docs.x.ai/developers/release-notes}
       - provider: xai
         alias: spacexai/grok-4.6
         channel: vercel-ai-gateway
@@ -2451,9 +2451,9 @@ models:
         rules: {input_includes_cache_read: true}
       - {provider: bedrock, alias: us.xai.grok-4.6, channel: aws-bedrock-geo}
       - {provider: litellm, alias: grok-4.6, channel: xai-api}
-      - {provider: litellm, alias: grok-4.6-latest, channel: xai-api}
+      - {provider: litellm, alias: grok-4.6-latest, channel: xai-api, effective_from: "2026-08-12", source_url: https://docs.x.ai/developers/release-notes}
       - {provider: x-ai, alias: xai/grok-4.6, channel: xai-api}
-      - {provider: x-ai, alias: xai/grok-4.6-latest, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.6-latest, channel: xai-api, effective_from: "2026-08-12", source_url: https://docs.x.ai/developers/release-notes}
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -2472,13 +2472,44 @@ models:
         source_url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-xai-grok-4-6.html
       - channel: xai-api
         region: global
-        effective_from: "2026-08-01"
+        effective_from: "2026-08-12"
         input_per_mtok: 2.0
         output_per_mtok: 6.0
         cache_read_per_mtok: 0.5
         rules:
           long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
-        source_url: https://ai-gateway.vercel.sh/v1/models
+        source_url: https://docs.x.ai/developers/release-notes
+  - canonical_id: xai/grok-4.7
+    publisher: xai
+    aliases:
+      - &grok-47-direct
+        {provider: x-ai, alias: grok-4.7, channel: xai-api, effective_from: "2026-09-21", source_url: https://docs.x.ai/developers/release-notes}
+      - {<<: *grok-47-direct, alias: grok-4.7-latest}
+      - {<<: *grok-47-direct, alias: xai/grok-4.7}
+      - {<<: *grok-47-direct, alias: xai/grok-4.7-latest}
+      - {<<: *grok-47-direct, provider: litellm}
+      - {<<: *grok-47-direct, provider: litellm, alias: grok-4.7-latest}
+      - {<<: *grok-47-direct, provider: unknown}
+      - {<<: *grok-47-direct, provider: unknown, alias: grok-4.7-latest}
+    prices:
+      - channel: xai-api
+        region: global
+        effective_from: "2026-09-21"
+        input_per_mtok: 2.0
+        output_per_mtok: 6.0
+        cache_read_per_mtok: 0.5
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://docs.x.ai/developers/models/grok-4.7
+      - channel: xai-api
+        region: us
+        effective_from: "2026-09-21"
+        input_per_mtok: 2.2
+        output_per_mtok: 6.6
+        cache_read_per_mtok: 0.55
+        rules:
+          long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
+        source_url: https://docs.x.ai/developers/advanced-api-usage/regions
   - canonical_id: google/gemini-3-flash-preview
     publisher: google
     aliases:
@@ -3452,23 +3483,23 @@ models:
     publisher: xai
     aliases:
       - {provider: litellm, alias: grok-4.5, channel: xai-api}
-      - {provider: litellm, alias: grok-4.5-latest, channel: xai-api}
+      - {provider: litellm, alias: grok-4.5-latest, channel: xai-api, effective_from: "2026-07-08", source_url: https://docs.x.ai/developers/release-notes}
       - {provider: x-ai, alias: xai/grok-4.5, channel: xai-api}
-      - {provider: x-ai, alias: xai/grok-4.5-latest, channel: xai-api}
+      - {provider: x-ai, alias: xai/grok-4.5-latest, channel: xai-api, effective_from: "2026-07-08", source_url: https://docs.x.ai/developers/release-notes}
       - {provider: unknown, alias: grok-4.5, channel: xai-api}
-      - {provider: unknown, alias: grok-4.5-latest, channel: xai-api}
+      - {provider: unknown, alias: grok-4.5-latest, channel: xai-api, effective_from: "2026-07-08", source_url: https://docs.x.ai/developers/release-notes}
       - {provider: x-ai, alias: grok-4.5, channel: xai-api}
-      - {provider: x-ai, alias: grok-4.5-latest, channel: xai-api}
+      - {provider: x-ai, alias: grok-4.5-latest, channel: xai-api, effective_from: "2026-07-08", source_url: https://docs.x.ai/developers/release-notes}
     prices:
       - channel: xai-api
         region: global
-        effective_from: "2026-07-01"
+        effective_from: "2026-07-08"
         input_per_mtok: 2.0
         output_per_mtok: 6.0
         cache_read_per_mtok: 0.3
         rules:
           long_context: {threshold: 200000, input_multiplier: 2.0, output_multiplier: 2.0}
-        source_url: https://ai-gateway.vercel.sh/v1/models
+        source_url: https://docs.x.ai/developers/release-notes
   - canonical_id: zai/glm-5.1
     publisher: zai
     aliases:
