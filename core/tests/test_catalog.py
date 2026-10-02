@@ -806,6 +806,151 @@ def test_duplicate_alias_rejected():
         parse_catalog(doc)
 
 
+def _effective_alias_catalog(*aliases):
+    models = []
+    for canonical, alias in aliases:
+        models.append({
+            "canonical_id": canonical,
+            "publisher": "example",
+            "aliases": [{
+                "provider": "example",
+                "alias": "rolling-model",
+                "channel": "example-api",
+                "source_url": "https://example.test/model-history",
+                **alias,
+            }],
+            "prices": [{
+                "channel": "example-api",
+                "region": "global",
+                "effective_from": "2026-01-01",
+                "input_per_mtok": 1,
+                "output_per_mtok": 1,
+                "source_url": "https://example.test/prices",
+            }],
+        })
+    _, parsed_aliases, prices = parse_catalog({
+        "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-09-01",
+        "models": models,
+    })
+    return CatalogSnapshot(parsed_aliases, prices, region="global")
+
+
+def test_effective_dated_alias_resolves_by_call_timestamp():
+    snapshot = _effective_alias_catalog(
+        ("example/model-v1", {
+            "effective_from": "2026-01-01",
+            "effective_to": "2026-06-01T12:00:00+00:00",
+        }),
+        ("example/model-v2", {
+            "effective_from": "2026-06-01T12:00:00+00:00",
+        }),
+    )
+
+    before = snapshot.cost(
+        provider="example", model="rolling-model",
+        at=datetime(2026, 6, 1, 11, 59, tzinfo=timezone.utc),
+        input_tokens=1_000_000, output_tokens=0,
+    )
+    after = snapshot.cost(
+        provider="example", model="rolling-model",
+        at=datetime(2026, 6, 1, 12, tzinfo=timezone.utc),
+        input_tokens=1_000_000, output_tokens=0,
+    )
+
+    assert before.canonical_model == "example/model-v1"
+    assert after.canonical_model == "example/model-v2"
+
+
+def test_effective_dated_alias_gap_is_explicitly_unpriced():
+    snapshot = _effective_alias_catalog(
+        ("example/model-v1", {
+            "effective_from": "2026-01-01",
+            "effective_to": "2026-02-01",
+        }),
+        ("example/model-v2", {
+            "effective_from": "2026-03-01",
+        }),
+    )
+
+    result = snapshot.cost(
+        provider="example", model="rolling-model",
+        at=datetime(2026, 2, 15, tzinfo=timezone.utc),
+        input_tokens=1, output_tokens=1,
+    )
+
+    assert result.status == "unpriced"
+    assert result.reasons == ("no_effective_alias",)
+
+
+def test_overlapping_effective_alias_windows_are_rejected():
+    with pytest.raises(CatalogError, match="overlapping alias windows"):
+        _effective_alias_catalog(
+            ("example/model-v1", {
+                "effective_from": "2026-01-01",
+                "effective_to": "2026-07-01",
+            }),
+            ("example/model-v2", {
+                "effective_from": "2026-06-01",
+            }),
+        )
+
+
+def test_effective_dated_alias_requires_a_provider_source():
+    with pytest.raises(CatalogError, match="effective alias needs source_url"):
+        _effective_alias_catalog(
+            ("example/model-v1", {
+                "effective_from": "2026-01-01",
+                "source_url": "",
+            }),
+        )
+
+
+def test_overlapping_deployment_aliases_remain_rejected():
+    document = {
+        "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-09-01",
+        "models": [
+            {
+                "canonical_id": canonical,
+                "publisher": provider,
+                "aliases": [{
+                    "provider": provider,
+                    "alias": "shared-model",
+                    "channel": "shared-api",
+                    "effective_from": "2026-01-01",
+                    "source_url": "https://example.test/model-history",
+                }],
+                "prices": [],
+            }
+            for provider, canonical in (
+                ("provider-a", "provider-a/model"),
+                ("provider-b", "provider-b/model"),
+            )
+        ],
+    }
+    _, aliases, prices = parse_catalog(document)
+
+    with pytest.raises(ValueError, match="ambiguous deployment alias"):
+        CatalogSnapshot(aliases, prices, region="global")
+
+
+def test_undated_alias_keeps_existing_timeless_behavior():
+    snapshot = _effective_alias_catalog(("example/model-v1", {}))
+
+    result = snapshot.cost(
+        provider="example", model="rolling-model",
+        at=datetime(2000, 1, 1, tzinfo=timezone.utc),
+        input_tokens=1_000_000, output_tokens=0,
+    )
+
+    assert result.status == "unpriced"
+    assert result.canonical_model == "example/model-v1"
+    assert result.reasons == ("no_effective_price",)
+
+
 def test_malformed_catalog_rejected():
     with pytest.raises(CatalogError):
         parse_catalog({"models": []})

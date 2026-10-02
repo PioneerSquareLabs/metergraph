@@ -12,7 +12,12 @@ models:
   - canonical_id: anthropic/claude-sonnet-5
     publisher: anthropic
     aliases:                      # (provider, alias) pairs the SDKs may report
-      - {provider: anthropic, alias: claude-sonnet-5, channel: anthropic-api}
+      - provider: anthropic
+        alias: claude-sonnet-latest
+        channel: anthropic-api
+        effective_from: "2026-06-30" # optional; omit both dates for a timeless alias
+        effective_to: "2026-09-15"   # exclusive; preserve the row when the alias moves
+        source_url: https://example.com/provider/model-history
     prices:
       - channel: anthropic-api
         region: global            # matched against MG_REGION, then '*', then 'global'
@@ -42,16 +47,25 @@ models:
 the linked provider sources. A price's own effective window still controls
 historical selection.
 
+Alias windows are independent from price windows. They answer which canonical
+model a provider's moving name identified at the call timestamp. Reusing the
+same `(provider, alias)` pair is allowed only when its windows do not overlap.
+An alias without either effective field remains valid for all timestamps, which
+preserves existing fixed aliases. A dated alias requires its own provider
+`source_url`.
+
 ## Cost status
 
 Every stored call gets a `cost_status`:
 - `priced` — fully priced from the catalog
 - `partial` — priced, but something was missing (e.g. cache rate unavailable); the stored cost is a lower bound
-- `unpriced` — unknown model or no effective price window; the dashboard surfaces these so you know to update the catalog
+- `unpriced` — unknown model, no effective alias, or no effective price window;
+  the dashboard surfaces these so you know to update the catalog
 
 ## Updating
 
-1. Never edit a historical entry — close its window with `effective_to` and add a new entry.
+1. Never edit a historical price or moving alias entry. Close its window with
+   `effective_to` and add a new entry.
 2. Include a `source_url` for every price.
 3. Open a PR; CI validates structure, dates, and window overlaps.
 4. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
