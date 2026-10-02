@@ -1481,7 +1481,7 @@ models:
     aliases:
       - {provider: bedrock, alias: mistral.mistral-large-3-675b-instruct, channel: aws-bedrock}
       - {provider: litellm, alias: mistral-large-3, channel: mistral-api}
-      - {provider: mistral, alias: mistral-large-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral-large-latest, channel: mistral-api, effective_from: "2025-12-02", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: mistral, alias: mistral/mistral-large-3, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
       - {provider: mistral, alias: mistral-large-3, channel: mistral-api}
       - {provider: unknown, alias: mistral-large-3, channel: mistral-api}
@@ -1498,7 +1498,8 @@ models:
         effective_from: "2025-12-02"
         input_per_mtok: 0.5
         output_per_mtok: 1.5
-        source_url: https://mistral.ai/pricing/api
+        cache_read_per_mtok: 0.05
+        source_url: https://docs.mistral.ai/inference/pricing
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2025-12-02"
@@ -1510,13 +1511,13 @@ models:
     publisher: mistral
     aliases:
       - {provider: mistral, alias: ministral-14b-2512, channel: mistral-api}
-      - {provider: mistral, alias: ministral-14b-latest, channel: mistral-api}
+      - {provider: mistral, alias: ministral-14b-latest, channel: mistral-api, effective_from: "2025-12-02", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: mistral, alias: mistral/ministral-14b-2512, channel: mistral-api}
-      - {provider: mistral, alias: mistral/ministral-14b-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral/ministral-14b-latest, channel: mistral-api, effective_from: "2025-12-02", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: litellm, alias: ministral-14b-2512, channel: mistral-api}
-      - {provider: litellm, alias: ministral-14b-latest, channel: mistral-api}
+      - {provider: litellm, alias: ministral-14b-latest, channel: mistral-api, effective_from: "2025-12-02", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: unknown, alias: ministral-14b-2512, channel: mistral-api}
-      - {provider: unknown, alias: ministral-14b-latest, channel: mistral-api}
+      - {provider: unknown, alias: ministral-14b-latest, channel: mistral-api, effective_from: "2025-12-02", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: bedrock, alias: mistral.ministral-3-14b-instruct, channel: aws-bedrock}
       - provider: mistral
         alias: mistral/ministral-14b
@@ -1528,7 +1529,8 @@ models:
         effective_from: "2025-12-02"
         input_per_mtok: 0.20
         output_per_mtok: 0.20
-        source_url: https://mistral.ai/pricing/api
+        cache_read_per_mtok: 0.02
+        source_url: https://docs.mistral.ai/inference/pricing
       - channel: aws-bedrock
         region: us-west-2
         effective_from: "2025-12-02"
@@ -3193,45 +3195,47 @@ models:
     aliases:
       - {provider: litellm, alias: mistral-medium-2604, channel: mistral-api}
       - {provider: litellm, alias: mistral-medium-3.5, channel: mistral-api}
-      - {provider: litellm, alias: mistral-medium-latest, channel: mistral-api}
+      - {provider: litellm, alias: mistral-medium-latest, channel: mistral-api, effective_from: "2026-04-28", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: mistral, alias: mistral/mistral-medium-2604, channel: mistral-api}
       - {provider: mistral, alias: mistral/mistral-medium-3.5, channel: mistral-api}
-      - {provider: mistral, alias: mistral/mistral-medium-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral/mistral-medium-latest, channel: mistral-api, effective_from: "2026-04-28", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: mistral, alias: mistral-medium-2604, channel: mistral-api}
       - {provider: mistral, alias: mistral-medium-3.5, channel: mistral-api}
-      - {provider: mistral, alias: mistral-medium-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral-medium-latest, channel: mistral-api, effective_from: "2026-04-28", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: unknown, alias: mistral-medium-2604, channel: mistral-api}
       - {provider: unknown, alias: mistral-medium-3.5, channel: mistral-api}
-      - {provider: unknown, alias: mistral-medium-latest, channel: mistral-api}
+      - {provider: unknown, alias: mistral-medium-latest, channel: mistral-api, effective_from: "2026-04-28", source_url: https://docs.mistral.ai/resources/changelogs}
     prices:
       - channel: mistral-api
         region: global
-        effective_from: "2026-04-01"
+        effective_from: "2026-04-28"
         input_per_mtok: 1.5
         output_per_mtok: 7.5
-        source_url: https://mistral.ai/pricing/api
+        cache_read_per_mtok: 0.15
+        source_url: https://docs.mistral.ai/inference/pricing
   - canonical_id: mistral/mistral-small-4
     publisher: mistral
     aliases:
       - {provider: litellm, alias: mistral-small-2603, channel: mistral-api}
       - {provider: litellm, alias: mistral-small-4, channel: mistral-api}
-      - {provider: litellm, alias: mistral-small-latest, channel: mistral-api}
+      - {provider: litellm, alias: mistral-small-latest, channel: mistral-api, effective_from: "2026-03-16", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: mistral, alias: mistral/mistral-small-2603, channel: mistral-api}
       - {provider: mistral, alias: mistral/mistral-small-4, channel: mistral-api}
-      - {provider: mistral, alias: mistral/mistral-small-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral/mistral-small-latest, channel: mistral-api, effective_from: "2026-03-16", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: mistral, alias: mistral-small-2603, channel: mistral-api}
       - {provider: mistral, alias: mistral-small-4, channel: mistral-api}
-      - {provider: mistral, alias: mistral-small-latest, channel: mistral-api}
+      - {provider: mistral, alias: mistral-small-latest, channel: mistral-api, effective_from: "2026-03-16", source_url: https://docs.mistral.ai/resources/changelogs}
       - {provider: unknown, alias: mistral-small-2603, channel: mistral-api}
       - {provider: unknown, alias: mistral-small-4, channel: mistral-api}
-      - {provider: unknown, alias: mistral-small-latest, channel: mistral-api}
+      - {provider: unknown, alias: mistral-small-latest, channel: mistral-api, effective_from: "2026-03-16", source_url: https://docs.mistral.ai/resources/changelogs}
     prices:
       - channel: mistral-api
         region: global
-        effective_from: "2026-03-01"
+        effective_from: "2026-03-16"
         input_per_mtok: 0.15
         output_per_mtok: 0.6
-        source_url: https://mistral.ai/pricing/api
+        cache_read_per_mtok: 0.015
+        source_url: https://docs.mistral.ai/inference/pricing
   - canonical_id: openai/gpt-5
     publisher: openai
     aliases:
