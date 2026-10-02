@@ -67,11 +67,11 @@ Every stored call gets a `cost_status`:
 1. Never edit a historical price or moving alias entry. Close its window with
    `effective_to` and add a new entry.
 2. Treat verified successful calls as stronger availability evidence than a
-   provider's declared retirement date. When calls are observed after that
-   date, keep the alias and its last verified price effective until evidence
-   establishes that availability ended or the rate changed. Do not create an
-   unpriced interval from a lifecycle announcement when verified calls
-   contradict it.
+   provider's declared retirement date, but only for the exact model id and
+   serving channel observed. Extend that alias and price through the last
+   verified call, then set `effective_to` to the earliest boundary after it
+   supported by the observation's timestamp precision. Never leave a window
+   open solely because an earlier call succeeded.
 3. Include a `source_url` for every price.
 4. Open a PR; CI validates structure, dates, and window overlaps.
 5. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
