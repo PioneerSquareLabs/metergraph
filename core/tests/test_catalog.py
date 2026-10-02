@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -1284,3 +1284,465 @@ def test_version_suffix_is_not_stripped_off_bedrock_channels(channel):
     assert SNAPSHOT.resolve_price(
         model="anthropic/claude-opus-5-v1:0", channel=channel, at=_at("2026-09-20")
     ) is None
+
+
+@pytest.mark.parametrize(
+    ("region", "model", "launched", "price_id"),
+    [
+        # Profile types use separate pricing channels.
+        ("global", "us.openai.gpt-6.1-sol", "2026-09-29", "openai/gpt-6.1-sol:aws-bedrock-geo:global:2026-09-29"),
+        ("global", "us.openai.gpt-6-sol", "2026-09-22", "openai/gpt-6-sol:aws-bedrock-geo:global:2026-09-22"),
+        ("global", "global.openai.gpt-6-sol", "2026-09-22", "openai/gpt-6-sol:aws-bedrock:global:2026-09-22"),
+        ("global", "us.openai.gpt-6-luna", "2026-09-22", "openai/gpt-6-luna:aws-bedrock-geo:global:2026-09-22"),
+        ("global", "global.openai.gpt-6-luna", "2026-09-22", "openai/gpt-6-luna:aws-bedrock:global:2026-09-22"),
+        ("global", "us.openai.gpt-6-astra", "2026-09-08", "openai/gpt-6-astra:aws-bedrock-geo:global:2026-09-08"),
+        ("global", "global.openai.gpt-6-astra", "2026-09-08", "openai/gpt-6-astra:aws-bedrock:global:2026-09-08"),
+        ("global", "us.xai.grok-4.7", "2026-09-28", "xai/grok-4.7:aws-bedrock-geo:global:2026-09-28"),
+        ("global", "global.xai.grok-4.7", "2026-09-28", "xai/grok-4.7:aws-bedrock:global:2026-09-28"),
+        ("global", "us.xai.grok-4.6", "2026-08-18", "xai/grok-4.6:aws-bedrock-geo:global:2026-08-18"),
+        ("global", "global.xai.grok-4.6", "2026-08-18", "xai/grok-4.6:aws-bedrock:global:2026-08-18"),
+        # Bare IDs use Mantle's regional price.
+        ("us-east-1", "openai.gpt-6.1-sol", "2026-09-29", "openai/gpt-6.1-sol:aws-bedrock:us-east-1:2026-09-29"),
+        ("us-east-1", "openai.gpt-6-sol", "2026-09-22", "openai/gpt-6-sol:aws-bedrock:us-east-1:2026-09-22"),
+        ("us-east-1", "openai.gpt-6-luna", "2026-09-22", "openai/gpt-6-luna:aws-bedrock:us-east-1:2026-09-22"),
+        ("us-east-1", "openai.gpt-6-astra", "2026-09-08", "openai/gpt-6-astra:aws-bedrock:us-east-1:2026-09-08"),
+        ("us-west-2", "openai.gpt-6-astra", "2026-09-08", "openai/gpt-6-astra:aws-bedrock:us-west-2:2026-09-08"),
+        ("us-east-1", "us.openai.gpt-6.1-sol", "2026-09-29", "openai/gpt-6.1-sol:aws-bedrock-geo:global:2026-09-29"),
+    ],
+)
+def test_bedrock_openai_and_xai_ids_start_on_their_bedrock_launch_day(
+    region, model, launched, price_id
+):
+    snapshot = load_catalog(region=region).snapshot
+    launch = _at(launched)
+    before = snapshot.cost(
+        provider="bedrock", model=model, at=launch - timedelta(seconds=1),
+        input_tokens=1_000, output_tokens=1_000,
+    )
+    released = snapshot.cost(
+        provider="bedrock", model=model, at=launch,
+        input_tokens=1_000, output_tokens=1_000,
+    )
+    assert before.status == "unpriced"
+    assert before.reasons == ("no_effective_price",)
+    assert released.status == "priced"
+    assert released.price_id == price_id
+
+
+_BEDROCK_SNAPSHOT_REGIONS = ["global", "us-east-1", "us-west-2", "eu-west-1"]
+
+
+@pytest.mark.parametrize("region", _BEDROCK_SNAPSHOT_REGIONS)
+@pytest.mark.parametrize(
+    ("model", "input_rate", "output_rate", "cache_read", "cache_write"),
+    [
+        ("openai.gpt-6.1-sol", "2.20", "11.00", "0.11", "2.75"),
+        ("openai.gpt-6-sol", "2.20", "11.00", "0.22", "2.75"),
+        ("openai.gpt-6-luna", "0.11", "0.55", "0.011", "0.1375"),
+    ],
+)
+def test_bedrock_bare_gpt_6_ids_bill_their_mantle_row_only_in_us_east_1(
+    region, model, input_rate, output_rate, cache_read, cache_write
+):
+    """Single-region Mantle IDs are unpriced outside the region serving them."""
+    snapshot = load_catalog(region=region).snapshot
+    at = _at("2026-10-02")
+    assert snapshot.resolve_price(
+        model=model, channel="aws-bedrock-geo", at=at
+    ) is None
+    resolved = snapshot.resolve_price(model=model, channel="aws-bedrock", at=at)
+    if region != "us-east-1":
+        assert resolved is None
+        result = snapshot.cost(
+            provider="bedrock", model=model, at=at,
+            input_tokens=1_000, output_tokens=1_000,
+        )
+        assert result.status == "unpriced"
+        assert result.reasons == ("no_effective_alias",)
+        return
+    assert resolved is not None
+    assert resolved.price.region == "us-east-1"
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
+    assert resolved.price.cache_read_per_mtok == Decimal(cache_read)
+    assert resolved.price.cache_write_5m_per_mtok == Decimal(cache_write)
+
+
+@pytest.mark.parametrize(
+    ("region", "price_id"),
+    [
+        ("us-east-1", "openai/gpt-6-astra:aws-bedrock:us-east-1:2026-09-08"),
+        ("us-west-2", "openai/gpt-6-astra:aws-bedrock:us-west-2:2026-09-08"),
+        # A multi-region bare ID requires a matching catalog region.
+        ("global", None),
+        ("eu-west-1", None),
+    ],
+)
+def test_bedrock_bare_gpt_6_astra_prices_only_in_its_mantle_regions(region, price_id):
+    result = load_catalog(region=region).snapshot.cost(
+        provider="bedrock", model="openai.gpt-6-astra", at=_at("2026-10-02"),
+        input_tokens=100_000, output_tokens=0,
+    )
+    if price_id is None:
+        assert result.status == "unpriced"
+        assert result.reasons == ("no_effective_alias",)
+    else:
+        assert result.price_id == price_id
+        assert result.cost_usd == Decimal("1.10000000")
+
+
+@pytest.mark.parametrize("region", _BEDROCK_SNAPSHOT_REGIONS)
+@pytest.mark.parametrize(
+    ("model", "price_id", "cost"),
+    [
+        ("global.openai.gpt-6-sol", "openai/gpt-6-sol:aws-bedrock:global:2026-09-22", "0.20000000"),
+        ("global.openai.gpt-6-luna", "openai/gpt-6-luna:aws-bedrock:global:2026-09-22", "0.01000000"),
+        ("global.openai.gpt-6-astra", "openai/gpt-6-astra:aws-bedrock:global:2026-09-08", "1.00000000"),
+        ("global.openai.gpt-6-astra-v1:0", "openai/gpt-6-astra:aws-bedrock:global:2026-09-08", "1.00000000"),
+        ("us.openai.gpt-6-sol", "openai/gpt-6-sol:aws-bedrock-geo:global:2026-09-22", "0.22000000"),
+        ("us.openai.gpt-6.1-sol", "openai/gpt-6.1-sol:aws-bedrock-geo:global:2026-09-29", "0.22000000"),
+    ],
+)
+def test_bedrock_gpt_6_profiles_keep_their_own_rate_in_every_snapshot(
+    region, model, price_id, cost
+):
+    """Global profiles ignore a catalog's regional Mantle row."""
+    result = load_catalog(region=region).snapshot.cost(
+        provider="bedrock", model=model, at=_at("2026-10-02"),
+        input_tokens=100_000, output_tokens=0,
+    )
+    assert result.status == "priced"
+    assert result.price_id == price_id
+    assert result.cost_usd == Decimal(cost)
+
+
+@pytest.mark.parametrize("region", _BEDROCK_SNAPSHOT_REGIONS)
+@pytest.mark.parametrize(
+    "model", ["global.openai.gpt-6.1-sol", "global.openai.gpt-6.1-sol-v1:0"]
+)
+def test_bedrock_gpt_6_1_sol_global_profile_is_unpriced_in_every_snapshot(
+    region, model
+):
+    snapshot = load_catalog(region=region).snapshot
+    at = _at("2026-10-02")
+    declared = [
+        alias["alias"]
+        for entry in DOC["models"]
+        for alias in entry.get("aliases") or []
+    ]
+    assert "global.openai.gpt-6.1-sol" not in declared
+    result = snapshot.cost(
+        provider="bedrock", model=model, at=at,
+        input_tokens=1_000, output_tokens=1_000,
+    )
+    assert result.status == "unpriced"
+    assert result.reasons == ("no_effective_alias",)
+    for channel in ("aws-bedrock", "aws-bedrock-geo"):
+        assert snapshot.resolve_price(model=model, channel=channel, at=at) is None
+
+
+def test_bedrock_gpt_6_1_sol_channels_resolve_to_their_own_rows():
+    at = _at("2026-10-02")
+    snapshot = load_catalog(region="us-east-1").snapshot
+    geo = snapshot.resolve_price(
+        model="openai/gpt-6.1-sol", channel="aws-bedrock-geo", at=at
+    )
+    in_region = snapshot.resolve_price(
+        model="openai/gpt-6.1-sol", channel="aws-bedrock", at=at
+    )
+    assert geo is not None and in_region is not None
+    assert geo.price.id == "openai/gpt-6.1-sol:aws-bedrock-geo:global:2026-09-29"
+    assert in_region.price.id == "openai/gpt-6.1-sol:aws-bedrock:us-east-1:2026-09-29"
+
+
+@pytest.mark.parametrize(
+    ("channel", "input_rate", "output_rate", "cache_read", "long_context"),
+    [
+        ("aws-bedrock-geo", "2.2", "6.6", "0.55", False),
+        ("aws-bedrock", "2.0", "6.0", "0.5", False),
+        ("xai-api", "2.0", "6.0", "0.5", True),
+    ],
+)
+def test_grok_4_7_channels_price_independently(
+    channel, input_rate, output_rate, cache_read, long_context
+):
+    resolved = SNAPSHOT.resolve_price(
+        model="xai/grok-4.7", channel=channel, at=_at("2026-10-02")
+    )
+    assert resolved is not None
+    assert resolved.price.pricing_channel == channel
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
+    assert resolved.price.cache_read_per_mtok == Decimal(cache_read)
+    # Direct-provider rules must not leak onto Bedrock.
+    assert ("long_context" in resolved.rules) is long_context
+
+
+def test_bedrock_grok_4_7_has_no_in_region_identity():
+    result = SNAPSHOT.cost(
+        provider="bedrock", model="xai.grok-4.7", at=_at("2026-10-02"),
+        input_tokens=1_000, output_tokens=1_000,
+    )
+    assert result.status == "unpriced"
+    assert result.reasons == ("unknown_model",)
+
+
+@pytest.mark.parametrize(
+    ("model", "geo_input", "global_input"),
+    [
+        ("openai/gpt-6-sol", "2.20", "2.00"),
+        ("openai/gpt-6-luna", "0.11", "0.10"),
+        ("openai/gpt-6-astra", "11.00", "10.00"),
+        ("xai/grok-4.6", "2.2", "2.0"),
+    ],
+)
+def test_bedrock_geo_premium_stays_off_the_global_profile(
+    model, geo_input, global_input
+):
+    at = _at("2026-10-02")
+    geo = SNAPSHOT.resolve_price(model=model, channel="aws-bedrock-geo", at=at)
+    worldwide = SNAPSHOT.resolve_price(model=model, channel="aws-bedrock", at=at)
+    assert geo is not None and worldwide is not None
+    assert geo.price.input_per_mtok == Decimal(geo_input)
+    assert worldwide.price.input_per_mtok == Decimal(global_input)
+
+
+def test_new_bedrock_rows_leave_gpt_5_6_sol_on_its_regional_price():
+    snapshot = load_catalog(region="us-west-2").snapshot
+    at = _at("2026-10-02")
+    existing = snapshot.cost(
+        provider="bedrock", model="us.openai.gpt-5.6-sol", at=at,
+        input_tokens=1_000, output_tokens=1_000,
+    )
+    added = snapshot.cost(
+        provider="bedrock", model="us.openai.gpt-6.1-sol", at=at,
+        input_tokens=1_000, output_tokens=1_000,
+    )
+    assert existing.price_id == "openai/gpt-5.6-sol:aws-bedrock:us-west-2:2026-08-17"
+    assert added.price_id == "openai/gpt-6.1-sol:aws-bedrock-geo:global:2026-09-29"
+
+
+_PINNED_RATES = {"global": 1, "us-east-1": 2, "us-west-2": 3}
+
+
+def _pinned_catalog(aliases, *, region, price_regions=("global", "us-east-1", "us-west-2")):
+    """Build a synthetic catalog with distinct rates by region."""
+    _, parsed_aliases, prices = parse_catalog({
+        "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-09-01",
+        "models": [{
+            "canonical_id": "test/pinned-region-model",
+            "publisher": "test",
+            "aliases": [
+                {"provider": "bedrock", "channel": "aws-bedrock", **alias}
+                for alias in aliases
+            ],
+            "prices": [
+                {
+                    "channel": "aws-bedrock",
+                    "region": price_region,
+                    "effective_from": "2026-01-01",
+                    "input_per_mtok": _PINNED_RATES[price_region],
+                    "output_per_mtok": 1,
+                    "source_url": "https://example.com/pinned-region-prices",
+                }
+                for price_region in price_regions
+            ],
+        }],
+    })
+    return CatalogSnapshot(parsed_aliases, prices, region=region)
+
+
+def _pinned_cost(snapshot, model):
+    return snapshot.cost(
+        provider="bedrock", model=model, at=_at("2026-09-20"),
+        input_tokens=1_000_000, output_tokens=0,
+    )
+
+
+def _assert_no_effective_alias(snapshot, model):
+    result = _pinned_cost(snapshot, model)
+    assert result.status == "unpriced"
+    assert result.canonical_model is None
+    assert result.reasons == ("no_effective_alias",)
+    assert snapshot.resolve_price(
+        model=model, channel="aws-bedrock", at=_at("2026-09-20")
+    ) is None
+
+
+def test_alias_pinned_to_one_region_resolves_in_that_snapshot_region():
+    snapshot = _pinned_catalog(
+        [{"alias": "test.pinned-region-model", "price_region": "US-East-1"}],
+        region="us-east-1",
+    )
+    result = _pinned_cost(snapshot, "test.pinned-region-model")
+    assert result.status == "priced"
+    assert result.price_id == "test/pinned-region-model:aws-bedrock:us-east-1:2026-01-01"
+    assert result.cost_usd == Decimal("2.00000000")
+    resolved = snapshot.resolve_price(
+        model="test.pinned-region-model", channel="aws-bedrock", at=_at("2026-09-20")
+    )
+    assert resolved is not None and resolved.price.region == "us-east-1"
+
+
+@pytest.mark.parametrize("region", ["global", "us-west-2", "eu-west-1"])
+def test_alias_pinned_to_one_region_does_not_resolve_in_other_snapshots(region):
+    """Regional pins do not import prices into other snapshots."""
+    snapshot = _pinned_catalog(
+        [{"alias": "test.pinned-region-model", "price_region": "us-east-1"}], region=region
+    )
+    _assert_no_effective_alias(snapshot, "test.pinned-region-model")
+
+
+def test_alias_price_region_without_that_price_row_is_unpriced():
+    snapshot = _pinned_catalog(
+        [{"alias": "test.pinned-region-model", "price_region": "us-east-1"}],
+        region="us-east-1",
+        price_regions=("global", "us-west-2"),
+    )
+    result = _pinned_cost(snapshot, "test.pinned-region-model")
+    assert result.status == "unpriced"
+    assert result.canonical_model == "test/pinned-region-model"
+    assert result.reasons == ("no_effective_price",)
+    assert snapshot.resolve_price(
+        model="test.pinned-region-model", channel="aws-bedrock", at=_at("2026-09-20")
+    ) is None
+
+
+@pytest.mark.parametrize("region", ["global", "us-east-1", "us-west-2", "eu-west-1"])
+def test_alias_pinned_to_global_resolves_the_global_price_in_every_snapshot(region):
+    snapshot = _pinned_catalog(
+        [{"alias": "global.test.pinned-region-model", "price_region": "global"}], region=region
+    )
+    result = _pinned_cost(snapshot, "global.test.pinned-region-model")
+    assert result.status == "priced"
+    assert result.price_id == "test/pinned-region-model:aws-bedrock:global:2026-01-01"
+    assert result.cost_usd == Decimal("1.00000000")
+
+
+@pytest.mark.parametrize(
+    ("region", "expected"),
+    [("global", "1.00000000"), ("us-east-1", "2.00000000"),
+     ("us-west-2", "3.00000000"), ("eu-west-1", "1.00000000")],
+)
+def test_alias_without_price_region_keeps_snapshot_then_global_fallback(
+    region, expected
+):
+    snapshot = _pinned_catalog([{"alias": "test.pinned-region-model"}], region=region)
+    assert _pinned_cost(snapshot, "test.pinned-region-model").cost_usd == Decimal(expected)
+
+
+@pytest.mark.parametrize(
+    ("region", "expected"),
+    [("us-east-1", "2.00000000"), ("us-west-2", "3.00000000"),
+     ("global", None), ("eu-west-1", None)],
+)
+def test_alias_with_several_price_regions_resolves_only_in_a_listed_snapshot_region(
+    region, expected
+):
+    snapshot = _pinned_catalog(
+        [{"alias": "test.pinned-region-model", "price_region": ["us-east-1", "US-WEST-2"]}],
+        region=region,
+    )
+    if expected is None:
+        _assert_no_effective_alias(snapshot, "test.pinned-region-model")
+    else:
+        assert _pinned_cost(snapshot, "test.pinned-region-model").cost_usd == Decimal(expected)
+
+
+@pytest.mark.parametrize(
+    ("region", "expected"),
+    [("us-east-1", "us-east-1"), ("us-west-2", "us-west-2"),
+     ("global", None), ("eu-west-1", None)],
+)
+def test_candidates_pinned_to_different_regions_never_resolve_an_unmatched_snapshot(
+    region, expected
+):
+    """Unmatched regional candidates do not resolve by list order."""
+    snapshot = _pinned_catalog(
+        [
+            {"alias": "test.pinned-region-model-east", "price_region": "us-east-1"},
+            {"alias": "test.pinned-region-model-west", "price_region": "us-west-2"},
+        ],
+        region=region,
+    )
+    resolved = snapshot.resolve_price(
+        model="test/pinned-region-model", channel="aws-bedrock", at=_at("2026-09-20")
+    )
+    if expected is None:
+        assert resolved is None
+    else:
+        assert resolved is not None and resolved.price.region == expected
+
+
+@pytest.mark.parametrize("price_region", ["", "  ", [], ["us-east-1", ""], 7, ["us-east-1", 7]])
+def test_malformed_alias_price_region_is_rejected(price_region):
+    with pytest.raises(CatalogError, match="price_region"):
+        _pinned_catalog(
+            [{"alias": "test.pinned-region-model", "price_region": price_region}], region="global"
+        )
+
+
+@pytest.mark.parametrize("region", ["global", "us-east-1", "us-west-2"])
+@pytest.mark.parametrize("model", ["global.test.pinned-region-model", "global.test.pinned-region-model-v1:0"])
+def test_bedrock_global_prefix_never_falls_back_onto_a_region_pinned_alias(
+    region, model
+):
+    snapshot = _pinned_catalog(
+        [{"alias": "test.pinned-region-model", "price_region": "us-east-1"}], region=region
+    )
+    _assert_no_effective_alias(snapshot, model)
+    if region == "us-east-1":
+        assert _pinned_cost(
+            snapshot, "test.pinned-region-model-v1:0"
+        ).cost_usd == Decimal("2.00000000")
+    else:
+        _assert_no_effective_alias(snapshot, "test.pinned-region-model-v1:0")
+
+
+def test_bedrock_global_prefix_still_falls_back_onto_a_global_pinned_alias():
+    snapshot = _pinned_catalog(
+        [{"alias": "test.pinned-region-model", "price_region": "global"}], region="us-east-1"
+    )
+    assert _pinned_cost(snapshot, "global.test.pinned-region-model-v1:0").cost_usd == Decimal(
+        "1.00000000"
+    )
+
+
+@pytest.mark.parametrize(
+    ("region", "expected"),
+    [("global", "global"), ("us-east-1", "us-east-1"), ("us-west-2", "global")],
+)
+def test_canonical_id_with_differently_pinned_aliases_follows_the_snapshot_region(
+    region, expected
+):
+    snapshot = _pinned_catalog(
+        [
+            {"alias": "test.pinned-region-model", "price_region": "us-east-1"},
+            {"alias": "global.test.pinned-region-model", "price_region": "global"},
+        ],
+        region=region,
+    )
+    resolved = snapshot.resolve_price(
+        model="test/pinned-region-model", channel="aws-bedrock", at=_at("2026-09-20")
+    )
+    assert resolved is not None
+    assert resolved.price.region == expected
+
+
+def test_every_pinned_alias_names_a_price_region_the_catalog_carries():
+    missing = []
+    for model in DOC["models"]:
+        carried = {
+            (price["channel"], str(price.get("region") or "global").lower())
+            for price in model.get("prices") or []
+        }
+        for alias in model.get("aliases") or []:
+            pinned = alias.get("price_region")
+            if pinned is None:
+                continue
+            for price_region in [pinned] if isinstance(pinned, str) else pinned:
+                if (alias["channel"], price_region.lower()) not in carried:
+                    missing.append((alias["alias"], price_region))
+    assert missing == []

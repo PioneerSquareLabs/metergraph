@@ -768,6 +768,170 @@ def test_installed_catalog_starts_recent_grok_prices_on_release_day(
     assert released.status == "priced"
 
 
+_AT_BEDROCK_REFRESH = datetime(2026, 10, 2, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,region",
+    [("us.openai.gpt-6.1-sol", "global"), ("openai.gpt-6.1-sol", "us-east-1")],
+)
+def test_installed_catalog_prices_gpt_6_1_sol_on_bedrock_at_both_context_tiers(
+    model, region,
+):
+    """Price both Bedrock profiles across the long-context boundary."""
+    catalog = load_catalog(region=region)
+
+    def cost(**usage):
+        return catalog.snapshot.cost(
+            provider="bedrock", model=model, at=_AT_BEDROCK_REFRESH, **usage
+        )
+
+    short = cost(
+        input_tokens=100_000, output_tokens=10_000,
+        cache_read_tokens=50_000, cache_write_tokens=20_000,
+    )
+    at_threshold = cost(input_tokens=272_000, output_tokens=0)
+    over_threshold = cost(input_tokens=272_001, output_tokens=0)
+    long = cost(
+        input_tokens=300_000, output_tokens=10_000,
+        cache_read_tokens=100_000, cache_write_tokens=100_000,
+    )
+
+    assert short.status == "priced"
+    assert short.canonical_model == "openai/gpt-6.1-sol"
+    assert short.cost_usd == Decimal("0.39050000")
+    assert at_threshold.cost_usd == Decimal("0.59840000")
+    assert over_threshold.cost_usd == Decimal("1.19680440")
+    assert long.status == "priced"
+    assert long.cost_usd == Decimal("2.05700000")
+
+
+@pytest.mark.parametrize(
+    "model,expected",
+    [("us.xai.grok-4.7", "9.35000000"), ("global.xai.grok-4.7", "8.50000000")],
+)
+def test_installed_catalog_prices_grok_4_7_on_bedrock_profiles(model, expected):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="bedrock", model=model, at=_AT_BEDROCK_REFRESH,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+        cache_read_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == "xai/grok-4.7"
+    assert result.cost_usd == Decimal(expected)
+
+
+@pytest.mark.parametrize(
+    "model,expected",
+    [
+        ("us.openai.gpt-6-sol", "1.61700000"),
+        ("global.openai.gpt-6-sol", "1.47000000"),
+        ("us.openai.gpt-6-luna", "0.08085000"),
+        ("global.openai.gpt-6-luna", "0.07350000"),
+        ("us.openai.gpt-6-astra", "8.08500000"),
+        ("global.openai.gpt-6-astra", "7.35000000"),
+    ],
+)
+def test_installed_catalog_prices_gpt_6_family_on_bedrock_profiles(model, expected):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="bedrock", model=model, at=_AT_BEDROCK_REFRESH,
+        input_tokens=100_000, output_tokens=100_000,
+        cache_read_tokens=100_000, cache_write_tokens=100_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal(expected)
+
+
+_BEDROCK_SNAPSHOT_REGIONS = ("global", "us-east-1", "us-west-2", "eu-west-1")
+
+
+def _bedrock_refresh_cost(model, region):
+    return load_catalog(region=region).snapshot.cost(
+        provider="bedrock", model=model, at=_AT_BEDROCK_REFRESH,
+        input_tokens=100_000, output_tokens=100_000,
+    )
+
+
+@pytest.mark.parametrize(
+    "model,served_regions",
+    [
+        ("openai.gpt-6.1-sol", ("us-east-1",)),
+        ("openai.gpt-6-sol", ("us-east-1",)),
+        ("openai.gpt-6-luna", ("us-east-1",)),
+        ("openai.gpt-6-astra", ("us-east-1", "us-west-2")),
+    ],
+)
+@pytest.mark.parametrize("region", _BEDROCK_SNAPSHOT_REGIONS)
+def test_installed_catalog_prices_bare_bedrock_gpt_6_ids_only_where_served(
+    model, served_regions, region,
+):
+    """Bare IDs do not borrow another region's price."""
+    result = _bedrock_refresh_cost(model, region)
+
+    if region in served_regions:
+        assert result.status == "priced"
+        assert result.price_id.split(":")[1:3] == ["aws-bedrock", region]
+    else:
+        assert result.status == "unpriced"
+        assert result.price_id is None
+        assert result.reasons == ("no_effective_alias",)
+
+
+@pytest.mark.parametrize(
+    "model,channel",
+    [
+        ("global.openai.gpt-6-sol", "aws-bedrock"),
+        ("global.openai.gpt-6-luna", "aws-bedrock"),
+        ("global.openai.gpt-6-astra", "aws-bedrock"),
+        ("us.openai.gpt-6-sol", "aws-bedrock-geo"),
+        ("us.openai.gpt-6-luna", "aws-bedrock-geo"),
+        ("us.openai.gpt-6-astra", "aws-bedrock-geo"),
+        ("us.openai.gpt-6.1-sol", "aws-bedrock-geo"),
+    ],
+)
+@pytest.mark.parametrize("region", _BEDROCK_SNAPSHOT_REGIONS)
+def test_installed_catalog_prices_bedrock_gpt_6_profiles_in_every_snapshot(
+    model, channel, region,
+):
+    """A profile id names its own price scope, whatever region is loaded."""
+    result = _bedrock_refresh_cost(model, region)
+
+    assert result.status == "priced"
+    assert result.price_id.split(":")[1:3] == [channel, "global"]
+
+
+def test_installed_catalog_prices_gpt_6_sol_bedrock_long_context():
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="bedrock", model="us.openai.gpt-6-sol", at=_AT_BEDROCK_REFRESH,
+        input_tokens=300_000, output_tokens=100_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("2.97000000")
+
+
+def test_installed_catalog_prices_grok_4_6_on_the_bedrock_global_profile():
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="bedrock", model="global.xai.grok-4.6", at=_AT_BEDROCK_REFRESH,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+        cache_read_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == "xai/grok-4.6"
+    assert result.cost_usd == Decimal("8.50000000")
+
+
 def test_installed_catalog_prices_captured_sonnet_4_5_identity_on_anthropic_api():
     catalog = load_catalog()
 

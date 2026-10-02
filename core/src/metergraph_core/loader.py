@@ -151,6 +151,20 @@ def _date(value: Any, *, field: str, model: str) -> datetime:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
+def _price_region(value: Any, *, model: str) -> tuple[str, ...]:
+    """An alias's optional ``price_region``: one region or a list of them."""
+    if value is None:
+        return ()
+    regions = [value] if isinstance(value, str) else value
+    if (
+        not isinstance(regions, (list, tuple))
+        or not regions
+        or not all(isinstance(region, str) and region.strip() for region in regions)
+    ):
+        raise CatalogError(f"{model}: invalid price_region {value!r}")
+    return tuple(dict.fromkeys(region.strip().lower() for region in regions))
+
+
 def _catalog_metadata(document: dict[str, Any]) -> tuple[str, date]:
     currency = str(document.get("currency") or "").strip().upper()
     if currency != "USD":
@@ -228,6 +242,9 @@ def parse_catalog(
                 effective_from=effective_from,
                 effective_to=effective_to,
                 source_url=source_url,
+                price_region=_price_region(
+                    alias.get("price_region"), model=f"{canonical} alias {name}"
+                ),
             )
             keys = [(provider, name)]
             for synonym in _PROVIDER_SYNONYMS.get(provider, ()):
