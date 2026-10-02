@@ -40,6 +40,7 @@ models:
   where a provider stops counting them that way, `true` on a gateway serving one of them.
 - `input_includes_cache_write: true` — provider reports cache-write tokens inside `input_tokens` (Vercel AI Gateway); cache writes are deducted before their cache rate is applied.
 - `long_context: {threshold, input_multiplier, output_multiplier}` — surcharge above a prompt-size threshold (OpenAI GPT-5.6, Gemini Pro).
+- `varies_by_provider: true` — a gateway's top-level rate is indicative; the provider it routes to may bill a different rate (Vercel AI Gateway). Informational: it does not change the computed cost.
 - `uncaptured_fees: true` — provider charges fees tokens can't express; rows are marked `partial`.
 
 `currency` is required and currently limited to `USD`.

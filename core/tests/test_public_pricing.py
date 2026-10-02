@@ -1584,3 +1584,207 @@ def test_installed_catalog_leaves_no_gap_or_overlap_at_the_reprice_hour():
     began = {str(row["effective_from"]) for row in rows}
 
     assert "2026-09-10T04:00:00+00:00" in ended & began
+
+
+_GATEWAY = "vercel-ai-gateway"
+_GATEWAY_REFRESH = datetime(2026, 10, 2, tzinfo=timezone.utc)
+
+
+def _gateway_price(model, at):
+    return load_catalog().snapshot.resolve_price(model=model, channel=_GATEWAY, at=at)
+
+
+@pytest.mark.parametrize(
+    "model,field,before,after",
+    [
+        ("openai/gpt-5.6-sol", "input_per_mtok", "2.00", "4.00"),
+        ("openai/gpt-5.6-sol", "output_per_mtok", "10.00", "20.00"),
+        ("openai/gpt-5.6-sol", "cache_read_per_mtok", "0.20", "0.40"),
+        ("openai/gpt-5.6-sol", "cache_write_5m_per_mtok", "2.50", "5.00"),
+        ("deepseek/deepseek-v4.1-flash", "cache_read_per_mtok", "0.03", "0.007"),
+        ("moonshotai/kimi-k2.6", "cache_read_per_mtok", None, "0.16"),
+        ("anthropic/claude-3-haiku", "cache_write_5m_per_mtok", None, "0.30"),
+    ],
+)
+def test_gateway_rate_changes_keep_the_prior_window(model, field, before, after):
+    prior = _gateway_price(model, _GATEWAY_REFRESH - timedelta(seconds=1))
+    current = _gateway_price(model, _GATEWAY_REFRESH)
+
+    assert prior is not None and current is not None
+    assert prior.price.id != current.price.id
+    assert getattr(prior.price, field) == (Decimal(before) if before else None)
+    assert getattr(current.price, field) == Decimal(after)
+
+
+@pytest.mark.parametrize(
+    "model,flat_cost,tiered_cost",
+    [
+        ("openai/gpt-5.4", "0.75000000", "1.50000000"),
+        ("openai/gpt-5.5", "1.50000000", "3.00000000"),
+        ("anthropic/claude-sonnet-4.5", "0.90000000", "1.80000000"),
+        ("anthropic/claude-sonnet-4", "0.90000000", "1.80000000"),
+        ("google/gemini-2.5-pro", "0.37500000", "0.75000000"),
+        ("spacexai/grok-4.6", "0.60000000", "1.20000000"),
+        ("alibaba/qwen3.7-plus", "0.12000000", "0.36000000"),
+    ],
+)
+def test_gateway_long_context_tier_starts_at_the_refresh(model, flat_cost, tiered_cost):
+    catalog = load_catalog()
+    usage = dict(model=model, channel=_GATEWAY, input_tokens=300_000, output_tokens=0)
+
+    before = catalog.price(at=_GATEWAY_REFRESH - timedelta(seconds=1), **usage)
+    after = catalog.price(at=_GATEWAY_REFRESH, **usage)
+    below_threshold = catalog.price(
+        model=model, channel=_GATEWAY, at=_GATEWAY_REFRESH,
+        input_tokens=100_000, output_tokens=0,
+    )
+
+    assert before.status == after.status == "priced"
+    assert before.cost_usd == Decimal(flat_cost)
+    assert after.cost_usd == Decimal(tiered_cost)
+    assert below_threshold.cost_usd == Decimal(flat_cost) / 3
+
+
+@pytest.mark.parametrize(
+    "moment,cost",
+    [
+        # Thursday, before the peak rule is recorded: one flat rate.
+        ("2026-10-01T02:00:00+00:00", "2.64000000"),
+        # Monday inside and outside the peak windows, then a weekend.
+        ("2026-10-05T02:00:00+00:00", "5.28000000"),
+        ("2026-10-05T05:00:00+00:00", "2.64000000"),
+        ("2026-10-05T09:59:00+00:00", "5.28000000"),
+        ("2026-10-05T10:00:00+00:00", "2.64000000"),
+        ("2026-10-03T02:00:00+00:00", "2.64000000"),
+    ],
+)
+def test_gateway_deepseek_v4_pro_doubles_in_peak_hours(moment, cost):
+    result = load_catalog().price(
+        model="deepseek/deepseek-v4-pro", channel=_GATEWAY,
+        at=datetime.fromisoformat(moment),
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == "deepseek/v4-pro"
+    assert result.cost_usd == Decimal(cost)
+
+
+@pytest.mark.parametrize(
+    "model,varies",
+    [
+        ("openai/gpt-5.6-sol", True),
+        ("openai/gpt-5.5", True),
+        ("openai/gpt-5.2", True),
+        ("deepseek/deepseek-v4-pro", True),
+        ("deepseek/deepseek-v4.1-flash", True),
+        ("moonshotai/kimi-k2.6", True),
+        ("moonshotai/kimi-k3-fast", True),
+        ("openai/gpt-6.1-sol", False),
+        ("spacexai/grok-4.7", False),
+        ("anthropic/claude-opus-5.5-fast", False),
+    ],
+)
+def test_gateway_rows_record_whether_the_rate_varies_by_provider(model, varies):
+    resolved = _gateway_price(model, _GATEWAY_REFRESH)
+
+    assert resolved is not None
+    assert bool(resolved.rules.get("varies_by_provider")) is varies
+
+
+@pytest.mark.parametrize(
+    "provider,model,canonical,input_rate,output_rate",
+    [
+        ("openai", "openai/gpt-6.1-sol", "openai/gpt-6.1-sol", "2.00", "10.00"),
+        ("anthropic", "anthropic/claude-opus-5.5-fast", "anthropic/claude-opus-5.5-fast", "8.00", "40.00"),
+        ("alibaba", "alibaba/qwen3.8-max-prime", "alibaba/qwen3.8-max-prime", "4.00", "12.00"),
+        ("moonshotai", "moonshotai/kimi-k3-fast", "moonshotai/kimi-k3-fast", "4.50", "22.50"),
+        ("vercel", "openai/gpt-5.4-pro", "openai/gpt-5.4-pro", "30.00", "180.00"),
+        ("vercel", "openai/gpt-5.3-codex", "openai/gpt-5.3-codex", "1.75", "14.00"),
+        ("vercel", "openai/gpt-5.2", "openai/gpt-5.2", "1.75", "14.00"),
+        ("vercel", "openai/gpt-5", "openai/gpt-5", "1.25", "10.00"),
+        ("vercel", "openai/gpt-4.1-mini", "openai/gpt-4.1-mini", "0.40", "1.60"),
+        ("vercel", "openai/gpt-4.1-nano", "openai/gpt-4.1-nano", "0.10", "0.40"),
+        ("vercel", "openai/gpt-4o", "openai/gpt-4o", "2.50", "10.00"),
+        ("vercel", "openai/gpt-4o-mini", "openai/gpt-4o-mini", "0.15", "0.60"),
+        ("vercel", "anthropic/claude-opus-4", "anthropic/claude-opus-4", "15.00", "75.00"),
+        ("vercel", "mistral/mistral-medium-3.5", "mistral/mistral-medium-3.5", "1.50", "7.50"),
+        ("vercel", "alibaba/qwen3.7-max", "alibaba/qwen3.7-max", "2.50", "7.50"),
+        ("vercel", "amazon/nova-pro", "amazon/nova-pro", "0.80", "3.20"),
+        ("vercel", "amazon/nova-lite", "amazon/nova-lite", "0.06", "0.24"),
+        ("vercel", "amazon/nova-micro", "amazon/nova-micro", "0.035", "0.14"),
+    ],
+)
+def test_new_gateway_routes_start_at_the_first_verified_listing(
+    provider, model, canonical, input_rate, output_rate
+):
+    """New routes start at their first verified Gateway listing."""
+    snapshot = load_catalog().snapshot
+    usage = dict(provider=provider, model=model, input_tokens=1_000_000, output_tokens=1_000_000)
+
+    assert _gateway_price(model, _GATEWAY_REFRESH - timedelta(seconds=1)) is None
+    before = snapshot.cost(at=_GATEWAY_REFRESH - timedelta(seconds=1), **usage)
+    assert (before.status, before.reasons) == ("unpriced", ("no_effective_alias",))
+
+    resolved = _gateway_price(model, _GATEWAY_REFRESH)
+    assert resolved is not None
+    assert resolved.canonical_model == canonical
+    assert resolved.price.id == f"{canonical}:{_GATEWAY}:global:2026-10-02"
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
+    after = snapshot.cost(at=_GATEWAY_REFRESH, **usage)
+    assert after.status == "priced"
+    assert after.price_id == resolved.price.id
+
+
+@pytest.mark.parametrize(
+    "model,canonical,cache_read",
+    [("spacexai/grok-4.7", "xai/grok-4.7", "0.50"), ("spacexai/grok-4.5", "xai/grok-4.5", "0.30")],
+)
+def test_new_gateway_grok_routes_start_at_the_first_verified_listing(
+    model, canonical, cache_read
+):
+    assert _gateway_price(model, _GATEWAY_REFRESH - timedelta(seconds=1)) is None
+    resolved = _gateway_price(model, _GATEWAY_REFRESH)
+
+    assert resolved is not None
+    assert resolved.canonical_model == canonical
+    assert resolved.price.id == f"{canonical}:{_GATEWAY}:global:2026-10-02"
+    assert resolved.price.input_per_mtok == Decimal("2.00")
+    assert resolved.price.output_per_mtok == Decimal("6.00")
+    assert resolved.price.cache_read_per_mtok == Decimal(cache_read)
+
+
+def test_gateway_gpt_6_1_sol_prices_cache_and_long_context():
+    catalog = load_catalog()
+
+    cached = catalog.price(
+        model="openai/gpt-6.1-sol", channel=_GATEWAY, at=_GATEWAY_REFRESH,
+        input_tokens=1_000_000, output_tokens=0,
+        cache_read_tokens=400_000, cache_write_tokens=100_000,
+    )
+    short = catalog.price(
+        model="openai/gpt-6.1-sol", channel=_GATEWAY, at=_GATEWAY_REFRESH,
+        input_tokens=100_000, output_tokens=100_000,
+    )
+
+    # Long context: 2x on input, cache read, and cache write.
+    assert cached.status == "priced"
+    assert cached.cost_usd == Decimal("2.58000000")
+    assert short.cost_usd == Decimal("1.20000000")
+
+
+def test_gateway_alias_does_not_reprice_the_direct_channel():
+    """Gateway aliases do not change direct-channel prices."""
+    catalog = load_catalog()
+    usage = dict(
+        model="openai/gpt-5.2", at=_GATEWAY_REFRESH,
+        input_tokens=1_000_000, output_tokens=0, cache_read_tokens=400_000,
+    )
+
+    gateway = catalog.snapshot.cost(provider="vercel", **usage)
+    direct = catalog.snapshot.cost(provider="openai", **usage)
+
+    assert gateway.price_id == "openai/gpt-5.2:vercel-ai-gateway:global:2026-10-02"
+    assert direct.price_id == "openai/gpt-5.2:openai-api:global:2025-12-11"
+    assert gateway.cost_usd == direct.cost_usd == Decimal("1.12000000")
