@@ -14,7 +14,7 @@ the assertions never depend on the shipped price list.
 """
 
 import textwrap
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
@@ -1251,6 +1251,88 @@ def test_installed_catalog_resolves_geminis_moving_flash_lite_alias(
 
     assert result.status == status
     assert result.canonical_model == canonical
+
+
+@pytest.mark.parametrize(
+    "model,released_at,canonical,cost",
+    [
+        (
+            "mistral-large-latest",
+            "2025-12-02T00:00:00+00:00",
+            "mistral/mistral-large-3",
+            "2.00000000",
+        ),
+        (
+            "ministral-14b-latest",
+            "2025-12-02T00:00:00+00:00",
+            "mistral/ministral-14b",
+            "0.40000000",
+        ),
+        (
+            "mistral-small-latest",
+            "2026-03-16T00:00:00+00:00",
+            "mistral/mistral-small-4",
+            "0.75000000",
+        ),
+        (
+            "mistral-medium-latest",
+            "2026-04-28T00:00:00+00:00",
+            "mistral/mistral-medium-3.5",
+            "9.00000000",
+        ),
+    ],
+)
+def test_installed_catalog_starts_mistrals_moving_aliases_at_their_release(
+    model, released_at, canonical, cost,
+):
+    catalog = load_catalog()
+    release = datetime.fromisoformat(released_at)
+
+    before = catalog.snapshot.cost(
+        provider="mistral",
+        model=model,
+        at=release - timedelta(seconds=1),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    current = catalog.snapshot.cost(
+        provider="mistral",
+        model=model,
+        at=release,
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert before.status == "unpriced"
+    assert before.canonical_model is None
+    assert current.status == "priced"
+    assert current.canonical_model == canonical
+    assert current.cost_usd == Decimal(cost)
+
+
+@pytest.mark.parametrize(
+    "model,cache_cost",
+    [
+        ("mistral-large-latest", "0.05000000"),
+        ("ministral-14b-latest", "0.02000000"),
+        ("mistral-small-latest", "0.01500000"),
+        ("mistral-medium-latest", "0.15000000"),
+    ],
+)
+def test_installed_catalog_prices_mistrals_current_prompt_cache(model, cache_cost):
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="mistral",
+        model=model,
+        at=datetime(2026, 10, 2, tzinfo=timezone.utc),
+        input_tokens=0,
+        output_tokens=0,
+        cache_read_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal(cache_cost)
 
 
 @pytest.mark.parametrize("alias", ["deepseek-chat", "deepseek-reasoner"])
