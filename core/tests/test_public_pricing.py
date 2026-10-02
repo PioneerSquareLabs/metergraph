@@ -1169,8 +1169,8 @@ def test_installed_catalog_resolves_geminis_moving_flash_lite_alias(
         ("2025-11-30T23:59:00+00:00", None, None, "unpriced"),
         ("2025-12-01T00:00:00+00:00", "deepseek/v3.2", None, "unpriced"),
         ("2026-04-24T00:00:00+00:00", "deepseek/v4-flash", "0.42000000", "priced"),
-        ("2026-09-10T03:59:00+00:00", "deepseek/v4-flash", "0.42000000", "priced"),
-        ("2026-09-10T04:00:00+00:00", "deepseek/deepseek-v4.1-flash", "0.75000000", "priced"),
+        ("2026-07-24T15:59:00+00:00", "deepseek/v4-flash", "0.42000000", "priced"),
+        ("2026-07-24T16:00:00+00:00", None, None, "unpriced"),
     ],
 )
 def test_installed_catalog_resolves_deepseeks_moving_legacy_aliases(
@@ -1220,7 +1220,7 @@ def test_installed_catalog_resolves_retired_flash_names_to_v41(alias):
         ("unknown", "deepseek/deepseek-chat"),
     ],
 )
-def test_installed_catalog_prices_captured_deepseek_chat_spellings(provider, model):
+def test_installed_catalog_stops_retired_deepseek_chat_spellings(provider, model):
     catalog = load_catalog()
 
     result = catalog.snapshot.cost(
@@ -1231,9 +1231,9 @@ def test_installed_catalog_prices_captured_deepseek_chat_spellings(provider, mod
         output_tokens=1_000_000,
     )
 
-    assert result.status == "priced"
-    assert result.canonical_model == "deepseek/deepseek-v4.1-flash"
-    assert result.cost_usd == Decimal("0.75")
+    assert result.status == "unpriced"
+    assert result.canonical_model is None
+    assert result.cost_usd is None
 
 
 def test_installed_catalog_prices_deepseeks_current_flash_name_and_its_legacy_one():
