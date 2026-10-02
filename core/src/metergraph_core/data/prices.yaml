@@ -1547,6 +1547,34 @@ models:
     aliases:
       - {provider: bedrock, alias: deepseek.v3.2, channel: aws-bedrock}
       - {provider: deepseek, alias: deepseek/deepseek-v3.2, channel: vercel-ai-gateway, rules: {"input_includes_cache_read": true, "input_includes_cache_write": true}}
+      - &deepseek-chat-v32
+        {provider: deepseek, alias: deepseek-chat, channel: deepseek-api, effective_from: "2025-12-01", effective_to: "2026-04-24", source_url: https://api-docs.deepseek.com/updates/}
+      - <<: *deepseek-chat-v32
+        provider: litellm
+      - <<: *deepseek-chat-v32
+        provider: unknown
+      - <<: *deepseek-chat-v32
+        alias: deepseek/deepseek-chat
+      - <<: *deepseek-chat-v32
+        provider: litellm
+        alias: deepseek/deepseek-chat
+      - <<: *deepseek-chat-v32
+        provider: unknown
+        alias: deepseek/deepseek-chat
+      - &deepseek-reasoner-v32
+        {provider: deepseek, alias: deepseek-reasoner, channel: deepseek-api, effective_from: "2025-12-01", effective_to: "2026-04-24", source_url: https://api-docs.deepseek.com/updates/}
+      - <<: *deepseek-reasoner-v32
+        provider: litellm
+      - <<: *deepseek-reasoner-v32
+        provider: unknown
+      - <<: *deepseek-reasoner-v32
+        alias: deepseek/deepseek-reasoner
+      - <<: *deepseek-reasoner-v32
+        provider: litellm
+        alias: deepseek/deepseek-reasoner
+      - <<: *deepseek-reasoner-v32
+        provider: unknown
+        alias: deepseek/deepseek-reasoner
     prices:
       - channel: aws-bedrock
         region: us-west-2
@@ -1576,12 +1604,46 @@ models:
   - canonical_id: deepseek/v4-flash
     publisher: deepseek
     aliases:
-      - {provider: deepseek, alias: deepseek-v4-flash, channel: deepseek-api}
-      - {provider: deepseek, alias: deepseek/deepseek/deepseek-v4-flash, channel: deepseek-api}
-      - {provider: litellm, alias: deepseek-v4-flash, channel: deepseek-api}
-      - {provider: litellm, alias: deepseek/deepseek-v4-flash, channel: deepseek-api}
-      - {provider: unknown, alias: deepseek-v4-flash, channel: deepseek-api}
-      - {provider: unknown, alias: deepseek/deepseek-v4-flash, channel: deepseek-api}
+      - &deepseek-v4-flash-retired
+        {provider: deepseek, alias: deepseek-v4-flash, channel: deepseek-api, effective_from: "2026-04-24", effective_to: "2026-09-10T04:00:00+00:00", source_url: https://api-docs.deepseek.com/updates/}
+      - <<: *deepseek-v4-flash-retired
+        provider: litellm
+      - <<: *deepseek-v4-flash-retired
+        provider: unknown
+      - <<: *deepseek-v4-flash-retired
+        provider: litellm
+        alias: deepseek/deepseek-v4-flash
+      - <<: *deepseek-v4-flash-retired
+        provider: unknown
+        alias: deepseek/deepseek-v4-flash
+      - &deepseek-chat-v4-flash
+        {provider: deepseek, alias: deepseek-chat, channel: deepseek-api, effective_from: "2026-04-24", effective_to: "2026-09-10T04:00:00+00:00", source_url: https://api-docs.deepseek.com/news/news260424/}
+      - <<: *deepseek-chat-v4-flash
+        provider: litellm
+      - <<: *deepseek-chat-v4-flash
+        provider: unknown
+      - <<: *deepseek-chat-v4-flash
+        alias: deepseek/deepseek-chat
+      - <<: *deepseek-chat-v4-flash
+        provider: litellm
+        alias: deepseek/deepseek-chat
+      - <<: *deepseek-chat-v4-flash
+        provider: unknown
+        alias: deepseek/deepseek-chat
+      - &deepseek-reasoner-v4-flash
+        {provider: deepseek, alias: deepseek-reasoner, channel: deepseek-api, effective_from: "2026-04-24", effective_to: "2026-09-10T04:00:00+00:00", source_url: https://api-docs.deepseek.com/news/news260424/}
+      - <<: *deepseek-reasoner-v4-flash
+        provider: litellm
+      - <<: *deepseek-reasoner-v4-flash
+        provider: unknown
+      - <<: *deepseek-reasoner-v4-flash
+        alias: deepseek/deepseek-reasoner
+      - <<: *deepseek-reasoner-v4-flash
+        provider: litellm
+        alias: deepseek/deepseek-reasoner
+      - <<: *deepseek-reasoner-v4-flash
+        provider: unknown
+        alias: deepseek/deepseek-reasoner
       - provider: deepseek
         alias: deepseek/deepseek-v4-flash
         channel: vercel-ai-gateway
@@ -2066,9 +2128,58 @@ models:
   - canonical_id: deepseek/deepseek-v4.1-flash
     publisher: deepseek
     aliases:
-      - {provider: deepseek, alias: deepseek-flash, channel: deepseek-api}
-      - {provider: litellm, alias: deepseek-flash, channel: deepseek-api}
-      - {provider: unknown, alias: deepseek-flash, channel: deepseek-api}
+      - &deepseek-v41-flash
+        {provider: deepseek, alias: deepseek-flash, channel: deepseek-api, effective_from: "2026-09-10T04:00:00+00:00", source_url: https://api-docs.deepseek.com/updates/}
+      - <<: *deepseek-v41-flash
+        provider: litellm
+      - <<: *deepseek-v41-flash
+        provider: unknown
+      - &deepseek-v4-flash-routed
+        {provider: deepseek, alias: deepseek-v4-flash, channel: deepseek-api, effective_from: "2026-09-10T04:00:00+00:00", source_url: https://api-docs.deepseek.com/updates/}
+      - <<: *deepseek-v4-flash-routed
+        provider: litellm
+      - <<: *deepseek-v4-flash-routed
+        provider: unknown
+      - <<: *deepseek-v4-flash-routed
+        provider: litellm
+        alias: deepseek/deepseek-v4-flash
+      - <<: *deepseek-v4-flash-routed
+        provider: unknown
+        alias: deepseek/deepseek-v4-flash
+      - &deepseek-v4-flash-vision-routed
+        {provider: deepseek, alias: deepseek-v4-flash-vision-exp, channel: deepseek-api, effective_from: "2026-09-10T04:00:00+00:00", source_url: https://api-docs.deepseek.com/updates/}
+      - <<: *deepseek-v4-flash-vision-routed
+        provider: litellm
+      - <<: *deepseek-v4-flash-vision-routed
+        provider: unknown
+      - &deepseek-chat-v41-flash
+        {provider: deepseek, alias: deepseek-chat, channel: deepseek-api, effective_from: "2026-09-10T04:00:00+00:00", source_url: https://api-docs.deepseek.com/updates/}
+      - <<: *deepseek-chat-v41-flash
+        provider: litellm
+      - <<: *deepseek-chat-v41-flash
+        provider: unknown
+      - <<: *deepseek-chat-v41-flash
+        alias: deepseek/deepseek-chat
+      - <<: *deepseek-chat-v41-flash
+        provider: litellm
+        alias: deepseek/deepseek-chat
+      - <<: *deepseek-chat-v41-flash
+        provider: unknown
+        alias: deepseek/deepseek-chat
+      - &deepseek-reasoner-v41-flash
+        {provider: deepseek, alias: deepseek-reasoner, channel: deepseek-api, effective_from: "2026-09-10T04:00:00+00:00", source_url: https://api-docs.deepseek.com/updates/}
+      - <<: *deepseek-reasoner-v41-flash
+        provider: litellm
+      - <<: *deepseek-reasoner-v41-flash
+        provider: unknown
+      - <<: *deepseek-reasoner-v41-flash
+        alias: deepseek/deepseek-reasoner
+      - <<: *deepseek-reasoner-v41-flash
+        provider: litellm
+        alias: deepseek/deepseek-reasoner
+      - <<: *deepseek-reasoner-v41-flash
+        provider: unknown
+        alias: deepseek/deepseek-reasoner
       - provider: deepseek
         alias: deepseek/deepseek-v4.1-flash
         channel: vercel-ai-gateway
