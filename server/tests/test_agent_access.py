@@ -110,6 +110,7 @@ def test_shared_agent_access_conformance(client):
     assert conformance.check_content_free(_call_adapter(client), profile) == []
     assert conformance.check_bounds(_call_adapter(client)) == []
     assert conformance.check_schemas(_call_adapter(client)) == []
+    assert conformance.check_stable_errors(_call_adapter(client), profile) == []
 
 
 def _call_adapter(client):
@@ -118,6 +119,9 @@ def _call_adapter(client):
 
 def test_unsupported_capabilities_and_auth_boundaries(client):
     for name, arguments in (
+        ("metergraph_list_classified_workloads", {}),
+        ("metergraph_get_workload_readiness", {"source_run_id": "00000000-0000-0000-0000-000000000001", "pattern_id": "example", "pattern_set_version": "example-v1"}),
+        ("metergraph_get_model_readiness", {}),
         ("metergraph_get_ingestion_health", {}),
         ("metergraph_list_incidents", {}),
         ("metergraph_list_reports", {}),
@@ -201,9 +205,103 @@ def test_mcp_notifications_and_stdio_tools_list(client):
 
 
 def test_agent_contract_covers_tools_and_fixture_exactly():
-    from metergraph_server import agent_contract, agent_mcp
+    from metergraph_server import agent, agent_contract, agent_mcp
 
     names = {tool["name"] for tool in agent_mcp.TOOLS}
     assert set(agent_contract.TOOL_CONTRACT) == names
     profile = json.loads(FIXTURE.read_text())
     assert set(profile["tools"]) == names
+    assert set(profile["unsupported_capabilities"]) == agent._UNSUPPORTED
+
+
+def test_analysis_discovery_rest_is_explicitly_unsupported_and_authenticated(client):
+    for path in ("workloads", "workload-readiness", "model-readiness"):
+        url = "/v1/agent/analysis/" + path
+        params = {"source_run_id": "00000000-0000-0000-0000-000000000001", "pattern_id": "example", "pattern_set_version": "example-v1"} if path == "workload-readiness" else {}
+        response = client.get(url, headers=AUTH, params=params)
+        assert response.status_code == 501
+        assert response.json()["error"]["code"] == "unsupported_capability"
+        assert client.get(url, params=params).status_code == 401
+        if path != "model-readiness":
+            assert client.get(url, headers=AUTH, params={**params, "limit": 999}).status_code == 422
+        if path == "workload-readiness":
+            invalid = client.get(url, headers=AUTH, params={**params, "pattern_id": "   "})
+            assert invalid.status_code == 422
+            assert invalid.json()["error"]["code"] == "invalid_argument"
+
+
+def test_discovery_conformance_reports_invalid_reference_without_crashing():
+    call = lambda *_: ({"workloads": [{"pattern_id": "example"}]}, False)
+    reference, failure = conformance._classified_reference(call)
+    assert reference is None
+    assert failure == "classified-workloads response has no valid selection reference"
+
+
+def test_discovery_conformance_passes_only_selection_fields_to_readiness():
+    reference = {"source_run_id": "00000000-0000-0000-0000-000000000001", "pattern_id": "example", "pattern_set_version": "example-v1"}
+    calls = []
+    def call(name, arguments):
+        if name == "metergraph_list_classified_workloads":
+            return {"workloads": [{"selection_reference": {**reference, "extra_metadata": "example"}}]}, False
+        calls.append((name, arguments))
+        return {"content_included": False}, False
+    profile = {"tools": {"metergraph_get_workload_readiness": {"privacy_class": "metadata", "available": True}}}
+    assert conformance.check_content_free(call, profile) == []
+    assert calls == [("metergraph_get_workload_readiness", reference)]
+
+
+@pytest.mark.parametrize(("name", "arguments", "path"), [
+    ("metergraph_list_classified_workloads", {"limit": 3}, "/v1/agent/analysis/workloads"),
+    ("metergraph_get_workload_readiness", {
+        "source_run_id": "00000000-0000-0000-0000-000000000001",
+        "pattern_id": "example", "pattern_set_version": "example-v1", "limit": 5,
+    }, "/v1/agent/analysis/workload-readiness"),
+    ("metergraph_get_model_readiness", {}, "/v1/agent/analysis/model-readiness"),
+])
+def test_stdio_discovery_adapter_preserves_agent_path_and_arguments(name, arguments, path):
+    from types import SimpleNamespace
+    from metergraph_server import agent_mcp
+
+    calls = []
+    api = SimpleNamespace(get=lambda url, query=None: calls.append((url, query)) or {})
+    agent_mcp._call_tool(api, name, arguments)
+    assert calls == [(path, arguments or None)]
+
+
+def test_shared_discovery_schemas_validate_representative_metadata():
+    from jsonschema.exceptions import ValidationError
+    from metergraph_server import agent_contract
+
+    base = {"schema_version": agent_contract.CONTRACT_VERSION,
+        "provenance": agent_contract.provenance("synthetic-workspace"),
+        "content_included": False, "blocking_reasons": []}
+    reference = {"source_run_id": "00000000-0000-0000-0000-000000000001",
+        "pattern_id": "example", "pattern_set_version": "example-v1"}
+    source = {"source_run_id": reference["source_run_id"],
+        "capture_window": {"since": "2026-08-01T00:00:00Z", "until": "2026-08-02T00:00:00Z"},
+        "sampling_seed": 1, "profile_id": "example", "profile_version": 1}
+    agent_contract.validate("agent-access/classified-workloads", {
+        **base, "source": source, "workloads": [{"pattern_id": "example", "display_name": "Example",
+            "pattern_set_version": "example-v1", "classified_sample_count": 1, "selection_reference": reference}],
+        "evidence": agent_contract.evidence(["analysis_workload_patterns"], 1, True),
+    })
+    readiness = {**base, "source": source, "selection_reference": reference,
+        "traces": [{"classification_trace_id": "request-example", "trace_id": "example", "started_at": "2026-08-01T00:00:00Z",
+            "last_span_at": "2026-08-01T00:00:01Z", "matched_call_count": 1}],
+        "counts": {"classified_sample_records": 1, "retained_records": 1,
+            "eligible_records_by_capture_metadata": 1, "missing_or_uncaptured_records": 0,
+            "workload_population_records": None, "population_scope": "classified_sample"},
+        "selection": {"mode": "server_sample_at_launch", "explicit_trace_ids_supported": False,
+            "frozen_cohort_execution_supported": False, "representative_metadata_only": True,
+            "sample_size": 1, "launch_contract": "pattern_id_only", "durable_provenance_owner": "checkpoint-execution"},
+    }
+    agent_contract.validate("agent-access/workload-readiness", readiness)
+    readiness["selection"]["explicit_trace_ids_supported"] = True
+    with pytest.raises(ValidationError):
+        agent_contract.validate("agent-access/workload-readiness", readiness)
+    agent_contract.validate("agent-access/model-readiness", {**base,
+        "models": [{"model_id": "example", "display_name": "Example", "provider": "example", "selected": None}],
+        "provider_calls_verified": False,
+        "provider_readiness": {"ready": False, "deployment_profile": "local", "control_channel": "example",
+            "required_keys": ["EXAMPLE_API_KEY"], "missing_keys": ["EXAMPLE_API_KEY"], "configured_keys": [], "code": "unavailable"},
+    })
