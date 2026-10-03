@@ -1,3 +1,4 @@
+import UsageCompleteness from '../components/UsageCompleteness.jsx'
 import { useEffect, useState } from 'react'
 import { api, useApi } from '../api.js'
 import { fmtInt, fmtMs, fmtPct, fmtTokens, fmtTs, fmtUsd } from '../format.js'
@@ -151,6 +152,7 @@ export default function Functions({ query }) {
 
   return (
     <>
+      <UsageCompleteness data={[usage.data]} />
       <section className="panel">
         <div className="section-heading">
           <h2>Spend by function</h2>

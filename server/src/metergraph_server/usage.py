@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from . import db
+from . import analytical_reads, db
 from .call_cursor import decode_call_cursor, encode_call_cursor
 from .auth import require_token
 
@@ -81,7 +81,7 @@ def usage(
     key = _GROUPS.get(group_by)
     if key is None:
         raise HTTPException(400, f"group_by must be one of {sorted(_GROUPS)}")
-    start, end = _window(from_, to)
+    start, end = analytical_reads.validate_window(*_window(from_, to))
     where, params = _filters(environment, include_untagged, route, model)
     provider_col = (
         ", coalesce(provider, '(unknown)') as provider" if group_by == "model" else ""
@@ -103,11 +103,13 @@ def usage(
         from calls
         where ts >= %s and ts < %s{where}
         group by {group}
-        order by cost_usd desc, calls desc
-        limit 500
+        order by cost_usd desc, calls desc, key asc{', provider asc' if group_by == 'model' else ''}
+        limit 501
     """
-    with db.pool().connection() as con:
+    with analytical_reads.connection(db.pool()) as con:
         rows = con.execute(sql, (start, end, *params)).fetchall()
+    complete = len(rows) <= analytical_reads.GROUP_LIMIT
+    rows = rows[:analytical_reads.GROUP_LIMIT]
     items = []
     for row in rows:
         offset = 1 if group_by == "model" else 0
@@ -130,7 +132,8 @@ def usage(
         items.append(item)
     if group_by in ("day", "hour"):
         items.sort(key=lambda item: item["key"])
-    return {"items": items}
+    return analytical_reads.response({"items": items, "completeness": analytical_reads.completeness(
+        start, end, complete=complete, returned=len(items))})
 
 
 @router.get("/v1/usage/timeseries")
@@ -149,23 +152,28 @@ def timeseries(
     step = _BUCKETS.get(bucket)
     if step is None:
         raise HTTPException(400, "bucket must be hour or day")
-    start, end = _window(from_, to, default_days=1 if bucket == "hour" else 7)
+    start, end = analytical_reads.validate_window(*_window(from_, to, default_days=1 if bucket == "hour" else 7))
+    start, end = start.astimezone(timezone.utc), end.astimezone(timezone.utc)
     where, params = _filters(environment, include_untagged, None, None)
     if func_:
         where += " and func = %s"
         params.append(func_)
     key = _GROUPS[group_by]
     label = "YYYY-MM-DD" if bucket == "day" else 'YYYY-MM-DD"T"HH24:00:00"Z"'
-    sql = f"""
+    sql = f"""with grouped as materialized (
         select to_char(date_trunc(%s, ts at time zone 'UTC'), %s) as bucket,
-               {key} as key,
-               coalesce(sum(cost_usd), 0) as cost_usd
-        from calls
-        where ts >= %s and ts < %s{where}
-        group by 1, 2
-    """
-    with db.pool().connection() as con:
-        rows = con.execute(sql, (bucket, label, start, end, *params)).fetchall()
+               {key} as key, coalesce(sum(cost_usd), 0) as cost
+          from calls where ts >= %s and ts < %s{where} group by 1, 2
+        ), top_keys as (
+          select key from grouped group by key order by sum(cost) desc, key limit %s
+        ), projected as (
+          select g.bucket, case when t.key is null then 'other' else g.key end as key,
+                 g.cost, t.key is null as is_other
+            from grouped g left join top_keys t on t.key = g.key
+        ) select bucket, key, sum(cost), is_other from projected
+          group by bucket, key, is_other order by bucket, key, is_other"""
+    with analytical_reads.connection(db.pool()) as con:
+        rows = con.execute(sql, (bucket, label, start, end, *params, top)).fetchall()
 
     fmt = "%Y-%m-%d" if bucket == "day" else "%Y-%m-%dT%H:00:00Z"
     cursor = start.replace(minute=0, second=0, microsecond=0)
@@ -179,13 +187,17 @@ def timeseries(
 
     totals: dict[str, float] = {}
     points: dict[str, dict[str, float]] = {}
-    for bucket_name, key_name, cost in rows:
+    other_points = {}
+    for bucket_name, key_name, cost, is_other in rows:
+        if is_other:
+            other_points[bucket_name] = float(cost)
+            continue
         if bucket_name not in index:
             continue
         cost = float(cost)
         totals[key_name] = totals.get(key_name, 0.0) + cost
         points.setdefault(key_name, {})[bucket_name] = cost
-    ranked = sorted(totals, key=totals.get, reverse=True)
+    ranked = sorted(totals, key=lambda key: (-totals[key], key))
     series = [
         {
             "key": name,
@@ -193,13 +205,12 @@ def timeseries(
         }
         for name in ranked[:top]
     ]
-    if len(ranked) > top:
-        other = [0.0] * len(buckets)
-        for name in ranked[top:]:
-            for bucket_name, cost in points[name].items():
-                other[index[bucket_name]] += cost
-        series.append({"key": "other", "values": other})
-    return {"buckets": buckets, "series": series}
+    other_index = len(series) if other_points else None
+    if other_points:
+        series.append({"key": "other", "values": [other_points.get(name, 0.0) for name in buckets]})
+    return analytical_reads.response({"buckets": buckets, "series": series,
+        "completeness": {**analytical_reads.completeness(start, end, mode="top_n_with_other", limit=top, returned=len(series)),
+                         "other_series_index": other_index}})
 
 
 @router.get("/v1/environments")
@@ -207,22 +218,23 @@ def environments(
     from_: str | None = Query(None, alias="from"),
     to: str | None = None,
 ):
-    start, end = _window(from_, to)
+    start, end = analytical_reads.validate_window(*_window(from_, to))
     sql = """
         select environment, count(*)
         from calls
         where ts >= %s and ts < %s
         group by environment
-        order by environment nulls last
+        order by environment nulls last limit 501
     """
-    with db.pool().connection() as con:
+    with analytical_reads.connection(db.pool()) as con:
         rows = con.execute(sql, (start, end)).fetchall()
-    return {
-        "items": [
-            {"value": environment, "calls": calls}
-            for environment, calls in rows
-        ]
-    }
+    if len(rows) > analytical_reads.GROUP_LIMIT:
+        raise HTTPException(503, {"code": "usage_response_too_large", "message": "Too many environments. Narrow the time window and try again."}, headers={"Retry-After": "5"})
+    return analytical_reads.response({
+        "items": [{"value": environment, "calls": calls} for environment, calls in rows[:analytical_reads.GROUP_LIMIT]],
+        "completeness": analytical_reads.completeness(start, end, mode="distinct",
+            complete=len(rows) <= analytical_reads.GROUP_LIMIT, returned=min(len(rows), analytical_reads.GROUP_LIMIT)),
+    })
 
 
 @router.get("/v1/calls")

@@ -1,3 +1,4 @@
+import UsageCompleteness from '../components/UsageCompleteness.jsx'
 import { useEffect, useState } from 'react'
 import { api, useApi } from '../api.js'
 import { fmtInt, fmtPct, fmtTokens, fmtUsd } from '../format.js'
@@ -58,6 +59,7 @@ export default function Models({ query }) {
 
   return (
     <>
+      <UsageCompleteness data={[usage.data, providers.data]} />
     <div className="chart-grid two">
       <section className="panel">
         <div className="section-heading">

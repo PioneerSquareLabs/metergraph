@@ -1,3 +1,4 @@
+import UsageCompleteness from '../components/UsageCompleteness.jsx'
 import { api, useApi } from '../api.js'
 import { fmtInt, fmtPct, fmtTokens, fmtUsd } from '../format.js'
 import { navigateWithSelection } from '../hash.js'
@@ -77,6 +78,7 @@ export default function Overview({ query }) {
 
   return (
     <>
+      <UsageCompleteness data={[usage.data, providers.data, funcs.data]} />
       {unpriced.length > 0 ? (
         <div className="banner-warn">
           <strong>
