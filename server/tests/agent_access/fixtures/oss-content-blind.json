@@ -10,6 +10,8 @@
     "metergraph_get_ingestion_health": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
     "metergraph_list_incidents": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
     "metergraph_query_traces": {"privacy_class": "metadata", "required_scope": "agent:read", "available": true},
+    "metergraph_list_analysis_runs": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
+    "metergraph_get_analysis_run": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
     "metergraph_list_reports": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
     "metergraph_get_report": {"privacy_class": "metadata", "required_scope": "agent:read", "available": false},
     "metergraph_get_report_evidence": {"privacy_class": "content", "required_scope": "agent:read", "available": false},
@@ -18,5 +20,6 @@
   },
   "content_included_by_default": false,
   "bounds": {"max_days": 90, "max_rows": 200, "max_response_bytes": 5242880},
-  "unsupported_error_code": "unsupported_capability"
+  "unsupported_error_code": "unsupported_capability",
+  "unsupported_capabilities": ["ingestion_health", "incidents", "reports", "report_detail", "report_evidence", "trace_content", "trace_replay", "analysis_runs", "analysis_run"]
 }
