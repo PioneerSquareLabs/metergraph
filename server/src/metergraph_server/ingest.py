@@ -10,6 +10,8 @@ import zlib
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
+from . import ingestion_contracts
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from metergraph_core import normalize_gateway_evidence, resolve_billing
 
@@ -286,7 +288,7 @@ def _decode_body(body: bytes, encoding: str | None, limit: int) -> dict:
     return payload
 
 
-@router.post("/v1/ingest/sessions", status_code=201)
+@router.post("/v1/ingest/sessions", status_code=201, **ingestion_contracts.contract(session=True))
 async def create_ingest_session(
     request: Request,
     app_token: str = Depends(authenticated_app_token),
@@ -319,7 +321,7 @@ async def create_ingest_session(
 
 
 @router.post(
-    "/v1/ingest", status_code=202, dependencies=[Depends(require_ingest_token)]
+    "/v1/ingest", status_code=202, **ingestion_contracts.contract(), dependencies=[Depends(require_ingest_token)]
 )
 async def ingest(request: Request):
     payload = _decode_body(
