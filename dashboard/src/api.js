@@ -60,7 +60,7 @@ export async function api(path, params = {}) {
     let detail = `${res.status} ${res.statusText}`
     try {
       const body = await res.json()
-      if (body && body.detail) detail = body.detail
+      if (body && body.detail) detail = typeof body.detail === 'string' ? body.detail : (body.detail.message || detail)
     } catch {
       /* non-JSON error body */
     }
