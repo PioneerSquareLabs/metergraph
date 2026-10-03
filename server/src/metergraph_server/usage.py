@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
-from . import analytical_reads, db
+from . import analytical_reads, db, telemetry_contracts as contracts
 from .call_cursor import decode_call_cursor, encode_call_cursor
 from .auth import require_token
 
@@ -68,7 +68,7 @@ def _filters(
     return "".join(f" and {clause}" for clause in clauses), params
 
 
-@router.get("/v1/usage")
+@router.get("/v1/usage", **contracts.contract(contracts.GROUPED_USAGE, contracts.USAGE_DESCRIPTION + " OSS: omitted environment and include_untagged means all; selected environments OR include_untagged=true selects null environment records. Explicit false with no selected environments matches none.", busy=True))
 def usage(
     group_by: str = Query("func"),
     from_: str | None = Query(None, alias="from"),
@@ -136,7 +136,7 @@ def usage(
         start, end, complete=complete, returned=len(items))})
 
 
-@router.get("/v1/usage/timeseries")
+@router.get("/v1/usage/timeseries", **contracts.contract(contracts.USAGE_SERIES, contracts.SERIES_DESCRIPTION + " OSS: omitted environment and include_untagged means all; selected environments OR include_untagged=true selects null environment records. Explicit false with no selected environments matches none.", busy=True))
 def timeseries(
     group_by: str = Query("model"),
     bucket: str = Query("day"),
@@ -213,7 +213,7 @@ def timeseries(
                          "other_series_index": other_index}})
 
 
-@router.get("/v1/environments")
+@router.get("/v1/environments", **contracts.contract(contracts.ENVIRONMENTS, contracts.ENV_DESCRIPTION, busy=True))
 def environments(
     from_: str | None = Query(None, alias="from"),
     to: str | None = None,
@@ -237,7 +237,7 @@ def environments(
     })
 
 
-@router.get("/v1/calls")
+@router.get("/v1/calls", **contracts.contract(contracts.CALLS, contracts.CALL_DESCRIPTION + " OSS: omitted environment and include_untagged means all; selected environments OR include_untagged=true selects null environment records. Explicit false with no selected environments matches none.", busy=False))
 def calls(
     limit: int = Query(50, ge=1, le=500),
     func_: str | None = Query(None, alias="func"),
