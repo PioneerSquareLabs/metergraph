@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from . import db
+from .call_cursor import decode_call_cursor, encode_call_cursor
 from .auth import require_token
 
 router = APIRouter(dependencies=[Depends(require_token)])
@@ -230,6 +231,7 @@ def calls(
     func_: str | None = Query(None, alias="func"),
     route: str | None = None,
     before: str | None = None,
+    cursor: str | None = Query(None, max_length=2048),
     environment: list[str] | None = Query(None),
     include_untagged: bool | None = None,
 ):
@@ -240,6 +242,13 @@ def calls(
     if route:
         where += " and route = %s"
         params.append(route)
+    scope = {"profile": "oss", "route": route, "func": func_, "environment": sorted(set(environment)) if environment is not None else None, "include_untagged": include_untagged}
+    if cursor is not None:
+        if before is not None:
+            raise HTTPException(400, "cursor and before cannot be combined")
+        cutoff, call_id = decode_call_cursor(cursor, scope)
+        where += " and (ts, id) < (%s, %s)"
+        params.extend((cutoff, call_id))
     if before:
         try:
             cutoff = datetime.fromisoformat(before)
@@ -255,14 +264,14 @@ def calls(
                array[]::text[] as catalog_reasons, cost_status, latency_ms, status,
                status_code, finish_reason, finish_reason_raw, error, error_type,
                stream, session_id, trace_id, template_hash,
-               tool_names, environment, sdk, sdk_version, request_id
+               tool_names, environment, sdk, sdk_version, request_id, id
         from calls
         where true{where}
-        order by ts desc
+        order by ts desc, id desc
         limit %s
     """
     with db.pool().connection() as con:
-        rows = con.execute(sql, (*params, limit)).fetchall()
+        rows = con.execute(sql, (*params, limit + 1)).fetchall()
     columns = (
         "ts", "func", "module", "route", "provider", "model", "canonical_model",
         "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens",
@@ -272,9 +281,11 @@ def calls(
         "stream", "session_id", "trace_id", "template_hash",
         "tool_names", "environment", "sdk", "sdk_version", "request_id",
     )
+    has_more = len(rows) > limit
+    rows = rows[:limit]
     items = []
     for row in rows:
-        item = dict(zip(columns, row))
+        item = dict(zip(columns, row[:-1], strict=True))
         item["ts"] = item["ts"].isoformat()
         for key in ("cost_usd", "reported_cost_usd", "catalog_cost_usd"):
             if item[key] is not None:
@@ -284,7 +295,8 @@ def calls(
         if item["tool_names"] is not None:
             item["tool_names"] = list(item["tool_names"])
         items.append(item)
-    return {"items": items}
+    next_cursor = encode_call_cursor(rows[-1][0], rows[-1][-1], scope) if has_more else None
+    return {"items": items, "page": {"next_cursor": next_cursor, "has_more": has_more, "limit": limit}}
 
 
 @router.get("/v1/catalog")
