@@ -44,7 +44,7 @@ models:
 - `uncaptured_fees: true` — provider charges fees tokens can't express; rows are marked `partial`.
 
 `currency` is required and currently limited to `USD`. A price row may set its
-own `currency` (a three-letter ISO 4217 code, uppercased on load) when a
+own `currency` (a three-letter code, uppercased on load) when a
 provider publishes that price in another currency; a row without one inherits
 the document's. A non-USD row prices into `CostResult.cost`/`currency` and
 leaves `cost_usd` unset, and the bundled catalog carries no such rows.

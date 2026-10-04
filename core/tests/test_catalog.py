@@ -1886,3 +1886,40 @@ def test_legacy_usd_cost_result_mirrors_into_generic_fields():
     assert priced.currency == "USD"
     assert unpriced.cost is None
     assert unpriced.currency is None
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"cost_usd": Decimal("1"), "cost": Decimal("1"), "currency": "EUR"},
+        {"cost_usd": Decimal("1"), "cost": Decimal("2"), "currency": "USD"},
+        {"cost_usd": None, "cost": Decimal("1"), "currency": None},
+        {"cost_usd": None, "cost": None, "currency": "EUR"},
+    ],
+)
+def test_cost_result_rejects_contradictory_amount_and_currency(kwargs):
+    with pytest.raises(ValueError, match="cost"):
+        CostResult("example/model", "price-1", status="priced", **kwargs)
+
+
+def test_cost_result_normalizes_usd_generic_fields():
+    from_generic = CostResult(
+        "example/model",
+        "price-1",
+        cost_usd=None,
+        status="priced",
+        cost=Decimal("0.5"),
+        currency="USD",
+    )
+    from_legacy_with_currency = CostResult(
+        "example/model",
+        "price-1",
+        cost_usd=Decimal("0.5"),
+        status="priced",
+        currency="USD",
+    )
+
+    assert from_generic.cost_usd == from_generic.cost == Decimal("0.5")
+    assert from_legacy_with_currency.cost_usd == from_legacy_with_currency.cost == Decimal(
+        "0.5"
+    )

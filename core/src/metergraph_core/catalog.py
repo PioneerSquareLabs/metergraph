@@ -210,7 +210,7 @@ class Price:
     # imply one: google-vertex-ai serves Anthropic's models beside Google's,
     # and the two report cache reads differently.
     publisher: str | None = None
-    # The currency the provider publishes this row in (ISO 4217 code).
+    # The three-letter currency code the provider publishes this row in.
     currency: str = _USD
 
 
@@ -236,6 +236,20 @@ class CostResult:
         if self.cost is None and self.currency is None and self.cost_usd is not None:
             object.__setattr__(self, "cost", self.cost_usd)
             object.__setattr__(self, "currency", _USD)
+
+        # Accept either complete USD representation and fill its equivalent.
+        if self.currency == _USD:
+            if self.cost is None and self.cost_usd is not None:
+                object.__setattr__(self, "cost", self.cost_usd)
+            elif self.cost_usd is None and self.cost is not None:
+                object.__setattr__(self, "cost_usd", self.cost)
+
+        if (self.cost is None) != (self.currency is None):
+            raise ValueError("cost and currency must be set together")
+        if self.cost_usd is not None and self.currency != _USD:
+            raise ValueError("cost_usd requires USD currency")
+        if self.cost_usd is not None and self.cost_usd != self.cost:
+            raise ValueError("cost_usd must equal cost when currency is USD")
 
 
 def _cost_result(

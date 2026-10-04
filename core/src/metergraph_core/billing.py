@@ -77,6 +77,8 @@ class BillingDecision:
     The ``*_usd`` fields hold dollar amounts only. ``cost``/``cost_currency``
     and ``catalog_cost``/``catalog_cost_currency`` carry the same amounts in
     their native currency, which is where a non-USD catalog price appears.
+    ``cost_status == "priced"`` means a native-currency cost is available; it
+    does not guarantee that ``cost_usd`` is populated.
     """
 
     cost_usd: Decimal | None
