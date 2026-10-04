@@ -1,4 +1,5 @@
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
@@ -238,6 +239,92 @@ def test_an_upstream_amount_is_only_taken_from_a_gateway_that_reports_one():
 
     assert decision.reported_upstream_cost_usd is None
     assert decision.cost_usd == Decimal("0.01807375")
+
+
+CATALOG_PRICED_EUR = CostResult(
+    canonical_model="example/model",
+    price_id="catalog-price-eur",
+    cost_usd=None,
+    status="priced",
+    cost=Decimal("0.005"),
+    currency="EUR",
+)
+
+
+def test_usd_decision_labels_the_generic_amount_without_changing_cost_usd():
+    decision = resolve_billing(CATALOG_PRICED, normalize_gateway_evidence({}))
+
+    assert decision.cost_usd == Decimal("0.006")
+    assert decision.cost == Decimal("0.006")
+    assert decision.cost_currency == "USD"
+    assert decision.catalog_cost == Decimal("0.006")
+    assert decision.catalog_cost_currency == "USD"
+
+
+def test_legacy_catalog_result_without_native_fields_remains_usd_compatible():
+    legacy_result = SimpleNamespace(
+        canonical_model="example/model",
+        price_id="legacy-price",
+        cost_usd=Decimal("0.006"),
+        status="priced",
+        reasons=(),
+    )
+
+    decision = resolve_billing(legacy_result, normalize_gateway_evidence({}))
+
+    assert decision.cost_usd == Decimal("0.006")
+    assert decision.cost == Decimal("0.006")
+    assert decision.cost_currency == "USD"
+    assert decision.catalog_cost == Decimal("0.006")
+    assert decision.catalog_cost_currency == "USD"
+
+
+def test_gateway_reported_amount_is_labeled_usd():
+    decision = resolve_billing(
+        CATALOG_PRICED, normalize_gateway_evidence(_openrouter_row())
+    )
+
+    assert decision.cost == Decimal("0.00482")
+    assert decision.cost_currency == "USD"
+    assert decision.catalog_cost == Decimal("0.006")
+    assert decision.catalog_cost_currency == "USD"
+
+
+def test_native_catalog_amount_is_preserved_without_gateway_evidence():
+    decision = resolve_billing(CATALOG_PRICED_EUR, normalize_gateway_evidence({}))
+
+    assert decision.cost_usd is None
+    assert decision.cost == Decimal("0.005")
+    assert decision.cost_currency == "EUR"
+    assert decision.cost_status == "priced"
+    assert decision.cost_provenance == "catalog"
+    assert decision.catalog_cost_usd is None
+    assert decision.catalog_cost == Decimal("0.005")
+    assert decision.catalog_cost_currency == "EUR"
+
+
+def test_gateway_usd_wins_over_a_native_catalog_amount_without_comparison():
+    decision = resolve_billing(
+        CATALOG_PRICED_EUR, normalize_gateway_evidence(_openrouter_row())
+    )
+
+    assert decision.cost_usd == Decimal("0.00482")
+    assert decision.cost == Decimal("0.00482")
+    assert decision.cost_currency == "USD"
+    assert decision.cost_provenance == "gateway_reported"
+    assert decision.catalog_cost_usd is None
+    assert decision.catalog_cost == Decimal("0.005")
+    assert decision.catalog_cost_currency == "EUR"
+    assert decision.cost_discrepancy_status is None
+
+
+def test_unpriced_decision_carries_no_amount_or_currency():
+    decision = resolve_billing(CATALOG_UNPRICED, normalize_gateway_evidence({}))
+
+    assert decision.cost is None
+    assert decision.cost_currency is None
+    assert decision.catalog_cost is None
+    assert decision.catalog_cost_currency is None
 
 
 def test_every_entry_names_a_gateway_endpoint_and_source():

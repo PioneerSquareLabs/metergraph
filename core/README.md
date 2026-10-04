@@ -80,6 +80,14 @@ prefix, the latter only onto an `aws-bedrock` alias. Geographic prefixes such as
 `LoadedCatalog.pricing_verified_at` records when the bundled catalog was last
 checked against its linked provider sources.
 
+A price row may declare its own `currency`; otherwise it inherits the
+document's. `Price.currency` and `ResolvedPrice.currency` carry the selected
+row's code, and `CostResult.cost`/`CostResult.currency` carry the computed
+amount in that currency. `cost_usd` is populated only for USD rows, so a
+native-currency amount is never labeled as dollars. No conversion is performed.
+Accordingly, `cost_status == "priced"` means a native-currency amount is
+available; callers that require dollars must check `cost_usd` separately.
+
 ## Model registry
 
 ```python

@@ -1,3 +1,4 @@
+from dataclasses import fields
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -6,6 +7,9 @@ import pytest
 from metergraph_core import (
     CatalogError,
     CatalogSnapshot,
+    CostResult,
+    Price,
+    ResolvedPrice,
     counts_cache_read_in_input,
     direct_channel_for_provider,
     load_catalog,
@@ -1746,3 +1750,176 @@ def test_every_pinned_alias_names_a_price_region_the_catalog_carries():
                 if (alias["channel"], price_region.lower()) not in carried:
                     missing.append((alias["alias"], price_region))
     assert missing == []
+
+
+def _currency_catalog(row_currency=None):
+    """One synthetic model whose single price row may declare a currency."""
+    price = {
+        "channel": "example-api",
+        "effective_from": "2026-01-01",
+        "input_per_mtok": 1,
+        "output_per_mtok": 2,
+        "source_url": "https://example.com/prices",
+    }
+    if row_currency is not None:
+        price["currency"] = row_currency
+    return {
+        "version": "test",
+        "currency": "USD",
+        "pricing_verified_at": "2026-08-24",
+        "models": [
+            {
+                "canonical_id": "example/model",
+                "publisher": "example",
+                "aliases": [
+                    {"provider": "example", "alias": "model", "channel": "example-api"}
+                ],
+                "prices": [price],
+            }
+        ],
+    }
+
+
+def _currency_snapshot(row_currency=None):
+    _, aliases, prices = parse_catalog(_currency_catalog(row_currency))
+    return CatalogSnapshot(aliases, prices, region="global")
+
+
+def test_price_row_without_currency_inherits_the_document_currency():
+    _, _, prices = parse_catalog(_currency_catalog())
+
+    assert prices[0].currency == "USD"
+
+
+def test_usd_row_keeps_cost_usd_and_labels_the_generic_amount():
+    result = _currency_snapshot().cost(
+        provider="example",
+        model="model",
+        at=_at("2026-02-01"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("3.00000000")
+    assert result.cost == result.cost_usd
+    assert result.currency == "USD"
+
+
+def test_native_currency_row_resolves_in_its_currency():
+    resolved = _currency_snapshot("EUR").resolve_price(
+        model="example/model", channel="example-api", at=_at("2026-02-01")
+    )
+
+    assert resolved is not None
+    assert resolved.price.currency == "EUR"
+    assert resolved.currency == "EUR"
+    # Derived from the selected price, not stored beside it.
+    assert "currency" not in {field.name for field in fields(ResolvedPrice)}
+
+
+def test_native_currency_cost_is_never_presented_as_dollars():
+    snapshot = _currency_snapshot("EUR")
+    by_provider = snapshot.cost(
+        provider="example",
+        model="model",
+        at=_at("2026-02-01"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    by_deployment = snapshot.price_deployment(
+        model="example/model",
+        channel="example-api",
+        at=_at("2026-02-01"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    for result in (by_provider, by_deployment):
+        assert result.status == "priced"
+        assert result.cost == Decimal("3.00000000")
+        assert result.currency == "EUR"
+        assert result.cost_usd is None
+
+
+def test_row_currency_is_normalized_uppercase():
+    _, _, prices = parse_catalog(_currency_catalog("eur"))
+
+    assert prices[0].currency == "EUR"
+
+
+@pytest.mark.parametrize(
+    "value", ["EU", "EURO", "E1R", "€", "", "ÉUR", 123, ["EUR"]]
+)
+def test_malformed_row_currency_is_rejected(value):
+    with pytest.raises(CatalogError, match="currency"):
+        parse_catalog(_currency_catalog(value))
+
+
+def test_price_constructed_without_currency_is_usd():
+    price = Price(
+        id="example/model:example-api:global:2026-01-01",
+        model_id="example/model",
+        pricing_channel="example-api",
+        region="global",
+        input_per_mtok=Decimal("1"),
+        output_per_mtok=Decimal("2"),
+        cache_read_per_mtok=None,
+        cache_write_5m_per_mtok=None,
+        cache_write_1h_per_mtok=None,
+        batch_input_per_mtok=None,
+        batch_output_per_mtok=None,
+        rules={},
+        effective_from=_at("2026-01-01"),
+        effective_to=None,
+        source_url="https://example.com/prices",
+    )
+
+    assert price.currency == "USD"
+
+
+def test_legacy_usd_cost_result_mirrors_into_generic_fields():
+    priced = CostResult("example/model", "price-1", Decimal("0.5"), "priced")
+    unpriced = CostResult(None, None, None, "unpriced", ("unknown_model",))
+
+    assert priced.cost == Decimal("0.5")
+    assert priced.currency == "USD"
+    assert unpriced.cost is None
+    assert unpriced.currency is None
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"cost_usd": Decimal("1"), "cost": Decimal("1"), "currency": "EUR"},
+        {"cost_usd": Decimal("1"), "cost": Decimal("2"), "currency": "USD"},
+        {"cost_usd": None, "cost": Decimal("1"), "currency": None},
+        {"cost_usd": None, "cost": None, "currency": "EUR"},
+    ],
+)
+def test_cost_result_rejects_contradictory_amount_and_currency(kwargs):
+    with pytest.raises(ValueError, match="cost"):
+        CostResult("example/model", "price-1", status="priced", **kwargs)
+
+
+def test_cost_result_normalizes_usd_generic_fields():
+    from_generic = CostResult(
+        "example/model",
+        "price-1",
+        cost_usd=None,
+        status="priced",
+        cost=Decimal("0.5"),
+        currency="USD",
+    )
+    from_legacy_with_currency = CostResult(
+        "example/model",
+        "price-1",
+        cost_usd=Decimal("0.5"),
+        status="priced",
+        currency="USD",
+    )
+
+    assert from_generic.cost_usd == from_generic.cost == Decimal("0.5")
+    assert from_legacy_with_currency.cost_usd == from_legacy_with_currency.cost == Decimal(
+        "0.5"
+    )
