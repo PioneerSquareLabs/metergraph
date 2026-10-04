@@ -1,4 +1,5 @@
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
@@ -252,6 +253,24 @@ CATALOG_PRICED_EUR = CostResult(
 
 def test_usd_decision_labels_the_generic_amount_without_changing_cost_usd():
     decision = resolve_billing(CATALOG_PRICED, normalize_gateway_evidence({}))
+
+    assert decision.cost_usd == Decimal("0.006")
+    assert decision.cost == Decimal("0.006")
+    assert decision.cost_currency == "USD"
+    assert decision.catalog_cost == Decimal("0.006")
+    assert decision.catalog_cost_currency == "USD"
+
+
+def test_legacy_catalog_result_without_native_fields_remains_usd_compatible():
+    legacy_result = SimpleNamespace(
+        canonical_model="example/model",
+        price_id="legacy-price",
+        cost_usd=Decimal("0.006"),
+        status="priced",
+        reasons=(),
+    )
+
+    decision = resolve_billing(legacy_result, normalize_gateway_evidence({}))
 
     assert decision.cost_usd == Decimal("0.006")
     assert decision.cost == Decimal("0.006")

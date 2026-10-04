@@ -165,6 +165,13 @@ def resolve_billing(
         and evidence.reported_upstream_cost_source == qualified.upstream_cost_source
         else None
     )
+    catalog_cost_usd = catalog_result.cost_usd
+    catalog_cost = getattr(catalog_result, "cost", catalog_cost_usd)
+    catalog_currency = getattr(
+        catalog_result,
+        "currency",
+        _USD if catalog_cost is not None else None,
+    )
 
     # Gateway evidence is USD by definition; a catalog amount keeps its own
     # currency. The two are never compared.
@@ -173,9 +180,9 @@ def resolve_billing(
         cost, currency = reported_cost, _USD
         cost_status = "priced"
         provenance = "gateway_reported"
-    elif catalog_result.cost is not None:
-        cost_usd = catalog_result.cost_usd
-        cost, currency = catalog_result.cost, catalog_result.currency
+    elif catalog_cost is not None:
+        cost_usd = catalog_cost_usd
+        cost, currency = catalog_cost, catalog_currency
         cost_status = catalog_result.status
         provenance = "catalog"
     else:
@@ -190,11 +197,11 @@ def resolve_billing(
         cost_provenance=provenance,
         reported_cost_usd=reported_cost,
         reported_upstream_cost_usd=upstream_cost,
-        catalog_cost_usd=catalog_result.cost_usd,
+        catalog_cost_usd=catalog_cost_usd,
         catalog_price_id=catalog_result.price_id,
         catalog_reasons=catalog_result.reasons,
         cost=cost,
         cost_currency=currency,
-        catalog_cost=catalog_result.cost,
-        catalog_cost_currency=catalog_result.currency,
+        catalog_cost=catalog_cost,
+        catalog_cost_currency=catalog_currency,
     )
