@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-10-02"
+version: "2026-10-05"
 currency: USD
-pricing_verified_at: "2026-10-02"
+pricing_verified_at: "2026-10-05"
 models:
   - canonical_id: openai/gpt-6-sol
     publisher: openai
@@ -4238,3 +4238,37 @@ retrieval:
     per_1k_usd: 14.00
     effective_from: "2026-08-26"
     source_url: https://ai.google.dev/gemini-api/docs/pricing
+  # Gemini 3 on Vertex is charged per grounding query after 5,000 free a
+  # month. Gemini 2.5 and 2.0 are charged per grounded prompt and are not
+  # represented.
+  - channel: google-vertex-ai
+    operation: google_search_grounding
+    region: global
+    unit: executed_query
+    per_1k_usd: 14.00
+    effective_from: "2026-01-05"
+    source_url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
+  # Sonar charges a request fee on top of tokens, by search context size;
+  # low is the default. The sonar token row keeps `uncaptured_fees` until
+  # callers price requests alongside tokens.
+  - channel: perplexity-api
+    operation: search_request_low
+    region: global
+    unit: request
+    per_1k_usd: 5.00
+    effective_from: "2025-04-18"
+    source_url: https://docs.perplexity.ai/docs/getting-started/pricing
+  - channel: perplexity-api
+    operation: search_request_medium
+    region: global
+    unit: request
+    per_1k_usd: 8.00
+    effective_from: "2025-04-18"
+    source_url: https://docs.perplexity.ai/docs/getting-started/pricing
+  - channel: perplexity-api
+    operation: search_request_high
+    region: global
+    unit: request
+    per_1k_usd: 12.00
+    effective_from: "2025-04-18"
+    source_url: https://docs.perplexity.ai/docs/getting-started/pricing

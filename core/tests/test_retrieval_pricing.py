@@ -11,7 +11,7 @@ tokens. A missing, non-integer, or negative unit count and an unknown operation
 or channel are rejected as explicitly unpriced -- never silently priced at zero.
 
 The synthetic catalog below pins the edge-case contract against deterministic
-numbers; the four shipped operations are asserted against the bundled catalog
+numbers; the shipped operations are asserted against the bundled catalog
 because their rates are fixed requirements.
 """
 
@@ -140,6 +140,39 @@ def test_prices_google_search_grounding_fourteen_dollars_per_thousand():
     # $14 per 1,000 executed queries.
     assert priced.cost_usd == Decimal("14.00000000")
     assert priced.price_id == "google-api:google_search_grounding:global:2026-08-26"
+
+
+def test_prices_vertex_search_grounding_fourteen_dollars_per_thousand():
+    catalog = load_catalog()
+    priced = catalog.price_retrieval(
+        channel="google-vertex-ai",
+        operation="google_search_grounding",
+        units=1000,
+        at=datetime(2026, 10, 5, tzinfo=timezone.utc),
+    )
+    assert priced.status == "priced"
+    # $14 per 1,000 grounding queries.
+    assert priced.cost_usd == Decimal("14.00000000")
+    assert priced.price_id == "google-vertex-ai:google_search_grounding:global:2026-01-05"
+
+
+@pytest.mark.parametrize(
+    ("operation", "fee"),
+    [
+        ("search_request_low", "5.00000000"),
+        ("search_request_medium", "8.00000000"),
+        ("search_request_high", "12.00000000"),
+    ],
+)
+def test_prices_sonar_request_fee_by_search_context_size(operation, fee):
+    catalog = load_catalog()
+    priced = catalog.price_retrieval(
+        channel="perplexity-api", operation=operation, units=1000, at=_AT
+    )
+    assert priced.status == "priced"
+    # Per request, on top of tokens; low is the default.
+    assert priced.cost_usd == Decimal(fee)
+    assert priced.price_id == f"perplexity-api:{operation}:global:2025-04-18"
 
 
 def test_cost_scales_linearly_with_unit_count(tmp_path):
