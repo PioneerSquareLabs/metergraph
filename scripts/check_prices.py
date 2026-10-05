@@ -1,32 +1,21 @@
-"""Compare the shipped price catalog with public price sources.
+"""Compare the catalog rows in effect today with public price sources.
 
-For every price row in effect today, the script asks each source what it
-charges for the same model on the same channel and reports where they
-disagree, so a catalog update starts from evidence rather than from someone
-noticing. It reads prices only; it never edits the catalog.
+Each row is graded: confirmed, disputed (one source disagrees), update (the
+channel's own list disagrees, or two sources agree against the catalog) or
+unchecked. The script reads prices only and never edits the catalog.
 
-Sources (all public, no credentials):
-
-- ``vercel``: the AI Gateway model list. Authoritative for the
-  ``vercel-ai-gateway`` channel, since it is the gateway's own price.
-- ``litellm``: LiteLLM's community price map, matched through the catalog's
-  ``provider: litellm`` aliases. A second opinion for first-party channels.
-- ``modelsdev``: the models.dev catalog, matched by provider and model id.
-  A second opinion for first-party channels.
-- ``portkey``: Portkey's per-model pricing API, one request per model. Off
-  by default because of the request count; enable with ``--sources``.
+Sources, none needing credentials: ``vercel`` (the AI Gateway list, the
+gateway's own price), ``litellm`` (matched through ``provider: litellm``
+aliases), ``modelsdev`` (matched by provider and model id) and ``portkey``
+(one request per model, so opt-in).
 
 Usage:
 
-    python scripts/check_prices.py                      # report to stdout
-    python scripts/check_prices.py --json report.json   # plus machine output
+    python scripts/check_prices.py [--json report.json] [--cache-dir DIR]
     python scripts/check_prices.py --sources vercel,litellm,modelsdev,portkey
-    python scripts/check_prices.py --cache-dir .pricecache  # reuse downloads
 
-Exit status: 0 when nothing needs attention, 2 when a strong update signal
-exists (the authoritative source for a channel disagrees, or two independent
-sources agree with each other against the catalog), 1 with ``--strict`` when
-any source disagrees at all.
+Exit status: 0 nothing to do, 2 an update signal, 1 with ``--strict`` when any
+source disagrees.
 """
 
 from __future__ import annotations
@@ -58,12 +47,12 @@ CATALOG_FIELDS = {
     "cache_write": "cache_write_5m_per_mtok",
 }
 MTOK = Decimal(1_000_000)
-# A source is treated as agreeing when it is within this share of our rate,
-# or within this many dollars per million tokens, whichever is looser.
+# A source agrees when within this share of our rate or this many dollars per
+# million tokens, whichever is looser.
 RELATIVE_TOLERANCE = Decimal("0.01")
 ABSOLUTE_TOLERANCE = Decimal("0.001")
 
-# The one source that is the channel's own price list.
+# The source that is the channel's own price list.
 AUTHORITATIVE = {"vercel-ai-gateway": "vercel"}
 
 # Aliases recorded under these providers are source keys, not provider ids.
@@ -144,8 +133,7 @@ class CatalogRow:
     # (provider, alias) pairs the catalog carries for this model on this channel.
     aliases: tuple[tuple[str, str], ...]
 
-    # One row per model, channel and region is the catalog's own identity, and
-    # it is what quotes are keyed by.
+    # Quotes are keyed by model, channel and region.
     @property
     def key(self) -> tuple[str, str, str]:
         return (self.canonical_id, self.channel, self.region)
@@ -217,8 +205,7 @@ class Quote:
     source: str
     key: str
     rates: Mapping[str, Decimal]
-    # Set when the source files this price under a different channel than the
-    # catalog row it was matched to, e.g. a LiteLLM key that belongs to Vertex.
+    # The source's channel, when it differs from the catalog row's.
     source_channel: str | None = None
 
 
@@ -276,9 +263,8 @@ def _litellm_quotes(data: Mapping[str, Any], rows: list[CatalogRow]) -> dict[Cat
 
 
 def _global_only(rows: list[CatalogRow]) -> list[CatalogRow]:
-    """Rows a region-blind source can speak to. A regional row (Bedrock in
-    us-east-1, xAI in the US) carries that region's uplift, which a list with
-    one price per model would report as a mismatch every day."""
+    """Rows a region-blind source can compare: regional rows carry an uplift
+    that a one-price-per-model list would flag every day."""
     return [row for row in rows if row.region == "global"]
 
 
@@ -368,12 +354,11 @@ class Finding:
 
     @property
     def strong(self) -> bool:
-        """An update signal worth acting on without further checking."""
+        """An update signal that needs no further corroboration."""
         authority = AUTHORITATIVE.get(self.row.channel)
         if authority and authority in self.disagreeing:
             return True
-        # Two sources that disagree with us and agree with each other on at
-        # least one of the fields they both quote.
+        # Two dissenting sources that agree with each other on some field.
         sources = self.disagreeing
         for i, left in enumerate(sources):
             for right in sources[i + 1 :]:

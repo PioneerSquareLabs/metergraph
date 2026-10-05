@@ -1,9 +1,7 @@
 name: Price check
 
-# Compares the catalog rows in effect today with public price sources and
-# fails when there is a strong update signal, so a stale price shows up as a
-# red run rather than waiting for someone to notice. The report is attached
-# to the run and written to its summary.
+# Compares the catalog with public price sources; fails on an update signal.
+# The report goes to the run summary and an artifact.
 
 on:
   schedule:

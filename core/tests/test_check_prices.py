@@ -1,9 +1,5 @@
-"""The price check compares catalog rows in effect today with public price
-sources and grades each row: confirmed, disputed, update, or unchecked.
-
-These tests pin the pure parts (row selection, source conversion, grading,
-rendering) against small inline fixtures so no test touches the network.
-"""
+"""Row selection, source conversion, grading and rendering of the price
+check, against inline fixtures. No test touches the network."""
 
 import importlib.util
 import json
@@ -234,7 +230,7 @@ def test_the_authoritative_source_alone_forces_an_update():
 
 
 def test_fields_only_one_side_quotes_are_not_compared():
-    row = _row("openai-api")  # has cache_read; the quote does not
+    row = _row("openai-api")
     [finding] = check_prices.compare([row], {"litellm": {row: _quote("litellm", input=2.0, output=8.0, cache_write=9.0)}})
     assert finding.verdict == "confirmed"
 
