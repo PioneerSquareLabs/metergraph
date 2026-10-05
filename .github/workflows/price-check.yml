@@ -1,0 +1,43 @@
+name: Price check
+
+# Compares the catalog rows in effect today with public price sources and
+# fails when there is a strong update signal, so a stale price shows up as a
+# red run rather than waiting for someone to notice. The report is attached
+# to the run and written to its summary.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: Compare the catalog with public sources
+        id: check
+        continue-on-error: true
+        run: python scripts/check_prices.py --json price-report.json > price-report.md
+      - name: Publish the report
+        if: always()
+        run: cat price-report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: price-report
+          path: |
+            price-report.md
+            price-report.json
+      - name: Fail on an update signal
+        if: steps.check.outcome == 'failure'
+        run: |
+          echo "A catalog price needs attention; see the run summary." >&2
+          exit 1

@@ -87,8 +87,13 @@ Every stored call gets a `cost_status`:
    supported by the observation's timestamp precision. Never leave a window
    open solely because an earlier call succeeded.
 3. Include a `source_url` for every price.
-4. Open a PR; CI validates structure, dates, and window overlaps.
-5. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
+4. Run `python scripts/check_prices.py` to compare the rows in effect today
+   with public price sources (the Vercel AI Gateway list, LiteLLM's price
+   map, models.dev; Portkey's pricing API with `--sources`). It grades each
+   row confirmed, disputed, update or unchecked and exits 2 on a strong
+   update signal. The `Price check` workflow runs it daily.
+5. Open a PR; CI validates structure, dates, and window overlaps.
+6. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
 6. Self-hosters: mount an updated file with `MG_PRICES_PATH=/path/to/prices.yaml` — no rebuild needed.
 7. If a change adds, removes, or renames a route used by
    `core/src/metergraph_core/data/models.yaml`, update that registry in the same
