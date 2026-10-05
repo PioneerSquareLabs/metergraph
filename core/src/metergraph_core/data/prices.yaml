@@ -4238,16 +4238,17 @@ retrieval:
     per_1k_usd: 14.00
     effective_from: "2026-08-26"
     source_url: https://ai.google.dev/gemini-api/docs/pricing
-  # Vertex bills grounding per search query at the same rate as the Gemini
-  # API. Amount confirmed against gateway-billed Vertex traffic, where every
-  # grounded call costs a whole multiple of $0.014 above its tokens.
+  # Gemini 3 models on Vertex: each grounding query is charged, billing from
+  # 2026-01-05, after 5,000 free queries a month across all Gemini 3 models.
+  # Gemini 2.5 and 2.0 are still billed per grounded prompt ($35 per 1,000
+  # after a daily free allowance) and are not represented here.
   - channel: google-vertex-ai
     operation: google_search_grounding
     region: global
     unit: executed_query
     per_1k_usd: 14.00
-    effective_from: "2026-09-28"
-    source_url: https://cloud.google.com/vertex-ai/generative-ai/pricing
+    effective_from: "2026-01-05"
+    source_url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
   # Sonar adds a per-request fee on top of tokens, by search context size.
   # Low is the default when the request names none. The sonar token row keeps
   # `uncaptured_fees` until callers price these requests alongside tokens.

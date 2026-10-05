@@ -153,7 +153,7 @@ def test_prices_vertex_search_grounding_fourteen_dollars_per_thousand():
     assert priced.status == "priced"
     # Vertex bills each search query at the Gemini API rate.
     assert priced.cost_usd == Decimal("14.00000000")
-    assert priced.price_id == "google-vertex-ai:google_search_grounding:global:2026-09-28"
+    assert priced.price_id == "google-vertex-ai:google_search_grounding:global:2026-01-05"
 
 
 @pytest.mark.parametrize(
