@@ -4238,10 +4238,9 @@ retrieval:
     per_1k_usd: 14.00
     effective_from: "2026-08-26"
     source_url: https://ai.google.dev/gemini-api/docs/pricing
-  # Gemini 3 models on Vertex: each grounding query is charged, billing from
-  # 2026-01-05, after 5,000 free queries a month across all Gemini 3 models.
-  # Gemini 2.5 and 2.0 are still billed per grounded prompt ($35 per 1,000
-  # after a daily free allowance) and are not represented here.
+  # Gemini 3 on Vertex is charged per grounding query after 5,000 free a
+  # month. Gemini 2.5 and 2.0 are charged per grounded prompt and are not
+  # represented.
   - channel: google-vertex-ai
     operation: google_search_grounding
     region: global
@@ -4249,9 +4248,9 @@ retrieval:
     per_1k_usd: 14.00
     effective_from: "2026-01-05"
     source_url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
-  # Sonar adds a per-request fee on top of tokens, by search context size.
-  # Low is the default when the request names none. The sonar token row keeps
-  # `uncaptured_fees` until callers price these requests alongside tokens.
+  # Sonar charges a request fee on top of tokens, by search context size;
+  # low is the default. The sonar token row keeps `uncaptured_fees` until
+  # callers price requests alongside tokens.
   - channel: perplexity-api
     operation: search_request_low
     region: global

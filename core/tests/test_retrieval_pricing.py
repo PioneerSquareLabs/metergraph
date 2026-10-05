@@ -151,7 +151,7 @@ def test_prices_vertex_search_grounding_fourteen_dollars_per_thousand():
         at=datetime(2026, 10, 5, tzinfo=timezone.utc),
     )
     assert priced.status == "priced"
-    # Vertex bills each search query at the Gemini API rate.
+    # $14 per 1,000 grounding queries.
     assert priced.cost_usd == Decimal("14.00000000")
     assert priced.price_id == "google-vertex-ai:google_search_grounding:global:2026-01-05"
 
@@ -170,7 +170,7 @@ def test_prices_sonar_request_fee_by_search_context_size(operation, fee):
         channel="perplexity-api", operation=operation, units=1000, at=_AT
     )
     assert priced.status == "priced"
-    # Charged per request on top of tokens; low is Perplexity's default.
+    # Per request, on top of tokens; low is the default.
     assert priced.cost_usd == Decimal(fee)
     assert priced.price_id == f"perplexity-api:{operation}:global:2025-04-18"
 
