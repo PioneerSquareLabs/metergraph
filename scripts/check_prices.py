@@ -496,28 +496,37 @@ def _parse_deepseek(html_text: str) -> dict[str, dict[str, Decimal]]:
     return table
 
 
-# xAI's models page embeds each model as JSON with prices in units of
-# $0.0000000001 per token, so 20000 is $2 per million.
+# xAI's models page embeds each model once per cluster as JSON, with prices
+# in units of $0.0000000001 per token, so 20000 is $2 per million. The
+# us-central-1 cluster is the US regional endpoint, priced 10% above the
+# global endpoint; the catalog carries it as region "us".
 _XAI_MODEL = re.compile(r'"name":"([^"]+)","version"')
 _XAI_UNIT = Decimal("0.0001")
+_XAI_CLUSTER_REGION = {"us-central-1": "us"}
+
+
+def _regional_key(name: str, region: str) -> str:
+    """A page table key for a regional price: the global key is bare."""
+    return name if region == "global" else f"{name}@{region}"
 
 
 def _parse_xai(html_text: str) -> dict[str, dict[str, Decimal]]:
     text = html.unescape(html_text)
     table: dict[str, dict[str, Decimal]] = {}
     for match in _XAI_MODEL.finditer(text):
-        name = match.group(1).lower()
-        if name in table:
-            continue
         body = text[match.end(): match.end() + 1500]
+        cluster = re.search(r'"cluster":"([^"]+)"', body)
+        key = _regional_key(match.group(1).lower(), _XAI_CLUSTER_REGION.get(cluster.group(1) if cluster else "", "global"))
+        if key in table:
+            continue
 
-        def price(key: str) -> Decimal | None:
-            found = re.search(r'"' + key + r'":"?([0-9.]+)"?', body)
+        def price(field: str) -> Decimal | None:
+            found = re.search(r'"' + field + r'":"?([0-9.]+)"?', body)
             return _decimal(found.group(1)) * _XAI_UNIT if found else None
 
         rates = {"input": price("promptTextTokenPrice"), "cache_read": price("cachedPromptTokenPrice"), "output": price("completionTextTokenPrice")}
         if rates["input"] is not None and rates["output"] is not None:
-            table[name] = {k: v for k, v in rates.items() if v is not None}
+            table[key] = {k: v for k, v in rates.items() if v is not None}
     return table
 
 
@@ -565,8 +574,8 @@ def _page_key(source: str, name: str) -> str:
     return name
 
 
-def _page_match(source: str, table: Mapping[str, Mapping[str, Decimal]], name: str) -> Mapping[str, Decimal] | None:
-    key = _page_key(source, name)
+def _page_match(source: str, table: Mapping[str, Mapping[str, Decimal]], name: str, region: str = "global") -> Mapping[str, Decimal] | None:
+    key = _regional_key(_page_key(source, name), region)
     if source == "anthropic":
         # Ids match exactly or with a date suffix; a variant such as
         # claude-opus-5-fast never inherits the base model's price.
@@ -577,12 +586,13 @@ def _page_match(source: str, table: Mapping[str, Mapping[str, Decimal]], name: s
 def _page_quotes(source: str, table: Mapping[str, Mapping[str, Decimal]], rows: list[CatalogRow]) -> dict[CatalogRow, Quote]:
     channel = PROVIDER_PAGES[source][1]
     quotes: dict[CatalogRow, Quote] = {}
-    for row in _global_only(rows):
+    # A regional row is compared only when the page prices that region.
+    for row in rows:
         if row.channel != channel:
             continue
-        found = _rates_for(row, lambda name: _page_match(source, table, name))
+        found = _rates_for(row, lambda name: _page_match(source, table, name, row.region))
         if found:
-            quotes[row] = Quote(source, found[0], found[1])
+            quotes[row] = Quote(source, _regional_key(found[0], row.region), found[1])
     return quotes
 
 
@@ -592,9 +602,10 @@ def _missing_models(source: str, table: Mapping[str, Mapping[str, Decimal]], row
     channel = PROVIDER_PAGES[source][1]
     known = {_page_key(source, alias) for row in rows if row.channel == channel for _, alias in row.aliases}
     known |= {_page_key(source, row.canonical_id) for row in rows if row.channel == channel}
+    names = [k for k in table if "@" not in k]
     if source == "anthropic":
-        return sorted(k for k in table if not any(re.fullmatch(re.escape(k) + r"(-\d{8})?", n) for n in known))
-    return sorted(k for k in table if k not in known)
+        return sorted(k for k in names if not any(re.fullmatch(re.escape(k) + r"(-\d{8})?", n) for n in known))
+    return sorted(k for k in names if k not in known)
 
 
 def _portkey_quotes(
@@ -739,7 +750,7 @@ def render_markdown(findings: list[Finding], sources: list[str], today: date, mi
         f"- update: {counts['update']} (the provider's own price disagrees, or, where none is readable, two second opinions agree against us)",
         f"- disputed: {counts['disputed']} (no provider price is readable and a second opinion disagrees)",
         f"- confirmed: {counts['confirmed']}",
-        f"- unchecked: {counts['unchecked']} (no source lists the model on that channel; regional rows are compared only with region-aware sources)",
+        f"- unchecked: {counts['unchecked']} (no source lists the model on that channel, or no source prices the row's region)",
         "",
     ]
     for verdict, title in (("update", "Needs an update"), ("disputed", "Disputed")):

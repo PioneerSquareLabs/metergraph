@@ -393,16 +393,37 @@ def test_deepseek_page_takes_the_peak_column_per_model():
     assert check_prices._missing_models("deepseek", table, rows) == ["deepseek-pro"]
 
 
-def test_xai_page_reads_embedded_model_prices():
-    page = (
+def _xai_page():
+    return (
         '{&quot;name&quot;:&quot;grok-4.7&quot;,&quot;version&quot;:&quot;1.0&quot;,&quot;promptTextTokenPrice&quot;:&quot;20000&quot;,'
-        '&quot;cachedPromptTokenPrice&quot;:&quot;5000&quot;,&quot;completionTextTokenPrice&quot;:&quot;60000&quot;}'
+        '&quot;cachedPromptTokenPrice&quot;:&quot;5000&quot;,&quot;completionTextTokenPrice&quot;:&quot;60000&quot;,&quot;cluster&quot;:&quot;us-east-1&quot;}'
+        '{&quot;name&quot;:&quot;grok-4.7&quot;,&quot;version&quot;:&quot;1.0&quot;,&quot;promptTextTokenPrice&quot;:&quot;22000&quot;,'
+        '&quot;cachedPromptTokenPrice&quot;:&quot;5500&quot;,&quot;completionTextTokenPrice&quot;:&quot;66000&quot;,&quot;cluster&quot;:&quot;us-central-1&quot;}'
         '{&quot;name&quot;:&quot;grok-imagine-image&quot;,&quot;version&quot;:&quot;1.0&quot;,&quot;imagePrice&quot;:&quot;1&quot;}'
     )
-    table = check_prices._parse_xai(page)
-    assert table == {"grok-4.7": {"input": Decimal("2.0000"), "cache_read": Decimal("0.5000"), "output": Decimal("6.0000")}}
+
+
+def test_xai_page_reads_embedded_model_prices_per_cluster():
+    table = check_prices._parse_xai(_xai_page())
+    assert table == {
+        "grok-4.7": {"input": Decimal("2.0000"), "cache_read": Decimal("0.5000"), "output": Decimal("6.0000")},
+        "grok-4.7@us": {"input": Decimal("2.2000"), "cache_read": Decimal("0.5500"), "output": Decimal("6.6000")},
+    }
     rows = check_prices.effective_rows(_single_row_document("xai/grok-4.7", "x-ai", "xai/grok-4.7", "xai-api", 2, 6), TODAY)
-    assert _quotes("xai", page, rows)[rows[0]].rates["output"] == Decimal("6.0000")
+    assert _quotes("xai", _xai_page(), rows)[rows[0]].rates["output"] == Decimal("6.0000")
+    assert check_prices._missing_models("xai", table, rows) == []
+
+
+def test_regional_rows_are_compared_with_the_pages_regional_price():
+    doc = _single_row_document("xai/grok-4.7", "x-ai", "xai/grok-4.7", "xai-api", 2, 6)
+    doc["models"][0]["prices"].append({"channel": "xai-api", "region": "us", "effective_from": "2026-06-01", "input_per_mtok": 2.2, "output_per_mtok": 6.6, "source_url": "https://example.test"})
+    rows = check_prices.effective_rows(doc, TODAY)
+    quotes = _quotes("xai", _xai_page(), rows)
+    us = next(r for r in rows if r.region == "us")
+    assert quotes[us].key == "xai/grok-4.7@us"
+    assert quotes[us].rates["input"] == Decimal("2.2000")
+    [finding] = check_prices.compare([us], {"xai": quotes})
+    assert finding.verdict == "confirmed"
 
 
 def test_perplexity_page_reads_the_calculators_pricing_object():
