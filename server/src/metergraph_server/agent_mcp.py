@@ -25,6 +25,35 @@ MAX_RESPONSE_BYTES = 5_242_880
 
 TOOLS = [
     {
+        "name": "metergraph_list_classified_workloads",
+        "description": "Discover bounded classified workload identities and their source checkpoint. Names are labels, not identities. Environment-filtered checkpoints may be unavailable.",
+        "inputSchema": {
+            "type": "object", "properties": {
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+                "environment": {"type": "string", "minLength": 1, "maxLength": 128},
+            }, "additionalProperties": False,
+        },
+    },
+    {
+        "name": "metergraph_get_workload_readiness",
+        "description": "Inspect retained, eligible trace metadata for one checkpoint/pattern-set/pattern identity. The trace page is representative metadata; explicit trace selection and frozen-cohort launch are unsupported.",
+        "inputSchema": {
+            "type": "object", "properties": {
+                "source_run_id": {"type": "string", "minLength": 1, "maxLength": 36},
+                "pattern_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                "pattern_set_version": {"type": "string", "minLength": 1, "maxLength": 200},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 50},
+                "environment": {"type": "string", "minLength": 1, "maxLength": 128},
+            }, "required": ["source_run_id", "pattern_id", "pattern_set_version"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "metergraph_get_model_readiness",
+        "description": "Read deployment-owned candidate/provider choices and credential-name readiness. Never returns credentials or claims provider invocation was verified.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
         "name": "metergraph_get_workspace_context",
         "title": "Get Metergraph workspace context",
         "description": (
@@ -307,6 +336,9 @@ def _validate_arguments(name: str, arguments: Any) -> dict[str, Any]:
     if not isinstance(arguments, dict):
         raise ValueError("tool arguments must be an object")
     limits = {
+        "metergraph_list_classified_workloads": {"limit", "environment"},
+        "metergraph_get_workload_readiness": {"source_run_id", "pattern_id", "pattern_set_version", "limit", "environment"},
+        "metergraph_get_model_readiness": set(),
         "metergraph_get_workspace_context": set(),
         "metergraph_get_capabilities": set(),
         "metergraph_list_routes": set(),
@@ -325,6 +357,9 @@ def _validate_arguments(name: str, arguments: Any) -> dict[str, Any]:
     unknown = set(arguments) - limits[name]
     if unknown:
         raise ValueError(f"unknown tool arguments: {sorted(unknown)!r}")
+    if name in {"metergraph_list_classified_workloads", "metergraph_get_workload_readiness", "metergraph_get_model_readiness"}:
+        if any(value is None for value in arguments.values()):
+            raise ValueError("discovery arguments must not be null")
     for field, maximum in (
         ("route", 512),
         ("status", 128),
@@ -333,6 +368,10 @@ def _validate_arguments(name: str, arguments: Any) -> dict[str, Any]:
         ("trace_id", 200),
         ("analysis_id", 200),
         ("workload_id", 200),
+        ("source_run_id", 36),
+        ("pattern_id", 200),
+        ("pattern_set_version", 200),
+        ("environment", 128),
     ):
         value = arguments.get(field)
         if value is not None and (
@@ -342,7 +381,7 @@ def _validate_arguments(name: str, arguments: Any) -> dict[str, Any]:
                 f"{field} must be a non-empty string of at most {maximum} characters"
             )
     integer_limits = {"days": (1, 90), "limit": (1, 200)}
-    if name == "metergraph_get_report_evidence":
+    if name in {"metergraph_get_report_evidence", "metergraph_get_workload_readiness"}:
         integer_limits["limit"] = (1, 50)
     for field, (minimum, maximum) in integer_limits.items():
         value = arguments.get(field)
@@ -352,6 +391,12 @@ def _validate_arguments(name: str, arguments: Any) -> dict[str, Any]:
             or not minimum <= value <= maximum
         ):
             raise ValueError(f"{field} must be an integer from {minimum} to {maximum}")
+    if name == "metergraph_get_workload_readiness":
+        for field in ("source_run_id", "pattern_id", "pattern_set_version"):
+            if field not in arguments:
+                raise ValueError(f"{field} is required")
+            if not isinstance(arguments[field], str) or not arguments[field].strip() or "\x00" in arguments[field]:
+                raise ValueError(f"{field} must be a non-blank identifier without NUL bytes")
     if name == "metergraph_get_trace" and "trace_id" not in arguments:
         raise ValueError("trace_id is required")
     if name in {"metergraph_get_report", "metergraph_get_report_evidence"} and "analysis_id" not in arguments:
@@ -374,7 +419,13 @@ def _validate_arguments(name: str, arguments: Any) -> dict[str, Any]:
 
 def _call_tool(api: AgentAPI, name: str, arguments: Any) -> dict:
     arguments = _validate_arguments(name, arguments)
-    if name == "metergraph_get_workspace_context":
+    if name == "metergraph_list_classified_workloads":
+        document = api.get("/v1/agent/analysis/workloads", arguments)
+    elif name == "metergraph_get_workload_readiness":
+        document = api.get("/v1/agent/analysis/workload-readiness", arguments)
+    elif name == "metergraph_get_model_readiness":
+        document = api.get("/v1/agent/analysis/model-readiness")
+    elif name == "metergraph_get_workspace_context":
         document = api.get("/v1/agent/workspace")
     elif name == "metergraph_get_capabilities":
         document = api.get("/v1/agent/capabilities")

@@ -21,6 +21,9 @@ MAX_AGENT_DAYS = 90
 MAX_AGENT_ROWS = 200
 _UNSUPPORTED = frozenset(
     {
+        "classified_workloads",
+        "workload_readiness",
+        "model_readiness",
         "ingestion_health",
         "incidents",
         "reports",
@@ -573,3 +576,35 @@ async def agent_mcp_transport(request: Request):
     if response is None:
         return Response(status_code=202)
     return _rest_response(response)
+
+
+@router.get("/v1/agent/analysis/workloads")
+def agent_classified_workloads(
+    limit: int = Query(50, ge=1, le=200),
+    environment: str | None = Query(None, min_length=1, max_length=128),
+):
+    return _rest_response(_unsupported("classified_workloads"), 501)
+
+
+@router.get("/v1/agent/analysis/workload-readiness")
+def agent_workload_readiness(
+    source_run_id: str = Query(min_length=1, max_length=36),
+    pattern_id: str = Query(min_length=1, max_length=200),
+    pattern_set_version: str = Query(min_length=1, max_length=200),
+    limit: int = Query(20, ge=1, le=50),
+    environment: str | None = Query(None, min_length=1, max_length=128),
+):
+    try:
+        agent_mcp._validate_arguments("metergraph_get_workload_readiness", {
+            "source_run_id": source_run_id, "pattern_id": pattern_id,
+            "pattern_set_version": pattern_set_version, "limit": limit,
+            **({"environment": environment} if environment is not None else {}),
+        })
+    except ValueError as exc:
+        return _rest_response(agent_contract.error_document("invalid_argument", str(exc)), 422)
+    return _rest_response(_unsupported("workload_readiness"), 501)
+
+
+@router.get("/v1/agent/analysis/model-readiness")
+def agent_model_readiness():
+    return _rest_response(_unsupported("model_readiness"), 501)
