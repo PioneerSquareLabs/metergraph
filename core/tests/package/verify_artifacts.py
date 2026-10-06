@@ -230,9 +230,9 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert loaded.pricing_verified_at.isoformat() == {CATALOG_VERSION!r}
         assert len(loaded.content_hash) == 64, loaded.content_hash
         registry = load_model_registry()
-        assert registry.version == "2026-09-30", registry.version
+        assert registry.version == "2026-10-06", registry.version
         gateway_candidates = [route.id for route in registry.candidates("gateway")]
-        assert len(gateway_candidates) == 37, len(gateway_candidates)
+        assert len(gateway_candidates) == 39, len(gateway_candidates)
         assert gateway_candidates[:2] == [
             "anthropic/claude-sonnet-5",
             "anthropic/claude-opus-5",

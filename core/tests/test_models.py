@@ -223,7 +223,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-09-30"
+    assert registry.version == "2026-10-06"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -262,6 +262,8 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v4.1-flash",
         "alibaba/qwen3.8-flash",
         "inception/mercury-2.5",
+        "anthropic/claude-opus-5.5",
+        "anthropic/claude-sonnet-5.5",
     ]
     assert [route.id for route in registry.candidates("fireworks")] == [
         "fireworks:accounts/fireworks/models/glm-5p2",
@@ -291,7 +293,7 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v3.2",
         "deepseek/deepseek-v3.1",
     ]
-    assert len(registry.routes_for_execution_profile("default")) == 49
+    assert len(registry.routes_for_execution_profile("default")) == 51
     assert len(registry.routes_for_execution_profile("bedrock")) == 8
 
 
@@ -413,6 +415,27 @@ def test_a_retired_model_is_priced_but_never_offered_or_routed():
     )
     assert resolved is not None
     assert resolved.canonical_model == "anthropic/claude-3-haiku"
+
+
+@pytest.mark.parametrize(
+    ("model", "display_name", "input_rate", "output_rate"),
+    [
+        ("anthropic/claude-opus-5.5", "Claude Opus 5.5", "4.00", "20.00"),
+        ("anthropic/claude-sonnet-5.5", "Claude Sonnet 5.5", "2.00", "10.00"),
+    ],
+)
+def test_claude_5_5_models_are_priced_gateway_candidates(model, display_name, input_rate, output_rate):
+    registry = load_model_registry()
+    route = registry.route(f"default:{model}")
+    assert route in registry.candidates("gateway")
+    assert (route.canonical_id, route.display_name) == (model, display_name)
+    resolved = load_catalog().snapshot.resolve_price(
+        model=route.model_id, channel=route.pricing_channel,
+        at=datetime(2026, 10, 6, tzinfo=timezone.utc),
+    )
+    assert resolved is not None and resolved.canonical_model == model
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
 
 
 def test_validation_rejects_canonical_drift():
