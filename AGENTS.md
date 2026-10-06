@@ -13,3 +13,14 @@ material.
 Report an existing exposure privately. Do not quote or name it in the public
 fix, branch, commit, pull request, issue, or comment. If unsure whether
 something is identifying or public, stop and ask before publishing.
+
+## Public contribution workflow
+
+Write self-contained public branch names, commits, issues, pull requests,
+comments, and release notes. Keep private tracker IDs, links, discussion, and
+unpublished plans in the internal tracker. Review the exact diff and metadata
+before pushing. Run `python3 scripts/check_publication.py origin/main` before
+publishing; CI repeats common reference checks but cannot undo a disclosure.
+Report suspected vulnerabilities privately to maintainers. A historical
+harmless tracker ID alone does not require
+rewriting Git history.
