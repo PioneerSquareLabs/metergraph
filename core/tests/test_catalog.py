@@ -1746,3 +1746,52 @@ def test_every_pinned_alias_names_a_price_region_the_catalog_carries():
                 if (alias["channel"], price_region.lower()) not in carried:
                     missing.append((alias["alias"], price_region))
     assert missing == []
+
+
+# --- Cost components -----------------------------------------------------------
+
+from metergraph_core import CostComponents, load_catalog as _load_for_components
+
+
+def test_components_sum_to_the_cost_and_follow_the_rules():
+    catalog = _load_for_components(region="us-west-2")
+    # Anthropic: cache reads and writes are separate buckets at their own rates.
+    result = catalog.snapshot.cost(
+        provider="anthropic",
+        model="claude-sonnet-4-6",
+        at="2026-09-18T12:00:00+00:00",
+        input_tokens=1_000_000,
+        output_tokens=200_000,
+        cache_read_tokens=400_000,
+        cache_write_5m_tokens=100_000,
+    )
+    assert result.status == "priced"
+    parts = result.components
+    assert isinstance(parts, CostComponents)
+    assert parts.input_usd + parts.output_usd + parts.cache_read_usd + parts.cache_write_usd == result.cost_usd
+    assert parts.cache_read_usd > 0 and parts.cache_write_usd > 0
+    assert result.publisher == "anthropic"
+
+
+def test_components_split_a_cache_inclusive_input_the_way_the_total_does():
+    catalog = _load_for_components()
+    # OpenAI counts cached tokens inside input, so the input part is billed
+    # on the uncached remainder and the cache part on the cached tokens.
+    result = catalog.snapshot.cost(
+        provider="openai",
+        model="gpt-5.4-mini",
+        at="2026-09-18T12:00:00+00:00",
+        input_tokens=1_000_000,
+        output_tokens=0,
+        cache_read_tokens=1_000_000,
+    )
+    assert result.status == "priced"
+    assert result.components.input_usd == 0
+    assert result.components.cache_read_usd == result.cost_usd
+
+
+def test_an_unpriced_result_carries_no_components():
+    result = _load_for_components().snapshot.cost(
+        provider="openai", model="no-such-model", at="2026-09-18", input_tokens=1, output_tokens=1
+    )
+    assert result.components is None and result.publisher is None

@@ -1,6 +1,7 @@
 """Reusable MeterGraph catalog and deterministic token-cost pricing core."""
 
 from .catalog import (
+    CostComponents,
     Alias,
     CatalogSnapshot,
     CostResult,
@@ -11,12 +12,14 @@ from .catalog import (
     normalize_provider,
 )
 from .billing import (
+    Dispute,
     BillingDecision,
     GatewayBillingEvidence,
     normalize_gateway_evidence,
     resolve_billing,
 )
 from .loader import (
+    parse_disputes,
     CatalogError,
     LoadedCatalog,
     load_catalog,
@@ -44,7 +47,9 @@ __all__ = [
     "BillingDecision",
     "CatalogError",
     "CatalogSnapshot",
+    "CostComponents",
     "CostResult",
+    "Dispute",
     "LoadedCatalog",
     "ModelDefinition",
     "ModelRegistry",
@@ -65,6 +70,7 @@ __all__ = [
     "normalize_gateway_evidence",
     "parse_catalog",
     "parse_model_registry",
+    "parse_disputes",
     "parse_retrieval",
     "resolve_billing",
     "validate_model_registry",

@@ -18,6 +18,7 @@ from .catalog import (
     _effective_windows_overlap,
     normalize_provider,
 )
+from .billing import Dispute
 from .retrieval import RetrievalCatalog, RetrievalCostResult, RetrievalPrice
 
 DEFAULT_CATALOG_PATH = Path(__file__).parent / "data" / "prices.yaml"
@@ -75,6 +76,8 @@ class LoadedCatalog:
     snapshot: CatalogSnapshot
     canonical_ids: Mapping[tuple[str, str], str]
     retrieval: RetrievalCatalog
+    # Gateways whose amount billing declines per publisher; see Dispute.
+    disputes: tuple[Dispute, ...] = ()
 
     def canonical_model_id(self, provider: str, model_id: str) -> str:
         """Resolve a captured provider-native model id to its canonical id,
@@ -385,6 +388,44 @@ def parse_retrieval(document: Any) -> list[RetrievalPrice]:
     return prices
 
 
+def parse_disputes(document: Any) -> list[Dispute]:
+    """Parse the optional top-level ``disputes`` list: a gateway whose
+    reported amount is not believed for one publisher's models from a date,
+    with the note a product can show and the page that shows the figure is
+    wrong. An absent key yields no disputes."""
+    if not isinstance(document, dict):
+        raise CatalogError("prices document must be a mapping")
+    entries = document.get("disputes")
+    if entries is None:
+        return []
+    if not isinstance(entries, list):
+        raise CatalogError("prices document disputes must be a list")
+    disputes: list[Dispute] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise CatalogError("dispute entry must be a mapping")
+        gateway = str(entry.get("gateway") or "").strip().lower()
+        publisher = str(entry.get("publisher") or "").strip().lower()
+        if not gateway or not publisher:
+            raise CatalogError("dispute entry needs gateway/publisher")
+        label = f"{gateway}/{publisher}"
+        note = str(entry.get("note") or "").strip()
+        if not note:
+            raise CatalogError(f"{label}: dispute entry needs a note")
+        if not str(entry.get("source_url") or "").strip():
+            raise CatalogError(f"{label}: dispute entry needs source_url")
+        disputes.append(
+            Dispute(
+                gateway=gateway,
+                publisher=publisher,
+                since=_date(entry.get("since"), field="since", model=label),
+                note=note,
+                source_url=str(entry["source_url"]).strip(),
+            )
+        )
+    return disputes
+
+
 def load_catalog(
     path: str | Path | None = None, *, region: str = "global"
 ) -> LoadedCatalog:
@@ -402,4 +443,5 @@ def load_catalog(
         snapshot=CatalogSnapshot(aliases, prices, region=region),
         canonical_ids=_canonical_index(document),
         retrieval=RetrievalCatalog(parse_retrieval(document)),
+        disputes=tuple(parse_disputes(document)),
     )

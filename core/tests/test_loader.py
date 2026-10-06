@@ -485,3 +485,45 @@ def test_a_vertex_row_leaves_the_direct_channel_unambiguous(model):
     # Search replay derives a workload's provider from its model's one direct
     # channel; the Vertex alias must not make that ambiguous.
     assert load_catalog().infer_direct_channel(model) == "google-api"
+
+
+# --- disputes -----------------------------------------------------------------
+
+from metergraph_core import parse_disputes
+
+
+def _dispute_entry(**overrides):
+    entry = {
+        "gateway": "portkey",
+        "publisher": "deepseek",
+        "since": "2026-09-10",
+        "note": "Stale table.",
+        "source_url": "https://example.test/deepseek",
+    }
+    entry.update(overrides)
+    return {"disputes": [entry]}
+
+
+def test_parse_disputes_reads_an_entry_and_folds_the_names():
+    (dispute,) = parse_disputes(_dispute_entry(gateway=" Portkey ", publisher="DeepSeek"))
+    assert (dispute.gateway, dispute.publisher) == ("portkey", "deepseek")
+    assert dispute.since.date().isoformat() == "2026-09-10"
+    assert dispute.note == "Stale table."
+
+
+def test_parse_disputes_is_empty_without_the_section():
+    assert parse_disputes({"models": []}) == []
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [{"gateway": ""}, {"publisher": None}, {"note": "  "}, {"source_url": ""}, {"since": "soon"}],
+)
+def test_parse_disputes_rejects_an_incomplete_entry(overrides):
+    with pytest.raises(CatalogError):
+        parse_disputes(_dispute_entry(**overrides))
+
+
+def test_parse_disputes_rejects_a_non_list():
+    with pytest.raises(CatalogError):
+        parse_disputes({"disputes": {"gateway": "portkey"}})
