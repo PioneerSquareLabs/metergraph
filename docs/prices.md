@@ -88,10 +88,14 @@ Every stored call gets a `cost_status`:
    open solely because an earlier call succeeded.
 3. Include a `source_url` for every price.
 4. Run `python scripts/check_prices.py` to compare the rows in effect today
-   with public price sources (the Vercel AI Gateway list, LiteLLM's price
-   map, models.dev; Portkey's pricing API with `--sources`). It grades each
-   row confirmed, disputed, update or unchecked and exits 2 on a strong
-   update signal. The `Price check` workflow runs it daily.
+   with the providers' own price pages (OpenAI, Anthropic, Google, DeepSeek,
+   xAI, Perplexity, the Vercel AI Gateway list). Where a provider price is
+   readable it decides; second opinions (LiteLLM's price map, models.dev;
+   Portkey's pricing API with `--sources`) are compared only for rows no
+   provider page covers. Each row is graded confirmed, disputed, update or
+   unchecked, the models a provider lists that the catalog lacks are named,
+   and the script exits 2 on an update signal. The `Price check` workflow
+   runs it daily.
 5. Open a PR; CI validates structure, dates, and window overlaps.
 6. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
 6. Self-hosters: mount an updated file with `MG_PRICES_PATH=/path/to/prices.yaml` — no rebuild needed.

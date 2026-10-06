@@ -289,3 +289,195 @@ def test_main_exits_zero_when_sources_agree(tmp_path, capsys):
 def test_main_rejects_an_unknown_source(tmp_path):
     with pytest.raises(SystemExit):
         check_prices.main(["--sources", "nope", "--today", "2026-10-05"])
+
+
+# --- Provider pages ----------------------------------------------------------
+
+
+def _quotes(source, page, rows):
+    return check_prices._page_quotes(source, check_prices.PROVIDER_PAGES[source][2](page), rows)
+
+
+def test_openai_page_reads_the_standard_text_table():
+    page = (
+        '[0,"standard"]'
+        '[1,[[0,"Image"],[0,5],[0,1.25],[0,"-"]]]'  # an image table also labelled standard
+        '[0,"batch"]'
+        '[0,"standard"]'
+        '[1,[[0,"gpt-6-sol"],[0,2],[0,0.2],[0,2.5],[0,10]]]'
+        '[1,[[0,"gpt-x"],[0,2],[0,0.2],[0,2.5],[0,8]]]'
+        '[1,[[0,"gpt-4o (legacy)"],[0,2.5],[0,1.25],[0,10]]]'
+        '[0,"batch"]'
+        '[1,[[0,"gpt-x"],[0,1],[0,0.1],[0,1.25],[0,4]]]'
+    ).replace('"', "&quot;")
+    table = check_prices._parse_openai(page)
+    assert table["gpt-4o"] == {"input": Decimal("2.5"), "cache_read": Decimal("1.25"), "output": Decimal("10")}
+    quote = check_prices._page_quotes("openai", table, _rows())[_row("openai-api")]
+    assert quote.source == "openai"
+    assert quote.rates == {"input": Decimal("2"), "cache_read": Decimal("0.2"), "cache_write": Decimal("2.5"), "output": Decimal("8")}
+
+
+def _anthropic_page():
+    return (
+        "<table><tr><th>Model</th><th>Base tokens</th><th>Prompt caching</th></tr>"
+        "<tr><th>Name</th><th>Input</th><th>Output</th><th>5m writes</th><th>1h writes</th><th>Hits and refreshes</th></tr>"
+        "<tr><td>Claude Opus 5.5For long-running work</td><td>$4 / MTok</td><td>$20 / MTok</td><td>$5 / MTok</td><td>$8 / MTok</td><td>$0.20 / MTok</td></tr>"
+        "<tr><td>Claude Opus 5For agentic work</td><td>$5 / MTok</td><td>$25 / MTok</td><td>$6.25 / MTok</td><td>$10 / MTok</td><td>$0.50 / MTok</td></tr>"
+        "</table>"
+    )
+
+
+def _single_row_document(canonical_id, provider, alias, channel, input_rate, output_rate):
+    doc = _document()
+    doc["models"] = [{
+        "canonical_id": canonical_id,
+        "aliases": [{"provider": provider, "alias": alias, "channel": channel}],
+        "prices": [{"channel": channel, "effective_from": "2026-06-01", "input_per_mtok": input_rate, "output_per_mtok": output_rate, "source_url": "https://example.test"}],
+    }]
+    return doc
+
+
+@pytest.mark.parametrize(
+    ("alias", "expected_input"),
+    [("claude-opus-5-5", "4"), ("claude-opus-5-5-20260922", "4"), ("claude-opus-5", "5")],
+)
+def test_anthropic_page_matches_model_ids_exactly_or_with_a_date(alias, expected_input):
+    rows = check_prices.effective_rows(_single_row_document("anthropic/x", "anthropic", alias, "anthropic-api", 1, 1), TODAY)
+    quote = _quotes("anthropic", _anthropic_page(), rows)[rows[0]]
+    assert quote.rates["input"] == Decimal(expected_input)
+    assert quote.rates["cache_read"] == (Decimal("0.20") if expected_input == "4" else Decimal("0.50"))
+
+
+def test_anthropic_page_does_not_match_a_variant_to_its_base_model():
+    rows = check_prices.effective_rows(_single_row_document("anthropic/x", "anthropic", "claude-opus-5-fast", "anthropic-api", 10, 50), TODAY)
+    assert _quotes("anthropic", _anthropic_page(), rows) == {}
+    assert check_prices._missing_models("anthropic", check_prices._parse_anthropic(_anthropic_page()), rows) == ["claude-opus-5", "claude-opus-5-5"]
+
+
+def test_google_page_reads_each_models_block_and_skips_per_image_output():
+    page = (
+        "<h2>Gemini X</h2><p>gemini-x</p><a>Try it in Google AI Studio</a>"
+        "<td>Input price</td><td>Free of charge</td><td>$0.25 (text / image / video)</td><td>$0.50 (audio)</td>"
+        "<td>Output price (including thinking tokens)</td><td>Free of charge</td><td>$1.50</td>"
+        "<td>Context caching price</td><td>Not available</td><td>$0.025</td>"
+        "<h2>Gemini X Image</h2><p>gemini-x-image</p><a>Try it in Google AI Studio</a>"
+        "<td>Input price</td><td>Not available</td><td>$0.30 (text / image)</td>"
+        "<td>Output price</td><td>Not available</td><td>$0.039 per image*</td>"
+    )
+    table = check_prices._parse_google(page)
+    assert table == {
+        "gemini-x": {"input": Decimal("0.25"), "output": Decimal("1.50"), "cache_read": Decimal("0.025")},
+        "gemini-x-image": {"input": Decimal("0.30")},
+    }
+    rows = check_prices.effective_rows(_single_row_document("google/gemini-x", "google", "models/gemini-x", "google-api", 0.25, 1.5), TODAY)
+    assert _quotes("google", page, rows)[rows[0]].rates["output"] == Decimal("1.50")
+    assert check_prices._missing_models("google", table, rows) == ["gemini-x-image"]
+
+
+def test_deepseek_page_takes_the_peak_column_per_model():
+    page = (
+        "<table>"
+        "<tr><th>MODEL</th><th>deepseek-flash(1)</th><th>deepseek-v4-pro</th></tr>"
+        "<tr><td>PRICING(2)</td><td>1M INPUT TOKENS(CACHE HIT)</td><td>OFF-PEAK</td><td>$0.003</td><td>$0.022</td></tr>"
+        "<tr><td>PEAK</td><td>$0.006</td><td>$0.044</td></tr>"
+        "<tr><td>1M INPUT TOKENS(CACHE MISS)</td><td>OFF-PEAK</td><td>$0.15</td><td>$0.66</td></tr>"
+        "<tr><td>PEAK</td><td>$0.3</td><td>$1.32</td></tr>"
+        "<tr><td>1M OUTPUT TOKENS</td><td>OFF-PEAK</td><td>$0.6</td><td>$1.98</td></tr>"
+        "<tr><td>PEAK</td><td>$1.2</td><td>$3.96</td></tr>"
+        "</table>"
+    )
+    table = check_prices._parse_deepseek(page)
+    assert table["deepseek-flash"] == {"cache_read": Decimal("0.006"), "input": Decimal("0.3"), "output": Decimal("1.2")}
+    rows = check_prices.effective_rows(_single_row_document("deepseek/v4-flash", "deepseek", "deepseek-v4-flash", "deepseek-api", 0.3, 1.2), TODAY)
+    assert _quotes("deepseek", page, rows)[rows[0]].rates["input"] == Decimal("0.3")  # legacy name maps to the current Flash
+    assert check_prices._missing_models("deepseek", table, rows) == ["deepseek-pro"]
+
+
+def _xai_page():
+    return (
+        '{&quot;name&quot;:&quot;grok-4.7&quot;,&quot;version&quot;:&quot;1.0&quot;,&quot;promptTextTokenPrice&quot;:&quot;20000&quot;,'
+        '&quot;cachedPromptTokenPrice&quot;:&quot;5000&quot;,&quot;completionTextTokenPrice&quot;:&quot;60000&quot;,&quot;cluster&quot;:&quot;us-east-1&quot;}'
+        '{&quot;name&quot;:&quot;grok-4.7&quot;,&quot;version&quot;:&quot;1.0&quot;,&quot;promptTextTokenPrice&quot;:&quot;22000&quot;,'
+        '&quot;cachedPromptTokenPrice&quot;:&quot;5500&quot;,&quot;completionTextTokenPrice&quot;:&quot;66000&quot;,&quot;cluster&quot;:&quot;us-central-1&quot;}'
+        '{&quot;name&quot;:&quot;grok-imagine-image&quot;,&quot;version&quot;:&quot;1.0&quot;,&quot;imagePrice&quot;:&quot;1&quot;}'
+    )
+
+
+def test_xai_page_reads_embedded_model_prices_per_cluster():
+    table = check_prices._parse_xai(_xai_page())
+    assert table == {
+        "grok-4.7": {"input": Decimal("2.0000"), "cache_read": Decimal("0.5000"), "output": Decimal("6.0000")},
+        "grok-4.7@us": {"input": Decimal("2.2000"), "cache_read": Decimal("0.5500"), "output": Decimal("6.6000")},
+    }
+    rows = check_prices.effective_rows(_single_row_document("xai/grok-4.7", "x-ai", "xai/grok-4.7", "xai-api", 2, 6), TODAY)
+    assert _quotes("xai", _xai_page(), rows)[rows[0]].rates["output"] == Decimal("6.0000")
+    assert check_prices._missing_models("xai", table, rows) == []
+
+
+def test_regional_rows_are_compared_with_the_pages_regional_price():
+    doc = _single_row_document("xai/grok-4.7", "x-ai", "xai/grok-4.7", "xai-api", 2, 6)
+    doc["models"][0]["prices"].append({"channel": "xai-api", "region": "us", "effective_from": "2026-06-01", "input_per_mtok": 2.2, "output_per_mtok": 6.6, "source_url": "https://example.test"})
+    rows = check_prices.effective_rows(doc, TODAY)
+    quotes = _quotes("xai", _xai_page(), rows)
+    us = next(r for r in rows if r.region == "us")
+    assert quotes[us].key == "xai/grok-4.7@us"
+    assert quotes[us].rates["input"] == Decimal("2.2000")
+    [finding] = check_prices.compare([us], {"xai": quotes})
+    assert finding.verdict == "confirmed"
+
+
+def test_perplexity_page_reads_the_calculators_pricing_object():
+    page = (
+        'const PRICING={\\"_meta\\":{\\"purpose\\":`source of truth`},\\"sonar\\":{\\"models\\":['
+        '{\\"id\\":`sonar`,\\"input\\":1,\\"output\\":1,\\"request\\":{\\"low\\":5}},'
+        '{\\"id\\":`sonar-pro`,\\"input\\":3,\\"output\\":15}]},\\"embeddings\\":[{\\"rate\\":.05}]};const PricingCalculator=1;'
+    )
+    table = check_prices._parse_perplexity(page)
+    assert table == {"sonar": {"input": Decimal("1"), "output": Decimal("1")}, "sonar-pro": {"input": Decimal("3"), "output": Decimal("15")}}
+    rows = check_prices.effective_rows(_single_row_document("perplexity/sonar", "perplexity-ai", "perplexity/sonar", "perplexity-api", 1, 1), TODAY)
+    assert _quotes("perplexity", page, rows)[rows[0]].rates == {"input": Decimal("1"), "output": Decimal("1")}
+    assert check_prices._missing_models("perplexity", table, rows) == ["sonar-pro"]
+
+
+def test_vercel_quotes_prefer_the_regional_or_peak_variant_the_row_carries():
+    data = {"data": [{"id": "openai/gpt-x", "pricing": {
+        "input": "0.000001", "output": "0.000004",
+        "peak_pricing": {"multiplier": 2},
+        "regional": {"us": {"input": "0.000003", "output": "0.000009"}},
+    }}]}
+    quote = check_prices._vercel_quotes(data, _rows())[_row("vercel-ai-gateway")]  # row is 2.0 / 8.0
+    assert quote.key == "openai/gpt-x peak"
+    assert quote.rates == {"input": Decimal("2.000000"), "output": Decimal("8.000000")}
+
+
+# --- Provider price decides ---------------------------------------------------
+
+
+def test_second_opinions_are_not_compared_where_the_provider_price_is_readable():
+    row = _row("openai-api")
+    [finding] = check_prices.compare(
+        [row],
+        {"openai": {row: _quote("openai", input=2.0, output=8.0)}, "litellm": {row: _quote("litellm", input=1.0)}, "modelsdev": {row: _quote("modelsdev", input=1.0)}},
+    )
+    assert finding.authority == "openai"
+    assert list(finding.quotes) == ["openai"]
+    assert finding.verdict == "confirmed"
+
+
+def test_second_opinions_still_grade_rows_no_provider_page_covers():
+    row = _row("aws-bedrock", "us-east-1")
+    [finding] = check_prices.compare([row], {"litellm": {row: _quote("litellm", input=1.0)}, "modelsdev": {row: _quote("modelsdev", input=1.0)}})
+    assert finding.authority is None
+    assert finding.verdict == "update"
+
+
+def test_the_providers_own_price_alone_forces_an_update():
+    row = _row("openai-api")
+    [finding] = check_prices.compare(
+        [row],
+        {"openai": {row: _quote("openai", input=1.0, output=8.0)}, "litellm": {row: _quote("litellm", input=2.0, output=8.0)}},
+    )
+    assert finding.verdict == "update"
+    text = check_prices.render_markdown([finding], ["openai", "litellm"], TODAY, {"openai": ["gpt-y"]})
+    assert "| openai/gpt-x | openai-api | input | 2.0 | openai 1.0 |" in text
+    assert "- openai (1): `gpt-y`" in text
