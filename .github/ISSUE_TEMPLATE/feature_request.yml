@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest a change to the public project
+title: "Feature: "
+body:
+  - type: markdown
+    attributes:
+      value: "Describe a general use case. Do not include internal plans, tracker links, or customer-identifying details."
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

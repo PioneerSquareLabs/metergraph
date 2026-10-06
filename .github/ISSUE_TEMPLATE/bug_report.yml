@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a reproducible problem without private data
+title: "Bug: "
+body:
+  - type: markdown
+    attributes:
+      value: "Use synthetic examples. Remove credentials, customer information, private URLs, and captured content. Do not post vulnerability details in a public issue; contact maintainers privately."
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "Package version or commit SHA"
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest synthetic example and relevant configuration.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
