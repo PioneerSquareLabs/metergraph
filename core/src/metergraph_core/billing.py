@@ -1,10 +1,11 @@
 """Pure selection of effective LLM cost from catalog and gateway evidence."""
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
-from .catalog import CostResult
+from .catalog import CostResult, _coerce_datetime
 
 @dataclass(frozen=True, slots=True)
 class _QualifiedSource:
@@ -54,6 +55,20 @@ _QUALIFIED_SOURCES = (
         cost_source="portkey.cost",
     ),
 )
+
+
+@dataclass(frozen=True, slots=True)
+class Dispute:
+    """A gateway whose reported amount is not believed for one publisher's
+    models from a date: the catalog has shown its figure wrong there, and the
+    note says how. Billing takes the catalog price instead and keeps the
+    gateway's figure as evidence."""
+
+    gateway: str
+    publisher: str
+    since: datetime
+    note: str
+    source_url: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,11 +147,43 @@ def _qualified_source(evidence: GatewayBillingEvidence) -> _QualifiedSource | No
     return None
 
 
+def _disputed(
+    qualified: _QualifiedSource | None,
+    publisher: str | None,
+    disputes: Iterable[Dispute],
+    at: Any,
+) -> bool:
+    # Without the call time nothing is disputed: a dispute runs from a date,
+    # and declining a figure for a call that may predate it is the wrong
+    # side to err on.
+    if qualified is None or publisher is None or at is None:
+        return False
+    when = _coerce_datetime(at)
+    return any(
+        dispute.gateway == qualified.gateway
+        and dispute.publisher == publisher
+        and dispute.since <= when
+        for dispute in disputes
+    )
+
+
 def resolve_billing(
     catalog_result: CostResult,
     evidence: GatewayBillingEvidence,
+    *,
+    disputes: Iterable[Dispute] = (),
+    at: Any = None,
 ) -> BillingDecision:
-    """Select effective cost without combining independent reported amounts."""
+    """Select effective cost without combining independent reported amounts.
+
+    A qualified gateway's amount is declined when the catalog disputes that
+    gateway for the priced model's publisher at ``at`` (with no ``at`` nothing
+    is disputed): the catalog price is
+    billed, the gateway's figure stays in ``reported_cost_usd`` as evidence,
+    and ``gateway_disputed`` is recorded among the reasons. When the catalog
+    cannot price the call, the gateway's figure still stands, with the same
+    reason recorded, because a disputed figure is better evidence than none.
+    """
 
     qualified = _qualified_source(evidence)
     reported_cost = (
@@ -145,6 +192,12 @@ def resolve_billing(
         and evidence.reported_cost_source == qualified.cost_source
         else None
     )
+    disputed = reported_cost is not None and _disputed(
+        qualified, catalog_result.publisher, disputes, at
+    )
+    reasons = catalog_result.reasons
+    if disputed:
+        reasons = tuple(dict.fromkeys((*reasons, "gateway_disputed")))
     upstream_cost = (
         evidence.reported_upstream_cost_usd
         if qualified is not None
@@ -153,7 +206,9 @@ def resolve_billing(
         else None
     )
 
-    if reported_cost is not None:
+    if reported_cost is not None and not (
+        disputed and catalog_result.cost_usd is not None
+    ):
         cost_usd = reported_cost
         cost_status = "priced"
         provenance = "gateway_reported"
@@ -174,5 +229,5 @@ def resolve_billing(
         reported_upstream_cost_usd=upstream_cost,
         catalog_cost_usd=catalog_result.cost_usd,
         catalog_price_id=catalog_result.price_id,
-        catalog_reasons=catalog_result.reasons,
+        catalog_reasons=reasons,
     )

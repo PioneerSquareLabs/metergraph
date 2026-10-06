@@ -248,3 +248,119 @@ def test_every_entry_names_a_gateway_endpoint_and_source():
     for source in _QUALIFIED_SOURCES:
         assert source.gateway and source.endpoints and source.cost_source
         assert source.cost_source.startswith(f"{source.gateway}.")
+
+
+# --- Disputed gateways ------------------------------------------------------
+
+from datetime import datetime, timezone
+
+from metergraph_core import Dispute
+
+_DEEPSEEK_DISPUTE = Dispute(
+    gateway="portkey",
+    publisher="deepseek",
+    since=datetime(2026, 9, 10, tzinfo=timezone.utc),
+    note="Portkey's DeepSeek table predates the 2026-09-10 change.",
+    source_url="https://api-docs.deepseek.com/updates/",
+)
+_DEEPSEEK_PRICED = CostResult(
+    canonical_model="deepseek/v4-flash",
+    price_id="deepseek/v4-flash:deepseek-api:global:2026-09-10",
+    cost_usd=Decimal("0.0030"),
+    status="priced",
+    publisher="deepseek",
+)
+
+
+def _portkey_deepseek_row(**overrides):
+    row = {
+        "gateway": "portkey",
+        "endpoint": "chat.completions",
+        "reported_cost_usd": "0.0012",
+        "reported_cost_source": "portkey.cost",
+    }
+    row.update(overrides)
+    return row
+
+
+def test_a_disputed_gateway_amount_is_declined_for_the_catalog_price():
+    decision = resolve_billing(
+        _DEEPSEEK_PRICED,
+        normalize_gateway_evidence(_portkey_deepseek_row()),
+        disputes=[_DEEPSEEK_DISPUTE],
+        at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    )
+    assert decision.cost_usd == Decimal("0.0030")
+    assert decision.cost_provenance == "catalog"
+    assert decision.cost_status == "priced"
+    # The gateway's figure stays as evidence, and the decline is recorded.
+    assert decision.reported_cost_usd == Decimal("0.0012")
+    assert "gateway_disputed" in decision.catalog_reasons
+
+
+def test_a_dispute_applies_from_its_date_and_to_its_publisher_only():
+    before = resolve_billing(
+        _DEEPSEEK_PRICED,
+        normalize_gateway_evidence(_portkey_deepseek_row()),
+        disputes=[_DEEPSEEK_DISPUTE],
+        at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+    )
+    assert before.cost_provenance == "gateway_reported"
+    assert "gateway_disputed" not in before.catalog_reasons
+
+    other_publisher = CostResult(
+        canonical_model="anthropic/claude-sonnet-4.6",
+        price_id="p",
+        cost_usd=Decimal("0.0060"),
+        status="priced",
+        publisher="anthropic",
+    )
+    elsewhere = resolve_billing(
+        other_publisher,
+        normalize_gateway_evidence(_portkey_deepseek_row()),
+        disputes=[_DEEPSEEK_DISPUTE],
+        at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    )
+    assert elsewhere.cost_provenance == "gateway_reported"
+
+    other_gateway = resolve_billing(
+        _DEEPSEEK_PRICED,
+        normalize_gateway_evidence(_openrouter_row()),
+        disputes=[_DEEPSEEK_DISPUTE],
+        at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    )
+    assert other_gateway.cost_provenance == "gateway_reported"
+
+
+def test_without_the_call_time_nothing_is_disputed():
+    decision = resolve_billing(
+        _DEEPSEEK_PRICED,
+        normalize_gateway_evidence(_portkey_deepseek_row()),
+        disputes=[_DEEPSEEK_DISPUTE],
+    )
+    assert decision.cost_usd == Decimal("0.0012")
+    assert decision.cost_provenance == "gateway_reported"
+    assert "gateway_disputed" not in decision.catalog_reasons
+
+
+def test_a_disputed_amount_still_stands_when_the_catalog_cannot_price():
+    unpriced = CostResult(None, None, None, "unpriced", ("unknown_model",), publisher=None)
+    decision = resolve_billing(
+        unpriced,
+        normalize_gateway_evidence(_portkey_deepseek_row()),
+        disputes=[_DEEPSEEK_DISPUTE],
+        at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    )
+    # No publisher is known, so nothing is disputed and the figure stands.
+    assert decision.cost_usd == Decimal("0.0012")
+    assert decision.cost_provenance == "gateway_reported"
+
+
+def test_the_shipped_catalog_disputes_portkey_for_deepseek():
+    from metergraph_core import load_catalog
+
+    disputes = load_catalog().disputes
+    assert [(d.gateway, d.publisher, d.since.date().isoformat()) for d in disputes] == [
+        ("portkey", "deepseek", "2026-09-10")
+    ]
+    assert disputes[0].note and disputes[0].source_url

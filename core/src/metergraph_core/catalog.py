@@ -212,12 +212,30 @@ class Price:
 
 
 @dataclass(frozen=True, slots=True)
+class CostComponents:
+    """A priced call's cost by what it paid for. The four parts sum to the
+    call's ``cost_usd`` exactly: each is quantized and the rounding residue
+    lands in the input part, so a consumer that stores them can rebuild the
+    total without a second rounding."""
+
+    input_usd: Decimal
+    output_usd: Decimal
+    cache_read_usd: Decimal
+    cache_write_usd: Decimal
+
+
+@dataclass(frozen=True, slots=True)
 class CostResult:
     canonical_model: str | None
     price_id: str | None
     cost_usd: Decimal | None
     status: str
     reasons: tuple[str, ...] = ()
+    # Present whenever cost_usd is: the split of that cost by driver.
+    components: CostComponents | None = None
+    # The catalog's publisher for the priced model, for billing rules that
+    # apply per publisher rather than per channel.
+    publisher: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -326,10 +344,11 @@ def _price_tokens(
     cache_write_5m_tokens: Any,
     cache_write_1h_tokens: Any,
     batch: bool,
-) -> tuple[Decimal, list[str]]:
+) -> tuple[Decimal, list[str], CostComponents]:
     """Cost a token usage against one already-selected price and its merged
     rules. Shared by ``cost`` (provider+model entry) and ``price_deployment``
-    (model+channel entry) so both compute identically."""
+    (model+channel entry) so both compute identically. Returns the total, the
+    reasons it is partial, and the split by driver."""
     reasons: list[str] = []
     input_count = _tokens(input_tokens)
     output_count = _tokens(output_tokens)
@@ -394,22 +413,22 @@ def _price_tokens(
     input_multiplier *= off_peak
     output_multiplier *= off_peak
 
-    cost = Decimal("0")
+    input_usd = output_usd = cache_read_usd = cache_write_usd = Decimal("0")
     if input_rate is None:
         if billable_input:
             reasons.append("input_rate_unavailable")
     else:
-        cost += Decimal(billable_input) * input_rate * input_multiplier / _MILLION
+        input_usd = Decimal(billable_input) * input_rate * input_multiplier / _MILLION
     if output_rate is None:
         if output_count:
             reasons.append("output_rate_unavailable")
     else:
-        cost += Decimal(output_count) * output_rate * output_multiplier / _MILLION
+        output_usd = Decimal(output_count) * output_rate * output_multiplier / _MILLION
     if cache_read_count:
         if price.cache_read_per_mtok is None:
             reasons.append("cache_read_rate_unavailable")
         else:
-            cost += (
+            cache_read_usd = (
                 Decimal(cache_read_count)
                 * price.cache_read_per_mtok
                 * input_multiplier
@@ -419,7 +438,7 @@ def _price_tokens(
         if price.cache_write_5m_per_mtok is None:
             reasons.append("cache_write_5m_rate_unavailable")
         else:
-            cost += (
+            cache_write_usd += (
                 Decimal(cache_write_5m_count)
                 * price.cache_write_5m_per_mtok
                 * input_multiplier
@@ -429,7 +448,7 @@ def _price_tokens(
         if price.cache_write_1h_per_mtok is None:
             reasons.append("cache_write_1h_rate_unavailable")
         else:
-            cost += (
+            cache_write_usd += (
                 Decimal(cache_write_1h_count)
                 * price.cache_write_1h_per_mtok
                 * input_multiplier
@@ -438,7 +457,17 @@ def _price_tokens(
     if rules.get("uncaptured_fees"):
         reasons.append("uncaptured_fees")
 
-    return cost.quantize(_COST_QUANTUM, rounding=ROUND_HALF_UP), reasons
+    # The total is rounded once, as it always was; the parts are rounded
+    # each and the residue goes to input, so they sum to the total exactly.
+    cost = (input_usd + output_usd + cache_read_usd + cache_write_usd).quantize(
+        _COST_QUANTUM, rounding=ROUND_HALF_UP
+    )
+    parts = [
+        part.quantize(_COST_QUANTUM, rounding=ROUND_HALF_UP)
+        for part in (input_usd, output_usd, cache_read_usd, cache_write_usd)
+    ]
+    parts[0] += cost - sum(parts)
+    return cost, reasons, CostComponents(*parts)
 
 
 class CatalogSnapshot:
@@ -641,7 +670,7 @@ class CatalogSnapshot:
                 ("no_effective_price",),
             )
 
-        cost, reasons = _price_tokens(
+        cost, reasons, components = _price_tokens(
             price,
             {**price.rules, **alias.rules},
             at=when,
@@ -659,6 +688,8 @@ class CatalogSnapshot:
             cost,
             "partial" if reasons else "priced",
             tuple(dict.fromkeys(reasons)),
+            components=components,
+            publisher=price.publisher,
         )
 
     def price_deployment(
@@ -689,7 +720,7 @@ class CatalogSnapshot:
         resolved = self.resolve_price(model=model, channel=channel, at=when)
         if resolved is None:
             return CostResult(None, None, None, "unpriced", ("unknown_deployment",))
-        cost, reasons = _price_tokens(
+        cost, reasons, components = _price_tokens(
             resolved.price,
             resolved.rules,
             at=when,
@@ -707,4 +738,6 @@ class CatalogSnapshot:
             cost,
             "partial" if reasons else "priced",
             tuple(dict.fromkeys(reasons)),
+            components=components,
+            publisher=resolved.price.publisher,
         )

@@ -4290,3 +4290,14 @@ retrieval:
     per_1k_usd: 12.00
     effective_from: "2025-04-18"
     source_url: https://docs.perplexity.ai/docs/getting-started/pricing
+
+# Gateways whose reported amount billing declines for one publisher's models
+# from a date, because the catalog has shown the gateway's figure wrong there.
+# The call is billed at the catalog price and the gateway's figure is kept as
+# evidence; a product shows the note beside the figure.
+disputes:
+  - gateway: portkey
+    publisher: deepseek
+    since: "2026-09-10"
+    note: Portkey prices DeepSeek from a table that predates DeepSeek's 2026-09-10 price change, at a quarter to a half of the list price.
+    source_url: https://api-docs.deepseek.com/updates/
