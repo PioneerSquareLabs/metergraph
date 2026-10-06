@@ -332,6 +332,17 @@ def test_a_dispute_applies_from_its_date_and_to_its_publisher_only():
     assert other_gateway.cost_provenance == "gateway_reported"
 
 
+def test_without_the_call_time_nothing_is_disputed():
+    decision = resolve_billing(
+        _DEEPSEEK_PRICED,
+        normalize_gateway_evidence(_portkey_deepseek_row()),
+        disputes=[_DEEPSEEK_DISPUTE],
+    )
+    assert decision.cost_usd == Decimal("0.0012")
+    assert decision.cost_provenance == "gateway_reported"
+    assert "gateway_disputed" not in decision.catalog_reasons
+
+
 def test_a_disputed_amount_still_stands_when_the_catalog_cannot_price():
     unpriced = CostResult(None, None, None, "unpriced", ("unknown_model",), publisher=None)
     decision = resolve_billing(

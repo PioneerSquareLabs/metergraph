@@ -153,15 +153,18 @@ def _disputed(
     disputes: Iterable[Dispute],
     at: Any,
 ) -> bool:
-    if qualified is None or publisher is None:
+    # Without the call time nothing is disputed: a dispute runs from a date,
+    # and declining a figure for a call that may predate it is the wrong
+    # side to err on.
+    if qualified is None or publisher is None or at is None:
         return False
-    when = _coerce_datetime(at) if at is not None else None
-    for dispute in disputes:
-        if dispute.gateway != qualified.gateway or dispute.publisher != publisher:
-            continue
-        if when is None or dispute.since <= when:
-            return True
-    return False
+    when = _coerce_datetime(at)
+    return any(
+        dispute.gateway == qualified.gateway
+        and dispute.publisher == publisher
+        and dispute.since <= when
+        for dispute in disputes
+    )
 
 
 def resolve_billing(
@@ -174,7 +177,8 @@ def resolve_billing(
     """Select effective cost without combining independent reported amounts.
 
     A qualified gateway's amount is declined when the catalog disputes that
-    gateway for the priced model's publisher at ``at``: the catalog price is
+    gateway for the priced model's publisher at ``at`` (with no ``at`` nothing
+    is disputed): the catalog price is
     billed, the gateway's figure stays in ``reported_cost_usd`` as evidence,
     and ``gateway_disputed`` is recorded among the reasons. When the catalog
     cannot price the call, the gateway's figure still stands, with the same
