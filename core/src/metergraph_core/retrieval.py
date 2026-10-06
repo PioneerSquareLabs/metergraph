@@ -15,6 +15,8 @@ count and an unknown operation or channel come back ``unpriced`` with a reason
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any
 
 from .catalog import _COST_QUANTUM, _coerce_datetime
@@ -50,6 +52,70 @@ class RetrievalCostResult:
     cost_usd: Decimal | None
     status: str
     reasons: tuple[str, ...] = ()
+
+
+# The retrieval operation a counted search is billed as on each channel. A
+# channel absent here charges no per-search fee.
+SEARCH_OPERATION_BY_CHANNEL: Mapping[str, str] = MappingProxyType({
+    "openai-api": "web_search",
+    "anthropic-api": "web_search",
+    "google-api": "google_search_grounding",
+    "google-vertex-ai": "google_search_grounding",
+    # Perplexity bills a request fee by search context size, which no
+    # capture path records; the low tier is the floor every request pays.
+    "perplexity-api": "search_request_low",
+})
+
+# Tool-call item types that are a search, in OpenAI's and compatible shapes.
+_SEARCH_TOOL_TYPES = frozenset({"web_search_call", "web_search", "web_search_preview"})
+_PERPLEXITY = frozenset({"perplexity", "perplexity-ai"})
+
+
+def search_operation_for_channel(channel: Any) -> str | None:
+    """The retrieval operation a counted search is billed as on ``channel``,
+    or ``None`` where the channel charges no per-search fee."""
+    return SEARCH_OPERATION_BY_CHANNEL.get(str(channel or "").strip().lower())
+
+
+def _count(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        count = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return count if count >= 0 else None
+
+
+def count_search_units(row: Mapping[str, Any]) -> int | None:
+    """The searches one call row made, read from whichever field its capture
+    path carries, in the order they are believed: ``web_search_calls`` and
+    ``grounding_queries`` (the relay's per-provider counts), Anthropic's
+    ``server_tool_use.web_search_requests``, then the search items among
+    ``tool_calls``. A Perplexity call is one search, since Perplexity bills
+    every request as one. ``None`` when nothing says the call searched."""
+    for key in ("web_search_calls", "grounding_queries"):
+        count = _count(row.get(key))
+        if count is not None:
+            return count
+    server = row.get("server_tool_use")
+    if isinstance(server, Mapping):
+        count = _count(server.get("web_search_requests"))
+        if count is not None:
+            return count
+    calls = row.get("tool_calls")
+    if isinstance(calls, list):
+        count = sum(
+            1
+            for call in calls
+            if isinstance(call, Mapping)
+            and str(call.get("type") or call.get("name") or "").strip().lower() in _SEARCH_TOOL_TYPES
+        )
+        if count:
+            return count
+    if str(row.get("provider") or "").strip().lower() in _PERPLEXITY:
+        return 1
+    return None
 
 
 def _units(value: Any) -> tuple[int | None, str | None]:
