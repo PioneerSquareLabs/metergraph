@@ -289,3 +289,140 @@ def test_main_exits_zero_when_sources_agree(tmp_path, capsys):
 def test_main_rejects_an_unknown_source(tmp_path):
     with pytest.raises(SystemExit):
         check_prices.main(["--sources", "nope", "--today", "2026-10-05"])
+
+
+# --- Provider pages ----------------------------------------------------------
+
+
+def test_openai_quotes_read_the_standard_text_table():
+    page = (
+        '[0,"standard"]'
+        '[1,[[0,"Image"],[0,5],[0,1.25],[0,"-"]]]'  # an image table also labelled standard
+        '[0,"batch"]'
+        '[0,"standard"]'
+        '[1,[[0,"gpt-6-sol"],[0,2],[0,0.2],[0,2.5],[0,10]]]'
+        '[1,[[0,"gpt-x"],[0,2],[0,0.2],[0,2.5],[0,8]]]'
+        '[1,[[0,"gpt-4o (legacy)"],[0,2.5],[0,1.25],[0,10]]]'
+        '[0,"batch"]'
+        '[1,[[0,"gpt-x"],[0,1],[0,0.1],[0,1.25],[0,4]]]'
+    ).replace('"', "&quot;")
+    quote = check_prices._openai_quotes(page, _rows())[_row("openai-api")]
+    assert quote.source == "openai"
+    assert quote.rates == {"input": Decimal("2"), "cache_read": Decimal("0.2"), "cache_write": Decimal("2.5"), "output": Decimal("8")}
+
+
+def _anthropic_page():
+    return (
+        "<table><tr><th>Model</th><th>Base tokens</th><th>Prompt caching</th></tr>"
+        "<tr><th>Name</th><th>Input</th><th>Output</th><th>5m writes</th><th>1h writes</th><th>Hits and refreshes</th></tr>"
+        "<tr><td>Claude Opus 5.5For long-running work</td><td>$4 / MTok</td><td>$20 / MTok</td><td>$5 / MTok</td><td>$8 / MTok</td><td>$0.20 / MTok</td></tr>"
+        "<tr><td>Claude Opus 5For agentic work</td><td>$5 / MTok</td><td>$25 / MTok</td><td>$6.25 / MTok</td><td>$10 / MTok</td><td>$0.50 / MTok</td></tr>"
+        "</table>"
+    )
+
+
+@pytest.mark.parametrize(
+    ("alias", "expected_input"),
+    [("claude-opus-5-5", "4"), ("claude-opus-5-5-20260922", "4"), ("claude-opus-5", "5")],
+)
+def test_anthropic_quotes_match_model_ids_exactly_or_with_a_date(alias, expected_input):
+    doc = _document()
+    doc["models"][0]["aliases"] = [{"provider": "anthropic", "alias": alias, "channel": "anthropic-api"}]
+    doc["models"][0]["prices"] = [{"channel": "anthropic-api", "effective_from": "2026-06-01", "input_per_mtok": 1, "output_per_mtok": 1, "source_url": "https://example.test"}]
+    rows = check_prices.effective_rows(doc, TODAY)
+    quote = check_prices._anthropic_quotes(_anthropic_page(), rows)[rows[0]]
+    assert quote.rates["input"] == Decimal(expected_input)
+    assert quote.rates["cache_read"] == (Decimal("0.20") if expected_input == "4" else Decimal("0.50"))
+
+
+def test_anthropic_quotes_do_not_match_a_variant_to_its_base_model():
+    doc = _document()
+    doc["models"][0]["aliases"] = [{"provider": "anthropic", "alias": "claude-opus-5-fast", "channel": "anthropic-api"}]
+    doc["models"][0]["prices"] = [{"channel": "anthropic-api", "effective_from": "2026-06-01", "input_per_mtok": 10, "output_per_mtok": 50, "source_url": "https://example.test"}]
+    rows = check_prices.effective_rows(doc, TODAY)
+    assert check_prices._anthropic_quotes(_anthropic_page(), rows) == {}
+
+
+def test_google_quotes_read_each_models_block_and_skip_per_image_output():
+    page = (
+        "<h2>Gemini X</h2><p>gemini-x</p><a>Try it in Google AI Studio</a>"
+        "<td>Input price</td><td>Free of charge</td><td>$0.25 (text / image / video)</td><td>$0.50 (audio)</td>"
+        "<td>Output price (including thinking tokens)</td><td>Free of charge</td><td>$1.50</td>"
+        "<td>Context caching price</td><td>Not available</td><td>$0.025</td>"
+        "<h2>Gemini X Image</h2><p>gemini-x-image</p><a>Try it in Google AI Studio</a>"
+        "<td>Input price</td><td>Not available</td><td>$0.30 (text / image)</td>"
+        "<td>Output price</td><td>Not available</td><td>$0.039 per image*</td>"
+    )
+    doc = _document()
+    doc["models"] = [
+        {"canonical_id": "google/gemini-x", "aliases": [{"provider": "google", "alias": "gemini-x", "channel": "google-api"}],
+         "prices": [{"channel": "google-api", "effective_from": "2026-06-01", "input_per_mtok": 0.25, "output_per_mtok": 1.5, "source_url": "https://example.test"}]},
+        {"canonical_id": "google/gemini-x-image", "aliases": [{"provider": "google", "alias": "gemini-x-image", "channel": "google-api"}],
+         "prices": [{"channel": "google-api", "effective_from": "2026-06-01", "input_per_mtok": 0.3, "output_per_mtok": 30, "source_url": "https://example.test"}]},
+    ]
+    rows = check_prices.effective_rows(doc, TODAY)
+    quotes = check_prices._google_quotes(page, rows)
+    assert quotes[rows[0]].rates == {"input": Decimal("0.25"), "output": Decimal("1.50"), "cache_read": Decimal("0.025")}
+    assert quotes[rows[1]].rates == {"input": Decimal("0.30")}
+
+
+def test_deepseek_quotes_take_the_peak_column_per_model():
+    page = (
+        "<table>"
+        "<tr><th>MODEL</th><th>deepseek-flash(1)</th><th>deepseek-v4-pro</th></tr>"
+        "<tr><td>PRICING(2)</td><td>1M INPUT TOKENS(CACHE HIT)</td><td>OFF-PEAK</td><td>$0.003</td><td>$0.022</td></tr>"
+        "<tr><td>PEAK</td><td>$0.006</td><td>$0.044</td></tr>"
+        "<tr><td>1M INPUT TOKENS(CACHE MISS)</td><td>OFF-PEAK</td><td>$0.15</td><td>$0.66</td></tr>"
+        "<tr><td>PEAK</td><td>$0.3</td><td>$1.32</td></tr>"
+        "<tr><td>1M OUTPUT TOKENS</td><td>OFF-PEAK</td><td>$0.6</td><td>$1.98</td></tr>"
+        "<tr><td>PEAK</td><td>$1.2</td><td>$3.96</td></tr>"
+        "</table>"
+    )
+    doc = _document()
+    doc["models"] = [
+        {"canonical_id": "deepseek/v4-flash", "aliases": [{"provider": "deepseek", "alias": "deepseek-v4-flash", "channel": "deepseek-api"}],
+         "prices": [{"channel": "deepseek-api", "effective_from": "2026-06-01", "input_per_mtok": 0.3, "output_per_mtok": 1.2, "source_url": "https://example.test"}]},
+        {"canonical_id": "deepseek/v4-pro", "aliases": [{"provider": "deepseek", "alias": "deepseek-v4-pro", "channel": "deepseek-api"}],
+         "prices": [{"channel": "deepseek-api", "effective_from": "2026-06-01", "input_per_mtok": 1.32, "output_per_mtok": 3.96, "source_url": "https://example.test"}]},
+    ]
+    rows = check_prices.effective_rows(doc, TODAY)
+    quotes = check_prices._deepseek_quotes(page, rows)
+    assert quotes[rows[0]].rates == {"cache_read": Decimal("0.006"), "input": Decimal("0.3"), "output": Decimal("1.2")}
+    assert quotes[rows[1]].rates == {"cache_read": Decimal("0.044"), "input": Decimal("1.32"), "output": Decimal("3.96")}
+
+
+def test_vercel_quotes_prefer_the_regional_or_peak_variant_the_row_carries():
+    data = {"data": [{"id": "openai/gpt-x", "pricing": {
+        "input": "0.000001", "output": "0.000004",
+        "peak_pricing": {"multiplier": 2},
+        "regional": {"us": {"input": "0.000003", "output": "0.000009"}},
+    }}]}
+    quote = check_prices._vercel_quotes(data, _rows())[_row("vercel-ai-gateway")]  # row is 2.0 / 8.0
+    assert quote.key == "openai/gpt-x peak"
+    assert quote.rates == {"input": Decimal("2.000000"), "output": Decimal("8.000000")}
+
+
+# --- Provider price decides ---------------------------------------------------
+
+
+def test_the_providers_own_price_confirms_over_dissenting_second_opinions():
+    row = _row("openai-api")
+    [finding] = check_prices.compare(
+        [row],
+        {"openai": {row: _quote("openai", input=2.0, output=8.0)}, "litellm": {row: _quote("litellm", input=1.0)}, "modelsdev": {row: _quote("modelsdev", input=1.0)}},
+    )
+    assert finding.authority == "openai"
+    assert finding.verdict == "confirmed"
+    text = check_prices.render_markdown([finding], ["openai", "litellm", "modelsdev"], TODAY)
+    assert "overrules" in text and "litellm says input 1.0" in text
+
+
+def test_the_providers_own_price_alone_forces_an_update():
+    row = _row("openai-api")
+    [finding] = check_prices.compare(
+        [row],
+        {"openai": {row: _quote("openai", input=1.0, output=8.0)}, "litellm": {row: _quote("litellm", input=2.0, output=8.0)}},
+    )
+    assert finding.verdict == "update"
+    text = check_prices.render_markdown([finding], ["openai", "litellm"], TODAY)
+    assert "| openai/gpt-x | openai-api | input | 2.0 | openai 1.0; agree: litellm |" in text
