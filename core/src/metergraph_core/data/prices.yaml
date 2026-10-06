@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-10-05"
+version: "2026-10-06"
 currency: USD
-pricing_verified_at: "2026-10-05"
+pricing_verified_at: "2026-10-06"
 models:
   - canonical_id: openai/gpt-6-sol
     publisher: openai
@@ -380,6 +380,7 @@ models:
       - channel: openai-api
         region: global
         effective_from: "2026-07-09"
+        effective_to: "2026-07-30"
         input_per_mtok: 2.50
         output_per_mtok: 15.00
         cache_read_per_mtok: 0.25
@@ -390,6 +391,19 @@ models:
           input_includes_cache_read: true
           long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
         source_url: https://developers.openai.com/api/docs/models/gpt-5.6-terra
+      - channel: openai-api
+        region: global
+        effective_from: "2026-07-30"
+        input_per_mtok: 2.00
+        output_per_mtok: 12.00
+        cache_read_per_mtok: 0.20
+        cache_write_5m_per_mtok: 2.50
+        batch_input_per_mtok: 1.00
+        batch_output_per_mtok: 6.00
+        rules:
+          input_includes_cache_read: true
+          long_context: {threshold: 272000, input_multiplier: 2, output_multiplier: 1.5}
+        source_url: https://developers.openai.com/api/docs/pricing
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-07-09"

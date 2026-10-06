@@ -2187,3 +2187,22 @@ def test_installed_catalog_gives_each_fireworks_path_one_canonical_model():
     assert all(len(canonicals) == 1 for canonicals in owners.values())
     for path in owners:
         assert {path, f"fireworks:{path}"} <= spellings
+
+
+@pytest.mark.parametrize(
+    ("at", "input_rate", "output_rate"),
+    [
+        (datetime(2026, 7, 29, tzinfo=timezone.utc), "2.5", "15.0"),
+        (datetime(2026, 7, 30, tzinfo=timezone.utc), "2.0", "12.0"),
+    ],
+)
+def test_installed_catalog_prices_gpt_5_6_terra_direct_by_date(at, input_rate, output_rate):
+    """OpenAI cut gpt-5.6-terra to $2 in and $12 out on 2026-07-30; calls
+    before that day keep the launch rate."""
+    catalog = load_catalog()
+    resolved = catalog.price(
+        model="gpt-5.6-terra", channel="openai-api", at=at,
+        input_tokens=100_000, output_tokens=100_000,
+    )
+    assert resolved.status == "priced"
+    assert resolved.cost_usd == (Decimal(input_rate) + Decimal(output_rate)) / 10
