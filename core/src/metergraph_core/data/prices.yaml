@@ -380,7 +380,7 @@ models:
       - channel: openai-api
         region: global
         effective_from: "2026-07-09"
-        effective_to: "2026-10-06"
+        effective_to: "2026-07-30"
         input_per_mtok: 2.50
         output_per_mtok: 15.00
         cache_read_per_mtok: 0.25
@@ -393,7 +393,7 @@ models:
         source_url: https://developers.openai.com/api/docs/models/gpt-5.6-terra
       - channel: openai-api
         region: global
-        effective_from: "2026-10-06"
+        effective_from: "2026-07-30"
         input_per_mtok: 2.00
         output_per_mtok: 12.00
         cache_read_per_mtok: 0.20

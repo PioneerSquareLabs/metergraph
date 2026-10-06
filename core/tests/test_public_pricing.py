@@ -2192,13 +2192,13 @@ def test_installed_catalog_gives_each_fireworks_path_one_canonical_model():
 @pytest.mark.parametrize(
     ("at", "input_rate", "output_rate"),
     [
-        (datetime(2026, 10, 5, tzinfo=timezone.utc), "2.5", "15.0"),
-        (datetime(2026, 10, 6, tzinfo=timezone.utc), "2.0", "12.0"),
+        (datetime(2026, 7, 29, tzinfo=timezone.utc), "2.5", "15.0"),
+        (datetime(2026, 7, 30, tzinfo=timezone.utc), "2.0", "12.0"),
     ],
 )
 def test_installed_catalog_prices_gpt_5_6_terra_direct_by_date(at, input_rate, output_rate):
-    """OpenAI lists gpt-5.6-terra at $2 in and $12 out; the earlier row stays
-    for calls before the change was recorded."""
+    """OpenAI cut gpt-5.6-terra to $2 in and $12 out on 2026-07-30; calls
+    before that day keep the launch rate."""
     catalog = load_catalog()
     resolved = catalog.price(
         model="gpt-5.6-terra", channel="openai-api", at=at,
