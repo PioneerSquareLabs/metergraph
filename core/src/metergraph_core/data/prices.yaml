@@ -1876,6 +1876,8 @@ models:
       - <<: *deepseek-v4-flash-retired
         provider: unknown
         alias: deepseek/deepseek-v4-flash
+      - <<: *deepseek-v4-flash-retired
+        alias: deepseek/deepseek/deepseek-v4-flash
       - &deepseek-chat-v4-flash
         {provider: deepseek, alias: deepseek-chat, channel: deepseek-api, effective_from: "2026-04-24", effective_to: "2026-07-24T16:00:00+00:00", source_url: https://api-docs.deepseek.com/news/news260424/}
       - <<: *deepseek-chat-v4-flash
@@ -2450,6 +2452,8 @@ models:
       - <<: *deepseek-v4-flash-routed
         provider: unknown
         alias: deepseek/deepseek-v4-flash
+      - <<: *deepseek-v4-flash-routed
+        alias: deepseek/deepseek/deepseek-v4-flash
       - &deepseek-v4-flash-vision-routed
         {provider: deepseek, alias: deepseek-v4-flash-vision-exp, channel: deepseek-api, effective_from: "2026-09-10T04:00:00+00:00", source_url: https://api-docs.deepseek.com/updates/}
       - <<: *deepseek-v4-flash-vision-routed
