@@ -7,16 +7,18 @@ two that agree with each other is an update. The script reads prices only
 and never edits the catalog.
 
 Provider sources, read from the provider's own page: ``openai``,
-``anthropic``, ``google`` (Gemini API) and ``deepseek``; ``vercel`` is the AI
-Gateway's own list. Second opinions: ``litellm`` (matched through
-``provider: litellm`` aliases), ``modelsdev`` (matched by provider and model
-id) and ``portkey`` (one request per model, so opt-in). None needs
-credentials.
+``anthropic``, ``google`` (Gemini API), ``deepseek``, ``xai`` and
+``perplexity``; ``vercel`` is the AI Gateway's own list. Second opinions,
+compared only where no provider price is readable: ``litellm`` (matched
+through ``provider: litellm`` aliases), ``modelsdev`` (matched by provider
+and model id) and ``portkey`` (one request per model, so opt-in). None needs
+credentials. Each provider page also yields the models it lists that the
+catalog lacks.
 
 Usage:
 
     python scripts/check_prices.py [--json report.json] [--cache-dir DIR]
-    python scripts/check_prices.py --sources openai,vercel,litellm,portkey
+    python scripts/check_prices.py --sources openai,anthropic,google,deepseek,xai,perplexity,vercel,litellm,modelsdev,portkey
 
 Exit status: 0 nothing to do, 2 an update signal, 1 with ``--strict`` when any
 source disagrees.
@@ -64,14 +66,19 @@ AUTHORITATIVE = {
     "anthropic-api": "anthropic",
     "google-api": "google",
     "deepseek-api": "deepseek",
+    "xai-api": "xai",
+    "perplexity-api": "perplexity",
     "vercel-ai-gateway": "vercel",
 }
-PROVIDER_SOURCES = ("openai", "anthropic", "google", "deepseek", "vercel")
-ALL_SOURCES = PROVIDER_SOURCES + ("litellm", "modelsdev", "portkey")
-DEFAULT_SOURCES = "openai,anthropic,google,deepseek,vercel,litellm,modelsdev"
+PROVIDER_SOURCES = ("openai", "anthropic", "google", "deepseek", "xai", "perplexity", "vercel")
+SECOND_OPINIONS = ("litellm", "modelsdev", "portkey")
+ALL_SOURCES = PROVIDER_SOURCES + SECOND_OPINIONS
+DEFAULT_SOURCES = ",".join(PROVIDER_SOURCES + ("litellm", "modelsdev"))
 
-# Aliases recorded under these providers are source keys, not provider ids.
-SYNTHETIC_PROVIDERS = {"litellm", "unknown"}
+# The catalog files LiteLLM map keys under provider `litellm` and the
+# provider-less fallback spellings under `unknown`. Neither is a provider
+# whose page can be read, so they never select a page lookup name.
+ALIAS_ONLY_PROVIDERS = {"litellm", "unknown"}
 
 LITELLM_PROVIDER_CHANNEL = {
     "openai": "openai-api",
@@ -129,6 +136,8 @@ OPENAI_URL = "https://developers.openai.com/api/docs/pricing"
 ANTHROPIC_URL = "https://platform.claude.com/docs/en/about-claude/pricing"
 GOOGLE_URL = "https://ai.google.dev/gemini-api/docs/pricing"
 DEEPSEEK_URL = "https://api-docs.deepseek.com/quick_start/pricing"
+XAI_URL = "https://docs.x.ai/developers/models"
+PERPLEXITY_URL = "https://docs.perplexity.ai/docs/getting-started/pricing"
 LITELLM_URL = (
     "https://raw.githubusercontent.com/BerriAI/litellm/main/"
     "model_prices_and_context_window.json"
@@ -319,7 +328,7 @@ def _global_only(rows: list[CatalogRow]) -> list[CatalogRow]:
 
 def _direct_aliases(row: CatalogRow) -> list[str]:
     """Model ids a provider-facing source might use, most specific first."""
-    names = [alias for provider, alias in row.aliases if provider not in SYNTHETIC_PROVIDERS]
+    names = [alias for provider, alias in row.aliases if provider not in ALIAS_ONLY_PROVIDERS]
     tail = row.canonical_id.split("/", 1)[-1]
     if tail not in names:
         names.append(tail)
@@ -378,13 +387,16 @@ def _rates_for(row: CatalogRow, lookup: Callable[[str], Mapping[str, Decimal] | 
     return None
 
 
+# Provider pages. Each parser turns a page into {model name: rates}; the
+# matcher then pairs catalog rows on the page's channel with those names.
+
 # OpenAI's page carries its tables as data. In the Standard section a row is
 # input, cached input, output, with a cache-write column on newer models.
 _OPENAI_ROW = re.compile(r'\[\[0,"([^"]+)"\]((?:,\[0,(?:[0-9.]+|"-")\]){3,4})\]')
 _OPENAI_CELL = re.compile(r'\[0,([0-9.]+|"-")\]')
 
 
-def _openai_quotes(html_text: str, rows: list[CatalogRow]) -> dict[CatalogRow, Quote]:
+def _parse_openai(html_text: str) -> dict[str, dict[str, Decimal]]:
     text = html.unescape(html_text)
     # The page repeats the "standard" label (text, image and audio tables);
     # the text-model table is the standard section with the most gpt rows.
@@ -402,18 +414,12 @@ def _openai_quotes(html_text: str, rows: list[CatalogRow]) -> dict[CatalogRow, Q
         values = [_decimal(v) for v in _OPENAI_CELL.findall(cells)]
         names = ("input", "cache_read", "cache_write", "output") if len(values) == 4 else ("input", "cache_read", "output")
         table[key] = {k: v for k, v in zip(names, values) if v is not None}
-    quotes: dict[CatalogRow, Quote] = {}
-    for row in _global_only(rows):
-        if row.channel != "openai-api":
-            continue
-        found = _rates_for(row, lambda name: table.get(name.lower().split("/")[-1]))
-        if found:
-            quotes[row] = Quote("openai", found[0], found[1])
-    return quotes
+    return table
 
 
-def _anthropic_quotes(html_text: str, rows: list[CatalogRow]) -> dict[CatalogRow, Quote]:
-    """The base-token table: name, input, output, 5m write, 1h write, hits."""
+def _parse_anthropic(html_text: str) -> dict[str, dict[str, Decimal]]:
+    """The base-token table: name, input, output, 5m write, 1h write, hits.
+    Keys are model ids such as claude-opus-5-5."""
     table: dict[str, dict[str, Decimal]] = {}
     for rows_ in _page_tables(html_text):
         if not rows_ or "Base tokens" not in " ".join(rows_[0]):
@@ -428,50 +434,29 @@ def _anthropic_quotes(html_text: str, rows: list[CatalogRow]) -> dict[CatalogRow
             rates = {"input": _dollars(cells[1]), "output": _dollars(cells[2]), "cache_write": _dollars(cells[3]), "cache_read": _dollars(cells[5])}
             table.setdefault(key, {k: v for k, v in rates.items() if v is not None})
         break
-    quotes: dict[CatalogRow, Quote] = {}
-    for row in _global_only(rows):
-        if row.channel != "anthropic-api":
-            continue
-        # Catalog aliases are ids such as claude-opus-5-5 or a dated form.
-        found = _rates_for(row, lambda name: next((r for k, r in table.items() if re.fullmatch(re.escape(k) + r"(-\d{8})?", name.lower())), None))
-        if found:
-            quotes[row] = Quote("anthropic", found[0], found[1])
-    return quotes
+    return table
 
 
-def _google_quotes(html_text: str, rows: list[CatalogRow]) -> dict[CatalogRow, Quote]:
-    """The Gemini API page: each model's id is followed by its paid-tier
-    input, output and caching prices. Where a price is dated the first
-    amount is the one in effect."""
-    text = _page_text(html_text)
-
+def _parse_google(html_text: str) -> dict[str, dict[str, Decimal]]:
+    """The Gemini API page: each model's id precedes its "Try it" link, and
+    its paid-tier prices follow. Where a price is dated the first amount is
+    the one in effect; per-image output is not a token rate."""
+    parts = _page_text(html_text).split("Try it in Google AI Studio")
     tier = r"(?:Free of charge \| |Not available \| )?([^|]*\$[^|]*)"
-
-    def lookup(name: str) -> Mapping[str, Decimal] | None:
-        for match in re.finditer(re.escape(name) + r"\b", text):
-            # A model's block runs from its id to the next model's "Try it".
-            own = text.find("Try it in Google AI Studio", match.end())
-            nxt = text.find("Try it in Google AI Studio", own + 1) if own >= 0 else -1
-            segment = text[match.start(): nxt if nxt > 0 else match.start() + 2000]
-            inp = re.search(r"Input price \| " + tier, segment)
-            out = re.search(r"Output price[^|]*\| " + tier, segment)
-            if not (inp and out):
-                continue
-            cache = re.search(r"Context caching price \| " + tier, segment)
-            # Per-image output is not a token rate.
-            output = None if "per image" in out.group(1) else _dollars(out.group(1))
-            rates = {"input": _dollars(inp.group(1)), "output": output, "cache_read": _dollars(cache.group(1)) if cache else None}
-            return {k: v for k, v in rates.items() if v is not None}
-        return None
-
-    quotes: dict[CatalogRow, Quote] = {}
-    for row in _global_only(rows):
-        if row.channel != "google-api":
+    table: dict[str, dict[str, Decimal]] = {}
+    for before, block in zip(parts, parts[1:]):
+        cells = [c.strip() for c in before.split("|") if c.strip()]
+        if not cells or not re.fullmatch(r"[a-z0-9][a-z0-9.-]*", cells[-1]):
             continue
-        found = _rates_for(row, lookup)
-        if found:
-            quotes[row] = Quote("google", found[0], found[1])
-    return quotes
+        inp = re.search(r"Input price \| " + tier, block)
+        out = re.search(r"Output price[^|]*\| " + tier, block)
+        if not (inp and out):
+            continue
+        cache = re.search(r"Context caching price \| " + tier, block)
+        output = None if "per image" in out.group(1) else _dollars(out.group(1))
+        rates = {"input": _dollars(inp.group(1)), "output": output, "cache_read": _dollars(cache.group(1)) if cache else None}
+        table.setdefault(cells[-1], {k: v for k, v in rates.items() if v is not None})
+    return table
 
 
 def _deepseek_name(name: str) -> str:
@@ -480,9 +465,9 @@ def _deepseek_name(name: str) -> str:
     return re.sub(r"\(\d+\)", "", name).strip().lower().replace("deepseek-v4.1-", "deepseek-").replace("deepseek-v4-", "deepseek-")
 
 
-def _deepseek_quotes(html_text: str, rows: list[CatalogRow]) -> dict[CatalogRow, Quote]:
+def _parse_deepseek(html_text: str) -> dict[str, dict[str, Decimal]]:
     """The pricing table, one column per model; the catalog carries the peak
-    rate and an off-peak rule, so peak rows are compared."""
+    rate and an off-peak rule, so peak rows are read."""
     columns: list[str] = []
     table: dict[str, dict[str, Decimal]] = {}
     section = ""
@@ -508,14 +493,108 @@ def _deepseek_quotes(html_text: str, rows: list[CatalogRow]) -> dict[CatalogRow,
                     rate = _dollars(value)
                     if rate is not None:
                         table[column][section] = rate
+    return table
+
+
+# xAI's models page embeds each model as JSON with prices in units of
+# $0.0000000001 per token, so 20000 is $2 per million.
+_XAI_MODEL = re.compile(r'"name":"([^"]+)","version"')
+_XAI_UNIT = Decimal("0.0001")
+
+
+def _parse_xai(html_text: str) -> dict[str, dict[str, Decimal]]:
+    text = html.unescape(html_text)
+    table: dict[str, dict[str, Decimal]] = {}
+    for match in _XAI_MODEL.finditer(text):
+        name = match.group(1).lower()
+        if name in table:
+            continue
+        body = text[match.end(): match.end() + 1500]
+
+        def price(key: str) -> Decimal | None:
+            found = re.search(r'"' + key + r'":"?([0-9.]+)"?', body)
+            return _decimal(found.group(1)) * _XAI_UNIT if found else None
+
+        rates = {"input": price("promptTextTokenPrice"), "cache_read": price("cachedPromptTokenPrice"), "output": price("completionTextTokenPrice")}
+        if rates["input"] is not None and rates["output"] is not None:
+            table[name] = {k: v for k, v in rates.items() if v is not None}
+    return table
+
+
+def _parse_perplexity(html_text: str) -> dict[str, dict[str, Decimal]]:
+    """The page's cost calculator carries a PRICING object, which the page
+    calls its single source of truth; its sonar models give token rates."""
+    text = html.unescape(html_text)
+    start = text.find("const PRICING=")
+    end = text.find("};const PricingCalculator", start)
+    if start < 0 or end < 0:
+        return {}
+    raw = text[start + len("const PRICING="): end + 1]
+    raw = raw.replace('\\"', '"').replace("\\u0026", "&").replace("\\n", " ")
+    raw = re.sub(r"`([^`]*)`", lambda m: json.dumps(m.group(1)), raw)
+    raw = re.sub(r"(?<=[:\[,])\s*\.(\d)", r"0.\1", raw)
+    try:
+        pricing = json.loads(raw)
+    except ValueError:
+        return {}
+    table: dict[str, dict[str, Decimal]] = {}
+    for model in (pricing.get("sonar") or {}).get("models") or []:
+        rates = {"input": _decimal(model.get("input")), "output": _decimal(model.get("output"))}
+        if rates["input"] is not None:
+            table[str(model.get("id")).lower()] = {k: v for k, v in rates.items() if v is not None}
+    return table
+
+
+PROVIDER_PAGES: dict[str, tuple[str, str, Callable[[str], dict[str, dict[str, Decimal]]]]] = {
+    "openai": (OPENAI_URL, "openai-api", _parse_openai),
+    "anthropic": (ANTHROPIC_URL, "anthropic-api", _parse_anthropic),
+    "google": (GOOGLE_URL, "google-api", _parse_google),
+    "deepseek": (DEEPSEEK_URL, "deepseek-api", _parse_deepseek),
+    "xai": (XAI_URL, "xai-api", _parse_xai),
+    "perplexity": (PERPLEXITY_URL, "perplexity-api", _parse_perplexity),
+}
+
+
+def _page_key(source: str, name: str) -> str:
+    """A catalog alias in the spelling the provider page uses."""
+    name = name.lower().split("/")[-1]
+    if source == "google":
+        name = name.removeprefix("models/")
+    if source == "deepseek":
+        name = _deepseek_name(name)
+    return name
+
+
+def _page_match(source: str, table: Mapping[str, Mapping[str, Decimal]], name: str) -> Mapping[str, Decimal] | None:
+    key = _page_key(source, name)
+    if source == "anthropic":
+        # Ids match exactly or with a date suffix; a variant such as
+        # claude-opus-5-fast never inherits the base model's price.
+        return next((r for k, r in table.items() if re.fullmatch(re.escape(k) + r"(-\d{8})?", key)), None)
+    return table.get(key)
+
+
+def _page_quotes(source: str, table: Mapping[str, Mapping[str, Decimal]], rows: list[CatalogRow]) -> dict[CatalogRow, Quote]:
+    channel = PROVIDER_PAGES[source][1]
     quotes: dict[CatalogRow, Quote] = {}
     for row in _global_only(rows):
-        if row.channel != "deepseek-api":
+        if row.channel != channel:
             continue
-        found = _rates_for(row, lambda name: table.get(_deepseek_name(name)))
+        found = _rates_for(row, lambda name: _page_match(source, table, name))
         if found:
-            quotes[row] = Quote("deepseek", found[0], found[1])
+            quotes[row] = Quote(source, found[0], found[1])
     return quotes
+
+
+def _missing_models(source: str, table: Mapping[str, Mapping[str, Decimal]], rows: list[CatalogRow]) -> list[str]:
+    """Model names the provider page lists that no catalog alias on that
+    channel spells."""
+    channel = PROVIDER_PAGES[source][1]
+    known = {_page_key(source, alias) for row in rows if row.channel == channel for _, alias in row.aliases}
+    known |= {_page_key(source, row.canonical_id) for row in rows if row.channel == channel}
+    if source == "anthropic":
+        return sorted(k for k in table if not any(re.fullmatch(re.escape(k) + r"(-\d{8})?", n) for n in known))
+    return sorted(k for k in table if k not in known)
 
 
 def _portkey_quotes(
@@ -618,9 +697,15 @@ def compare(rows: list[CatalogRow], quotes_by_source: Mapping[str, Mapping[Catal
     findings: list[Finding] = []
     for row in rows:
         finding = Finding(row=row)
+        authority = AUTHORITATIVE.get(row.channel)
+        provider_quoted = authority in quotes_by_source and row in quotes_by_source[authority]
         for source, quotes in quotes_by_source.items():
             quote = quotes.get(row)
             if quote is None:
+                continue
+            # Second opinions are compared only where no provider price is
+            # readable; otherwise they only lend the catalog model names.
+            if provider_quoted and source != authority:
                 continue
             finding.quotes[source] = quote
             finding.differences[source] = [
@@ -642,7 +727,7 @@ def _money(value: Decimal) -> str:
     return text if "." in text else text + ".0"
 
 
-def render_markdown(findings: list[Finding], sources: list[str], today: date) -> str:
+def render_markdown(findings: list[Finding], sources: list[str], today: date, missing: Mapping[str, list[str]] | None = None) -> str:
     counts = {v: 0 for v in ("update", "disputed", "confirmed", "unchecked")}
     for finding in findings:
         counts[finding.verdict] += 1
@@ -651,8 +736,8 @@ def render_markdown(findings: list[Finding], sources: list[str], today: date) ->
         "",
         f"Sources: {', '.join(sources)}. Rows in effect: {len(findings)}.",
         "",
-        f"- update: {counts['update']} (the provider's own price disagrees, or two second opinions agree against us)",
-        f"- disputed: {counts['disputed']} (a second opinion disagrees and no provider price is readable)",
+        f"- update: {counts['update']} (the provider's own price disagrees, or, where none is readable, two second opinions agree against us)",
+        f"- disputed: {counts['disputed']} (no provider price is readable and a second opinion disagrees)",
         f"- confirmed: {counts['confirmed']}",
         f"- unchecked: {counts['unchecked']} (no source lists the model on that channel; regional rows are compared only with region-aware sources)",
         "",
@@ -677,14 +762,12 @@ def render_markdown(findings: list[Finding], sources: list[str], today: date) ->
                     f"| {finding.row.canonical_id} | {finding.row.channel}{region} | {name} | {_money(ours)} | {', '.join(values)}{extra} |"
                 )
         lines.append("")
-    overruled = [f for f in findings if f.verdict == "confirmed" and f.authority and f.disagreeing]
-    if overruled:
-        lines += ["## Second opinions the provider's own price overrules", ""]
-        for finding in overruled:
-            lines.append(
-                f"- {finding.row.canonical_id} on {finding.row.channel}: {finding.authority} agrees with the catalog; "
-                + ", ".join(f"{s} says " + ", ".join(f"{d.field} {_money(d.theirs)}" for d in finding.differences[s]) for s in finding.disagreeing)
-            )
+    if missing:
+        lines += ["## Models the provider lists that the catalog does not", ""]
+        for source, names in sorted(missing.items()):
+            if names:
+                shown = ", ".join(f"`{n}`" for n in names[:40]) + (f" and {len(names) - 40} more" if len(names) > 40 else "")
+                lines.append(f"- {source} ({len(names)}): {shown}")
         lines.append("")
     mismatched = [
         f for f in findings if any(q.source_channel for q in f.quotes.values())
@@ -709,10 +792,11 @@ def render_markdown(findings: list[Finding], sources: list[str], today: date) ->
     return "\n".join(lines)
 
 
-def to_json(findings: list[Finding], sources: list[str], today: date) -> dict[str, Any]:
+def to_json(findings: list[Finding], sources: list[str], today: date, missing: Mapping[str, list[str]] | None = None) -> dict[str, Any]:
     return {
         "checked_at": today.isoformat(),
         "sources": sources,
+        "missing_models": dict(missing or {}),
         "rows": [
             {
                 "canonical_id": f.row.canonical_id,
@@ -798,10 +882,12 @@ def main(argv: list[str] | None = None) -> int:
     rows = effective_rows(document, args.today)
 
     quotes_by_source: dict[str, Mapping[CatalogRow, Quote]] = {}
-    pages = {"openai": (OPENAI_URL, _openai_quotes), "anthropic": (ANTHROPIC_URL, _anthropic_quotes), "google": (GOOGLE_URL, _google_quotes), "deepseek": (DEEPSEEK_URL, _deepseek_quotes)}
-    for source, (url, adapter) in pages.items():
+    missing: dict[str, list[str]] = {}
+    for source, (url, _, parser) in PROVIDER_PAGES.items():
         if source in sources:
-            quotes_by_source[source] = adapter(fetch_text(url, args.cache_dir), rows)
+            table = parser(fetch_text(url, args.cache_dir))
+            quotes_by_source[source] = _page_quotes(source, table, rows)
+            missing[source] = _missing_models(source, table, rows)
     if "vercel" in sources:
         quotes_by_source["vercel"] = _vercel_quotes(fetch_json(VERCEL_URL, args.cache_dir) or {}, rows)
     if "litellm" in sources:
@@ -812,9 +898,9 @@ def main(argv: list[str] | None = None) -> int:
         quotes_by_source["portkey"] = _portkey_quotes(lambda url: fetch_json(url, args.cache_dir), rows)
 
     findings = compare(rows, quotes_by_source)
-    print(render_markdown(findings, sources, args.today))
+    print(render_markdown(findings, sources, args.today, missing))
     if args.json:
-        args.json.write_text(json.dumps(to_json(findings, sources, args.today), indent=2) + "\n")
+        args.json.write_text(json.dumps(to_json(findings, sources, args.today, missing), indent=2) + "\n")
 
     if any(f.verdict == "update" for f in findings):
         return 2
