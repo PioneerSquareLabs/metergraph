@@ -37,6 +37,10 @@ from .models import (
     validate_model_registry,
 )
 from .retrieval import (
+    count_fetch_units,
+    count_search_units,
+    fetch_operation_for_channel,
+    search_operation_for_channel,
     RetrievalCatalog,
     RetrievalCostResult,
     RetrievalPrice,
@@ -62,6 +66,8 @@ __all__ = [
     "RetrievalCatalog",
     "RetrievalCostResult",
     "RetrievalPrice",
+    "count_fetch_units",
+    "count_search_units",
     "counts_cache_read_in_input",
     "direct_channel_for_provider",
     "normalize_provider",
@@ -73,5 +79,7 @@ __all__ = [
     "parse_disputes",
     "parse_retrieval",
     "resolve_billing",
+    "fetch_operation_for_channel",
+    "search_operation_for_channel",
     "validate_model_registry",
 ]

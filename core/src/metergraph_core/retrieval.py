@@ -15,6 +15,8 @@ count and an unknown operation or channel come back ``unpriced`` with a reason
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any
 
 from .catalog import _COST_QUANTUM, _coerce_datetime
@@ -50,6 +52,97 @@ class RetrievalCostResult:
     cost_usd: Decimal | None
     status: str
     reasons: tuple[str, ...] = ()
+
+
+# The retrieval operation a counted search or fetch is billed as on each
+# channel. A channel absent here charges no per-use fee for that operation.
+SEARCH_OPERATION_BY_CHANNEL: Mapping[str, str] = MappingProxyType({
+    "openai-api": "web_search",
+    "anthropic-api": "web_search",
+    "google-api": "google_search_grounding",
+    "google-vertex-ai": "google_search_grounding",
+    # Perplexity bills a request fee by search context size, which no
+    # capture path records; the low tier is the floor every request pays.
+    "perplexity-api": "search_request_low",
+})
+FETCH_OPERATION_BY_CHANNEL: Mapping[str, str] = MappingProxyType({
+    "anthropic-api": "web_fetch",
+})
+
+# The tool-call item types a provider emits for a search or a fetch it ran
+# itself, as the Responses API and the relay record them.
+_SEARCH_TOOL_TYPES = frozenset({"web_search_call"})
+_FETCH_TOOL_TYPES = frozenset({"web_fetch_call"})
+_PERPLEXITY = frozenset({"perplexity", "perplexity-ai"})
+
+
+def search_operation_for_channel(channel: Any) -> str | None:
+    """The retrieval operation a counted search is billed as on ``channel``,
+    or ``None`` where the channel charges no per-search fee."""
+    return SEARCH_OPERATION_BY_CHANNEL.get(str(channel or "").strip().lower())
+
+
+def fetch_operation_for_channel(channel: Any) -> str | None:
+    """The retrieval operation a counted fetch is billed as on ``channel``,
+    or ``None`` where the channel charges no per-fetch fee."""
+    return FETCH_OPERATION_BY_CHANNEL.get(str(channel or "").strip().lower())
+
+
+def _count(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        count = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return count if count >= 0 else None
+
+
+def _tool_items(row: Mapping[str, Any], types: frozenset[str]) -> int | None:
+    """Items of the given types among ``tool_calls``: a measured zero when the
+    list is there and holds none, ``None`` when there is no list to read."""
+    calls = row.get("tool_calls")
+    if not isinstance(calls, list):
+        return None
+    return sum(
+        1
+        for call in calls
+        if isinstance(call, Mapping) and str(call.get("type") or "").strip().lower() in types
+    )
+
+
+def count_search_units(row: Mapping[str, Any]) -> int | None:
+    """The searches one call row made, read from whichever field its capture
+    path carries, in the order they are believed: ``web_search_calls`` and
+    ``grounding_queries`` (the relay's per-provider counts), Anthropic's
+    ``server_tool_use.web_search_requests``, then the ``web_search_call``
+    items among ``tool_calls``. A Perplexity call is one search, since
+    Perplexity bills every request as one. A field that is present and says
+    nothing was searched is a measured zero; ``None`` means no field says."""
+    for key in ("web_search_calls", "grounding_queries"):
+        count = _count(row.get(key))
+        if count is not None:
+            return count
+    server = row.get("server_tool_use")
+    if isinstance(server, Mapping):
+        count = _count(server.get("web_search_requests"))
+        if count is not None:
+            return count
+    if str(row.get("provider") or "").strip().lower() in _PERPLEXITY:
+        return 1
+    return _tool_items(row, _SEARCH_TOOL_TYPES)
+
+
+def count_fetch_units(row: Mapping[str, Any]) -> int | None:
+    """The page fetches one call row made: Anthropic's
+    ``server_tool_use.web_fetch_requests``, then the ``web_fetch_call``
+    items among ``tool_calls``, with the same measured-zero rule."""
+    server = row.get("server_tool_use")
+    if isinstance(server, Mapping):
+        count = _count(server.get("web_fetch_requests"))
+        if count is not None:
+            return count
+    return _tool_items(row, _FETCH_TOOL_TYPES)
 
 
 def _units(value: Any) -> tuple[int | None, str | None]:
