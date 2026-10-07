@@ -122,6 +122,23 @@ TOOLS = [
         },
     },
     {
+        "name": "metergraph_list_analysis_runs",
+        "title": "List Metergraph analysis runs",
+        "description": "List a bounded page of workspace analysis and classification runs. Lifecycle is separate from imported report availability and outcome. Read-only.",
+        "inputSchema": {"type": "object", "properties": {
+            "limit": {"type": "integer", "minimum": 1, "maximum": 200},
+            "cursor": {"type": "string", "minLength": 1, "maxLength": 512},
+        }, "additionalProperties": False},
+    },
+    {
+        "name": "metergraph_get_analysis_run",
+        "title": "Get a Metergraph analysis run",
+        "description": "Read one workspace-owned analysis run by UUID, with lifecycle timestamps and report availability. Does not start, cancel or rerun analysis.",
+        "inputSchema": {"type": "object", "properties": {
+            "run_id": {"type": "string", "minLength": 1, "maxLength": 36},
+        }, "required": ["run_id"], "additionalProperties": False},
+    },
+    {
         "name": "metergraph_list_reports",
         "title": "List Metergraph pipeline reports",
         "description": (
@@ -314,6 +331,8 @@ def _validate_arguments(name: str, arguments: Any) -> dict[str, Any]:
         "metergraph_get_ingestion_health": {"days"},
         "metergraph_list_incidents": {"limit"},
         "metergraph_query_traces": {"route", "status", "workload", "cursor", "days", "limit"},
+        "metergraph_list_analysis_runs": {"limit", "cursor"},
+        "metergraph_get_analysis_run": {"run_id"},
         "metergraph_list_reports": {"limit"},
         "metergraph_get_report": {"analysis_id"},
         "metergraph_get_report_evidence": {"analysis_id", "workload_id", "cursor", "limit"},
@@ -330,6 +349,7 @@ def _validate_arguments(name: str, arguments: Any) -> dict[str, Any]:
         ("status", 128),
         ("workload", 200),
         ("cursor", 512),
+        ("run_id", 36),
         ("trace_id", 200),
         ("analysis_id", 200),
         ("workload_id", 200),
@@ -352,6 +372,8 @@ def _validate_arguments(name: str, arguments: Any) -> dict[str, Any]:
             or not minimum <= value <= maximum
         ):
             raise ValueError(f"{field} must be an integer from {minimum} to {maximum}")
+    if name == "metergraph_get_analysis_run" and "run_id" not in arguments:
+        raise ValueError("run_id is required")
     if name == "metergraph_get_trace" and "trace_id" not in arguments:
         raise ValueError("trace_id is required")
     if name in {"metergraph_get_report", "metergraph_get_report_evidence"} and "analysis_id" not in arguments:
@@ -388,6 +410,10 @@ def _call_tool(api: AgentAPI, name: str, arguments: Any) -> dict:
         document = api.get("/v1/agent/incidents", arguments)
     elif name == "metergraph_query_traces":
         document = api.get("/v1/agent/traces", arguments)
+    elif name == "metergraph_list_analysis_runs":
+        document = api.get("/v1/agent/analysis-runs", arguments)
+    elif name == "metergraph_get_analysis_run":
+        document = api.get("/v1/agent/analysis-runs/" + urllib.parse.quote(arguments["run_id"], safe=""))
     elif name == "metergraph_list_reports":
         document = api.get("/v1/agent/reports", arguments)
     elif name == "metergraph_get_report":

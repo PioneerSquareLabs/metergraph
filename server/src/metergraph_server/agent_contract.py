@@ -75,6 +75,7 @@ WARNING_CODES = frozenset(
         "content_omitted",
         "capability_unavailable",
         "unsupported_field",
+        "report_outcome_not_loaded",
         "evidence_omitted",
     }
 )
@@ -436,6 +437,25 @@ _REPORT_EVIDENCE_CASE = _object(
 )
 
 
+_RUN_PROPERTIES = {
+    "run_id": {"type": "string", "format": "uuid"},
+    "analysis_id": {"type": "string"},
+    "status": {"type": "string"},
+    "kind": {"enum": ["analysis", "classification"]},
+    "created_at": {"type": "string"},
+    "started_at": _nullable("string"),
+    "finished_at": _nullable("string"),
+    "error_code": _nullable("string"),
+    "report": _object({
+        "available": {"type": "boolean"},
+        "analysis_id": _nullable("string"),
+        "imported_at": _nullable("string"),
+        "outcome_tool": {"enum": ["metergraph_get_report", None]},
+    }, ("available", "analysis_id", "imported_at", "outcome_tool")),
+}
+_RUN = _object(_RUN_PROPERTIES, tuple(_RUN_PROPERTIES))
+
+
 SCHEMAS: dict[str, dict[str, Any]] = {
     "agent-access/envelope": _ENVELOPE,
     "agent-access/error": {
@@ -720,6 +740,16 @@ SCHEMAS: dict[str, dict[str, Any]] = {
             },
         ],
     },
+    "agent-access/analysis-runs": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        **_object({**_ENVELOPE_PROPERTIES, "content_included": {"const": False}, "runs": _array(_RUN)},
+                  ("schema_version", "provenance", "warnings", "page", "content_included", "runs")),
+    },
+    "agent-access/analysis-run": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        **_object({**_ENVELOPE_PROPERTIES, "content_included": {"const": False}, "run": _RUN},
+                  ("schema_version", "provenance", "warnings", "content_included", "run")),
+    },
     "agent-access/reports": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         **_object(
@@ -817,6 +847,22 @@ TOOL_CONTRACT = {
         "privacy_class": "metadata",
         "required_scope": "agent:read",
         "schema": "agent-access/trace-metadata",
+        "mutates": False,
+        "external_calls": False,
+    },
+    "metergraph_list_analysis_runs": {
+        "capability": "analysis_runs",
+        "privacy_class": "metadata",
+        "required_scope": "agent:read",
+        "schema": "agent-access/analysis-runs",
+        "mutates": False,
+        "external_calls": False,
+    },
+    "metergraph_get_analysis_run": {
+        "capability": "analysis_run",
+        "privacy_class": "metadata",
+        "required_scope": "agent:read",
+        "schema": "agent-access/analysis-run",
         "mutates": False,
         "external_calls": False,
     },
