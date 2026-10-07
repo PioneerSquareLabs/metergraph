@@ -1,4 +1,4 @@
-version: '2026-10-06'
+version: '2026-10-07'
 models:
 - canonical_id: openai/gpt-5.6-sol
   display_name: GPT-5.6 Sol
@@ -603,6 +603,50 @@ models:
     pricing_channel: vercel-ai-gateway
     execution_profiles:
     - default
+- canonical_id: openai/gpt-6.1-sol
+  display_name: GPT-6.1 Sol
+  publisher: openai
+  routes:
+  - key: default:openai/gpt-6.1-sol
+    id: openai/gpt-6.1-sol
+    provider: vercel
+    model_id: openai/gpt-6.1-sol
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
+- canonical_id: xai/grok-4.7
+  display_name: Grok 4.7
+  publisher: xai
+  routes:
+  - key: default:xai/grok-4.7
+    id: xai/grok-4.7
+    provider: vercel
+    model_id: xai/grok-4.7
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
+- canonical_id: moonshotai/kimi-k2.7-code
+  display_name: Kimi K2.7 Code
+  publisher: moonshotai
+  routes:
+  - key: default:moonshotai/kimi-k2.7-code
+    id: moonshotai/kimi-k2.7-code
+    provider: vercel
+    model_id: moonshotai/kimi-k2.7-code
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
+- canonical_id: zai/glm-5.3
+  display_name: GLM 5.3
+  publisher: zai
+  routes:
+  - key: default:zai/glm-5.3
+    id: zai/glm-5.3
+    provider: vercel
+    model_id: zai/glm-5.3
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
 execution_profiles:
 - id: default
   routes:
@@ -641,6 +685,10 @@ execution_profiles:
   - default:inception/mercury-2.5
   - default:anthropic/claude-opus-5.5
   - default:anthropic/claude-sonnet-5.5
+  - default:openai/gpt-6.1-sol
+  - default:xai/grok-4.7
+  - default:moonshotai/kimi-k2.7-code
+  - default:zai/glm-5.3
   - default:openai/gpt-5.4-mini
   - default:openai/gpt-5.4-nano
   - default:anthropic/claude-opus-4.8
@@ -710,6 +758,10 @@ offer_groups:
   - default:inception/mercury-2.5
   - default:anthropic/claude-opus-5.5
   - default:anthropic/claude-sonnet-5.5
+  - default:openai/gpt-6.1-sol
+  - default:xai/grok-4.7
+  - default:moonshotai/kimi-k2.7-code
+  - default:zai/glm-5.3
 - id: fireworks
   credential: FIREWORKS_API_KEY
   routes:
