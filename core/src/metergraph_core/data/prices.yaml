@@ -3168,17 +3168,22 @@ models:
         output_per_mtok: 4.40
         cache_read_per_mtok: 0.26
         source_url: https://fireworks.ai/models/fireworks/glm-5p3
+      # The 5m field stores AWS's 30-minute cache-write rate.
       - channel: aws-bedrock
         region: global
         effective_from: "2026-10-07"
         input_per_mtok: 1.68
         output_per_mtok: 5.28
+        cache_read_per_mtok: 0.312
+        cache_write_5m_per_mtok: 2.10
         source_url: https://aws.amazon.com/bedrock/pricing/
       - channel: aws-bedrock-geo
         region: global
         effective_from: "2026-10-07"
         input_per_mtok: 1.848
         output_per_mtok: 5.808
+        cache_read_per_mtok: 0.3432
+        cache_write_5m_per_mtok: 2.31
         source_url: https://aws.amazon.com/bedrock/pricing/
 
   - canonical_id: zai/glm-5.3-flash
