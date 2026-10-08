@@ -97,6 +97,13 @@ IDs may intentionally repeat across execution profiles when gateway and
 Bedrock use different physical routes; each route therefore also has a unique
 internal `key`.
 
+A model entry may record `released`, the publisher's general-availability
+date as an ISO date. `models.release_date(canonical_id, load_catalog())`
+returns that date with basis `released`, or, when none is recorded, the
+earliest `effective_from` of the model's catalog prices with basis
+`first_price`, so a consumer can tell a launch date from a pricing date
+without computing the fallback itself.
+
 Use `validate_model_registry(models, load_catalog())` to verify that every
 route's provider-facing model ID is declared on its exact pricing channel,
 resolves to its canonical model, and has an active price on the registry

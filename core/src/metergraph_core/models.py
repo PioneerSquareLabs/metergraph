@@ -76,6 +76,19 @@ class ModelDefinition:
     display_name: str
     publisher: str
     routes: tuple[ModelRoute, ...]
+    # The publisher's general-availability date, when recorded.
+    released: date | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReleaseDate:
+    """When a model became available, and what that date is based on:
+    ``released`` is the registry's recorded date; ``first_price`` is the
+    earliest price window the catalog has for the model, used when no date
+    is recorded."""
+
+    date: date
+    basis: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +108,36 @@ class ModelRegistry:
 
     def model(self, canonical_id: str) -> ModelDefinition:
         return self.models[canonical_id]
+
+    def release_date(
+        self, canonical_id: str, catalog: LoadedCatalog
+    ) -> ReleaseDate | None:
+        """The model's release date: recorded when the registry has one,
+        otherwise the earliest ``effective_from`` of its catalog prices, or
+        None when neither exists. Callers never compute the fallback
+        themselves, so every product reads the same answer."""
+        model = self.models.get(canonical_id)
+        if model is not None and model.released is not None:
+            return ReleaseDate(model.released, "released")
+        entry = next(
+            (
+                entry
+                for entry in catalog.document.get("models", [])
+                if entry.get("canonical_id") == canonical_id
+            ),
+            None,
+        )
+        # A price window starts on a date or a timestamp; the catalog accepts
+        # both, so both are read here.
+        first_price = min(
+            (
+                _window_day(price["effective_from"])
+                for price in (entry or {}).get("prices", [])
+                if price.get("effective_from") is not None
+            ),
+            default=None,
+        )
+        return None if first_price is None else ReleaseDate(first_price, "first_price")
 
     def route(self, route_key: str) -> ModelRoute:
         return self.routes[route_key]
@@ -152,6 +195,29 @@ def _unique_text_list(value: Any, field: str) -> tuple[str, ...]:
     return items
 
 
+def _window_day(value: Any) -> date:
+    """The calendar day a catalog price window starts, from a date or a
+    timestamp as the catalog loader accepts them."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return datetime.fromisoformat(str(value)).date()
+
+
+def _optional_date(value: Any, field: str) -> date | None:
+    """An ISO calendar date, or None when absent. A datetime is not accepted:
+    a release is a day, and the registry version is already a date."""
+    if value is None:
+        return None
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+    try:
+        return date.fromisoformat(str(value))
+    except ValueError as exc:
+        raise ModelRegistryError(f"{field} must be an ISO date") from exc
+
+
 def _registry_version_date(version: str) -> date:
     date_value, separator, revision = version.partition(".")
     try:
@@ -194,6 +260,7 @@ def parse_model_registry(document: Any) -> ModelRegistry:
             raise ModelRegistryError(
                 f"{canonical_id}: publisher {publisher!r} does not match canonical id"
             )
+        released = _optional_date(model.get("released"), f"{canonical_id}: released")
         model_routes: list[ModelRoute] = []
         route_values = _list(model.get("routes"), f"{canonical_id}: routes")
         if not route_values:
@@ -263,6 +330,7 @@ def parse_model_registry(document: Any) -> ModelRegistry:
             display_name=display_name,
             publisher=publisher,
             routes=tuple(model_routes),
+            released=released,
         )
 
     execution_profiles: dict[str, tuple[str, ...]] = {}

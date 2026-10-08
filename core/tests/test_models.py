@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from types import MappingProxyType
 
@@ -7,6 +7,7 @@ import pytest
 from metergraph_core import load_catalog
 from metergraph_core.models import (
     ModelRegistryError,
+    ReleaseDate,
     load_model_registry,
     parse_model_registry,
     validate_model_registry,
@@ -223,7 +224,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-10-07"
+    assert registry.version == "2026-10-08"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -330,6 +331,71 @@ def test_candidate_ids_may_repeat_across_execution_profiles():
     assert registry.candidates("gateway")[0].id == "openai/gpt-5.6-sol"
     assert registry.candidates("bedrock")[0].id == "openai/gpt-5.6-sol"
     assert registry.candidates("bedrock")[0].provider == "bedrock"
+
+
+def test_released_is_optional_and_must_be_a_calendar_date():
+    value = document()
+    assert parse_model_registry(value).model("openai/gpt-5.6-sol").released is None
+    value["models"][0]["released"] = "2026-08-26"
+    assert parse_model_registry(value).model("openai/gpt-5.6-sol").released == date(2026, 8, 26)
+    value["models"][0]["released"] = "August 2026"
+    with pytest.raises(ModelRegistryError, match="released must be an ISO date"):
+        parse_model_registry(value)
+
+
+def test_release_date_prefers_the_recorded_date_and_names_its_basis():
+    value = document()
+    value["models"][0]["released"] = "2026-08-26"
+    registry = parse_model_registry(value)
+    assert registry.release_date("openai/gpt-5.6-sol", load_catalog()) == ReleaseDate(
+        date(2026, 8, 26), "released"
+    )
+
+
+def test_release_date_falls_back_to_the_earliest_price_window():
+    """Without a recorded date the catalog's first price stands in, and says
+    so, so a reader can tell a launch date from a pricing date."""
+    registry = parse_model_registry(document())
+    catalog = load_catalog()
+    entry = next(
+        entry for entry in catalog.document["models"]
+        if entry["canonical_id"] == "openai/gpt-5.6-sol"
+    )
+    earliest = min(date.fromisoformat(str(price["effective_from"])) for price in entry["prices"])
+
+    assert registry.release_date("openai/gpt-5.6-sol", catalog) == ReleaseDate(earliest, "first_price")
+    assert registry.release_date("example/not-a-model", catalog) is None
+
+
+def test_release_date_fallback_reads_timestamp_price_windows():
+    """A price window may start at a timestamp, which the catalog accepts;
+    the earliest window still wins, whichever form it was written in."""
+    registry = parse_model_registry(document())
+    catalog = load_catalog()
+    entry = next(
+        entry for entry in catalog.document["models"]
+        if entry["canonical_id"] == "openai/gpt-5.6-sol"
+    )
+    entry["prices"] = [
+        {"effective_from": "2026-09-10T04:00:00+00:00"},
+        {"effective_from": "2026-04-24"},
+        {"effective_from": "2026-07-01T00:00:00"},
+    ]
+    assert registry.release_date("openai/gpt-5.6-sol", catalog) == ReleaseDate(
+        date(2026, 4, 24), "first_price"
+    )
+
+
+def test_every_bundled_model_records_a_release_date():
+    """The bundled registry answers from a recorded date, never the price
+    fallback, and no model is dated after its registry version."""
+    registry = load_model_registry()
+    catalog = load_catalog()
+    version_day = date.fromisoformat(registry.version.split(".", 1)[0])
+    for canonical_id, model in registry.models.items():
+        assert model.released is not None, canonical_id
+        assert model.released <= version_day, canonical_id
+        assert registry.release_date(canonical_id, catalog).basis == "released"
 
 
 def test_bundled_registry_routes_resolve_in_pricing_catalog():
@@ -468,10 +534,12 @@ def test_registry_api_is_public():
         ModelRegistryError,
         ModelRoute,
         OfferGroup,
+        ReleaseDate,
         load_model_registry,
         parse_model_registry,
         validate_model_registry,
     )
 
     registry = load_model_registry()
+    assert registry.release_date("openai/gpt-6-luna", load_catalog()) == ReleaseDate(date(2026, 9, 22), "released")
     assert registry.route("default:openai/gpt-6-luna").display_name == "GPT-6 Luna"
