@@ -127,9 +127,11 @@ class ModelRegistry:
             ),
             None,
         )
+        # A price window starts on a date or a timestamp; the catalog accepts
+        # both, so both are read here.
         first_price = min(
             (
-                date.fromisoformat(str(price["effective_from"]))
+                _window_day(price["effective_from"])
                 for price in (entry or {}).get("prices", [])
                 if price.get("effective_from") is not None
             ),
@@ -191,6 +193,16 @@ def _unique_text_list(value: Any, field: str) -> tuple[str, ...]:
     if len(set(items)) != len(items):
         raise ModelRegistryError(f"{field} contains a duplicate value")
     return items
+
+
+def _window_day(value: Any) -> date:
+    """The calendar day a catalog price window starts, from a date or a
+    timestamp as the catalog loader accepts them."""
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return datetime.fromisoformat(str(value)).date()
 
 
 def _optional_date(value: Any, field: str) -> date | None:

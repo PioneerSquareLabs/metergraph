@@ -224,7 +224,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-10-07"
+    assert registry.version == "2026-10-08"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -365,6 +365,37 @@ def test_release_date_falls_back_to_the_earliest_price_window():
 
     assert registry.release_date("openai/gpt-5.6-sol", catalog) == ReleaseDate(earliest, "first_price")
     assert registry.release_date("example/not-a-model", catalog) is None
+
+
+def test_release_date_fallback_reads_timestamp_price_windows():
+    """A price window may start at a timestamp, which the catalog accepts;
+    the earliest window still wins, whichever form it was written in."""
+    registry = parse_model_registry(document())
+    catalog = load_catalog()
+    entry = next(
+        entry for entry in catalog.document["models"]
+        if entry["canonical_id"] == "openai/gpt-5.6-sol"
+    )
+    entry["prices"] = [
+        {"effective_from": "2026-09-10T04:00:00+00:00"},
+        {"effective_from": "2026-04-24"},
+        {"effective_from": "2026-07-01T00:00:00"},
+    ]
+    assert registry.release_date("openai/gpt-5.6-sol", catalog) == ReleaseDate(
+        date(2026, 4, 24), "first_price"
+    )
+
+
+def test_every_bundled_model_records_a_release_date():
+    """The bundled registry answers from a recorded date, never the price
+    fallback, and no model is dated after its registry version."""
+    registry = load_model_registry()
+    catalog = load_catalog()
+    version_day = date.fromisoformat(registry.version.split(".", 1)[0])
+    for canonical_id, model in registry.models.items():
+        assert model.released is not None, canonical_id
+        assert model.released <= version_day, canonical_id
+        assert registry.release_date(canonical_id, catalog).basis == "released"
 
 
 def test_bundled_registry_routes_resolve_in_pricing_catalog():
@@ -510,5 +541,5 @@ def test_registry_api_is_public():
     )
 
     registry = load_model_registry()
-    assert registry.release_date("openai/gpt-6-luna", load_catalog()).basis == "first_price"
+    assert registry.release_date("openai/gpt-6-luna", load_catalog()) == ReleaseDate(date(2026, 9, 22), "released")
     assert registry.route("default:openai/gpt-6-luna").display_name == "GPT-6 Luna"
