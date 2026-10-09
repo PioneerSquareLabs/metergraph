@@ -1795,3 +1795,23 @@ def test_an_unpriced_result_carries_no_components():
         provider="openai", model="no-such-model", at="2026-09-18", input_tokens=1, output_tokens=1
     )
     assert result.components is None and result.publisher is None
+
+
+def test_built_in_search_marks_only_models_that_search_without_a_tool():
+    from metergraph_core import load_catalog
+
+    flagged = {
+        model["canonical_id"]
+        for model in load_catalog().document["models"]
+        if model.get("built_in_search") is True
+    }
+    assert flagged == {"perplexity/sonar"}
+
+
+def test_built_in_search_must_be_a_boolean():
+    doc = {
+        "version": "test", "currency": "USD", "pricing_verified_at": "2026-09-01",
+        "models": [{"canonical_id": "example/searcher", "built_in_search": "yes"}],
+    }
+    with pytest.raises(CatalogError, match="built_in_search"):
+        parse_catalog(doc)
