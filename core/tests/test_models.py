@@ -224,7 +224,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-10-08"
+    assert registry.version == "2026-10-09"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -269,6 +269,8 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "xai/grok-4.7",
         "moonshotai/kimi-k2.7-code",
         "zai/glm-5.3",
+        "anthropic/claude-sonnet-4.6",
+        "xai/grok-4.3",
     ]
     assert [route.id for route in registry.candidates("fireworks")] == [
         "fireworks:accounts/fireworks/models/glm-5p2",
@@ -298,7 +300,7 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v3.2",
         "deepseek/deepseek-v3.1",
     ]
-    assert len(registry.routes_for_execution_profile("default")) == 55
+    assert len(registry.routes_for_execution_profile("default")) == 57
     assert len(registry.routes_for_execution_profile("bedrock")) == 8
 
 

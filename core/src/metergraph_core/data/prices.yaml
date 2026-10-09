@@ -2029,6 +2029,7 @@ models:
       - {provider: x-ai, alias: grok-latest, channel: xai-api}
       - {provider: bedrock, alias: xai.grok-4.3, channel: aws-bedrock}
       - {provider: vercel, alias: spacexai/grok-4.3, channel: vercel-ai-gateway}
+      - {provider: xai, alias: xai/grok-4.3, channel: vercel-ai-gateway}
       - {provider: litellm, alias: grok-4.3, channel: xai-api}
       - {provider: litellm, alias: grok-4.3-latest, channel: xai-api}
       - {provider: unknown, alias: grok-4.3, channel: xai-api}
