@@ -199,10 +199,6 @@ def parse_catalog(
         if not canonical:
             raise CatalogError("model entry missing canonical_id")
         publisher = str(entry.get("publisher") or "").strip().lower() or None
-        # A model that searches the web on every call without a search tool in
-        # the request; replaying its traffic on another model is a different task.
-        if "built_in_search" in entry and not isinstance(entry["built_in_search"], bool):
-            raise CatalogError(f"{canonical}: built_in_search must be true or false")
         for alias in entry.get("aliases") or []:
             provider = str(alias.get("provider") or "").lower()
             name = str(alias.get("alias") or "").lower()
