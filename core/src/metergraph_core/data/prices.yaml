@@ -2072,7 +2072,6 @@ models:
         source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: perplexity/sonar
     publisher: perplexity
-    built_in_search: true
     aliases:
       - {provider: perplexity-ai, alias: sonar, channel: perplexity-api}
       - {provider: litellm, alias: perplexity/sonar, channel: perplexity-api}
