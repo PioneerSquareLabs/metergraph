@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timezone
+from math import isfinite
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Iterable, Mapping
@@ -78,6 +79,11 @@ class ModelDefinition:
     routes: tuple[ModelRoute, ...]
     # The publisher's general-availability date, when recorded.
     released: date | None = None
+    # Where this model sits in its own publisher's lineage, when recorded. It
+    # orders siblings inside one publisher and nothing else: it is not
+    # comparable across publishers, and it is unrelated to `released`, because
+    # a publisher can ship an older lineage after a newer one.
+    lineage_rank: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +147,30 @@ class ModelRegistry:
 
     def route(self, route_key: str) -> ModelRoute:
         return self.routes[route_key]
+
+    def offer_group_route(
+        self, canonical_id: str, offer_group: str
+    ) -> ModelRoute | None:
+        """The route an offer group publishes for one canonical model, or None
+        when that group publishes none, so a caller can ask whether a path can
+        execute a model without rebuilding the group's field itself.
+
+        A group may legitimately publish more than one route for the same
+        canonical model; the **first** in the group's declared ``routes`` order
+        wins, which is the preference order the group already expresses. An
+        unknown ``offer_group`` raises, so a typo fails instead of silently
+        reporting that nothing is reachable."""
+        group = self.offer_groups.get(offer_group)
+        if group is None:
+            raise ModelRegistryError(f"unknown offer group {offer_group!r}")
+        return next(
+            (
+                self.routes[route_id]
+                for route_id in group.route_ids
+                if self.routes[route_id].canonical_id == canonical_id
+            ),
+            None,
+        )
 
     def routes_for_execution_profile(self, profile: str) -> tuple[ModelRoute, ...]:
         return tuple(
@@ -218,6 +248,26 @@ def _optional_date(value: Any, field: str) -> date | None:
         raise ModelRegistryError(f"{field} must be an ISO date") from exc
 
 
+def _optional_lineage_rank(value: Any, field: str) -> float | None:
+    """A finite number placing a model in its publisher's lineage, or None when
+    absent. ``bool`` is rejected even though it is an ``int`` in Python,
+    because ``True`` would silently become the real rank 1.0; so are infinities
+    and NaN, which no ordering can use."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ModelRegistryError(f"{field} must be a number")
+    try:
+        # An int can be too large to hold as a float; that is one more way of
+        # not being a usable rank, so it fails the same way.
+        rank = float(value)
+    except OverflowError as exc:
+        raise ModelRegistryError(f"{field} must be a finite number") from exc
+    if not isfinite(rank):
+        raise ModelRegistryError(f"{field} must be a finite number")
+    return rank
+
+
 def _registry_version_date(version: str) -> date:
     date_value, separator, revision = version.partition(".")
     try:
@@ -261,6 +311,9 @@ def parse_model_registry(document: Any) -> ModelRegistry:
                 f"{canonical_id}: publisher {publisher!r} does not match canonical id"
             )
         released = _optional_date(model.get("released"), f"{canonical_id}: released")
+        lineage_rank = _optional_lineage_rank(
+            model.get("lineage_rank"), f"{canonical_id}: lineage_rank"
+        )
         model_routes: list[ModelRoute] = []
         route_values = _list(model.get("routes"), f"{canonical_id}: routes")
         if not route_values:
@@ -331,6 +384,7 @@ def parse_model_registry(document: Any) -> ModelRegistry:
             publisher=publisher,
             routes=tuple(model_routes),
             released=released,
+            lineage_rank=lineage_rank,
         )
 
     execution_profiles: dict[str, tuple[str, ...]] = {}

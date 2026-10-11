@@ -104,6 +104,33 @@ earliest `effective_from` of the model's catalog prices with basis
 `first_price`, so a consumer can tell a launch date from a pricing date
 without computing the fallback itself.
 
+A model entry may also record `lineage_rank`, a finite number placing the model
+in its own publisher's lineage, exposed as `ModelDefinition.lineage_rank`. It
+orders siblings inside one publisher and nothing else: it is not comparable
+across publishers, and it is deliberately unrelated to `released` and
+`version`, because a publisher can ship an older lineage after a newer one, so
+a release date cannot stand in for it. An `int` or a `float` is accepted;
+`bool`, non-finite and non-numeric values are rejected. A model with no rank is
+still a fully described model — a consumer that needs a rank to order
+candidates decides for itself what to do with its absence, and must not invent
+one.
+
+`models.offer_group_route(canonical_id, offer_group)` answers which route an
+offer group publishes for one canonical model, or `None` when that group
+publishes none, so a consumer can ask whether a path can execute a model
+without rebuilding the group's field. When a group declares several routes for
+the same canonical model, the first in its declared order wins, matching the
+preference order the group already expresses. An unknown offer group raises
+`ModelRegistryError`, so a typo fails instead of reporting that nothing is
+reachable. The returned route's `model_id` is the provider's own string, which
+is not always the canonical ID, and `validate_model_registry` already requires
+it to be declared on that route's pricing channel.
+
+```python
+route = models.offer_group_route("deepseek/v4-pro", "gateway")
+print(None if route is None else route.model_id)  # deepseek/deepseek-v4-pro
+```
+
 Use `validate_model_registry(models, load_catalog())` to verify that every
 route's provider-facing model ID is declared on its exact pricing channel,
 resolves to its canonical model, and has an active price on the registry
