@@ -356,9 +356,8 @@ def test_lineage_rank_is_optional_and_reads_an_int_or_a_float():
 
 
 def test_lineage_rank_is_unrelated_to_released_and_to_the_registry_version():
-    """The rank orders siblings inside one publisher and nothing else, so a
-    model released earlier may outrank a newer one without the parser
-    objecting."""
+    """The rank relates to nothing else, so a model released earlier may
+    outrank a newer one."""
     value = document()
     value["models"][0]["released"] = "2024-01-01"
     value["models"][0]["lineage_rank"] = 99.5
@@ -386,9 +385,6 @@ def test_lineage_rank_rejects_non_numeric_and_non_finite_values(rank, message):
 
 
 def test_offer_group_route_returns_the_first_route_the_group_declares():
-    """A group may publish several routes for one canonical model. The first in
-    its declared order wins, because that order is the group's own preference
-    order."""
     value = document()
     value["models"][0]["routes"].append(
         {
@@ -508,10 +504,9 @@ def test_every_bundled_model_records_a_release_date():
         assert registry.release_date(canonical_id, catalog).basis == "released"
 
 
-# The bundled `models` declaration order, with each model's recorded lineage
-# rank. This is the single ordering authority consumers derive a per-publisher
-# order from, so it is pinned here: reordering `models.yaml` must be a visible
-# decision, never a silent change to what a selection offers first.
+# The bundled `models` declaration order with each model's lineage rank. That
+# order is what consumers derive a per-publisher order from, so a reorder of
+# `models.yaml` must fail here.
 BUNDLED_LINEAGE = [
     ("anthropic/claude-fable-5.1", 5.1),
     ("anthropic/claude-opus-5.5", 5.5),
@@ -579,10 +574,9 @@ def test_bundled_registry_pins_its_lineage_ranks_and_declaration_order():
 
 
 def test_bundled_declaration_order_derives_todays_per_publisher_order():
-    """A consumer that groups the declared models by publisher, in
-    first-appearance order, gets exactly this. The five unranked models are
-    never executable candidates, so where they land cannot move a selection,
-    but the ranked order is load-bearing and is asserted in full."""
+    """A consumer grouping the declared models by publisher, in
+    first-appearance order, gets exactly this. Unranked models are skipped:
+    they are not offered where ranking applies."""
     registry = load_model_registry()
     families: dict[str, list[str]] = {}
     for canonical_id, model in registry.models.items():
@@ -635,9 +629,8 @@ def test_bundled_declaration_order_derives_todays_per_publisher_order():
 
 
 def test_a_lineage_rank_is_not_recoverable_from_a_release_date():
-    """Why the rank is explicit data rather than derived: inside one publisher
-    the recorded release order disagrees with the lineage order, so sorting by
-    date would silently re-rank siblings."""
+    """Inside one publisher the recorded release order disagrees with the
+    lineage order, so the rank cannot be derived from a date."""
     registry = load_model_registry()
     gemma = registry.model("google/gemma-4-31b-it")
     gemini = registry.model("google/gemini-3.8-flash")

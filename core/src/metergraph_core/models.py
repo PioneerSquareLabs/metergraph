@@ -79,10 +79,9 @@ class ModelDefinition:
     routes: tuple[ModelRoute, ...]
     # The publisher's general-availability date, when recorded.
     released: date | None = None
-    # Where this model sits in its own publisher's lineage, when recorded. It
-    # orders siblings inside one publisher and nothing else: it is not
-    # comparable across publishers, and it is unrelated to `released`, because
-    # a publisher can ship an older lineage after a newer one.
+    # Where this model sits in its own publisher's lineage, when recorded.
+    # Comparable only against the same publisher's models, and unrelated to
+    # `released`: a publisher can ship an older lineage after a newer one.
     lineage_rank: float | None = None
 
 
@@ -152,14 +151,13 @@ class ModelRegistry:
         self, canonical_id: str, offer_group: str
     ) -> ModelRoute | None:
         """The route an offer group publishes for one canonical model, or None
-        when that group publishes none, so a caller can ask whether a path can
-        execute a model without rebuilding the group's field itself.
+        when that group publishes none.
 
-        A group may legitimately publish more than one route for the same
-        canonical model; the **first** in the group's declared ``routes`` order
-        wins, which is the preference order the group already expresses. An
-        unknown ``offer_group`` raises, so a typo fails instead of silently
-        reporting that nothing is reachable."""
+        A group may declare more than one route for the same canonical model;
+        the first in its declared ``routes`` order wins, which is the
+        preference order the group already expresses. An unknown
+        ``offer_group`` raises rather than returning None, so a typo cannot
+        pass for an unreachable model."""
         group = self.offer_groups.get(offer_group)
         if group is None:
             raise ModelRegistryError(f"unknown offer group {offer_group!r}")
@@ -250,16 +248,15 @@ def _optional_date(value: Any, field: str) -> date | None:
 
 def _optional_lineage_rank(value: Any, field: str) -> float | None:
     """A finite number placing a model in its publisher's lineage, or None when
-    absent. ``bool`` is rejected even though it is an ``int`` in Python,
-    because ``True`` would silently become the real rank 1.0; so are infinities
-    and NaN, which no ordering can use."""
+    absent. ``bool`` is rejected despite being an ``int`` in Python, because
+    ``True`` would otherwise read as the rank 1.0; infinities and NaN are
+    rejected too."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ModelRegistryError(f"{field} must be a number")
     try:
-        # An int can be too large to hold as a float; that is one more way of
-        # not being a usable rank, so it fails the same way.
+        # float() raises OverflowError on an int too large to represent.
         rank = float(value)
     except OverflowError as exc:
         raise ModelRegistryError(f"{field} must be a finite number") from exc

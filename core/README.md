@@ -111,9 +111,8 @@ across publishers, and it is deliberately unrelated to `released` and
 `version`, because a publisher can ship an older lineage after a newer one, so
 a release date cannot stand in for it. An `int` or a `float` is accepted;
 `bool`, non-finite and non-numeric values are rejected. A model with no rank is
-still a fully described model — a consumer that needs a rank to order
-candidates decides for itself what to do with its absence, and must not invent
-one.
+still a fully described model: a consumer that needs a rank to order candidates
+decides what to do with its absence, and must not invent one.
 
 `models.offer_group_route(canonical_id, offer_group)` answers which route an
 offer group publishes for one canonical model, or `None` when that group

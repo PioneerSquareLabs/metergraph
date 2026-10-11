@@ -706,8 +706,8 @@ models:
     pricing_channel: vercel-ai-gateway
     execution_profiles:
     - default
-# No lineage rank is recorded for the models below: none is an executable
-# candidate on a path that orders siblings by rank, and no value is invented.
+# The models below record no lineage rank: none of them is offered on a path
+# that orders a publisher's models by rank.
 - canonical_id: deepseek/v3.1
   display_name: DeepSeek V3.1
   publisher: deepseek
