@@ -34,7 +34,7 @@ CORE_DIR = Path(__file__).resolve().parents[2]  # core/
 DIST_DIR = CORE_DIR / "dist"
 
 EXPECTED_NAME = "metergraph-core"
-EXPECTED_VERSION = "0.2.57"
+EXPECTED_VERSION = "0.2.58"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
@@ -230,13 +230,25 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert loaded.pricing_verified_at.isoformat() == {CATALOG_VERSION!r}
         assert len(loaded.content_hash) == 64, loaded.content_hash
         registry = load_model_registry()
-        assert registry.version == "2026-10-09", registry.version
+        assert registry.version == "2026-10-11", registry.version
         gateway_candidates = [route.id for route in registry.candidates("gateway")]
         assert len(gateway_candidates) == 45, len(gateway_candidates)
         assert gateway_candidates[:2] == [
             "anthropic/claude-sonnet-5",
             "anthropic/claude-opus-5",
         ]
+        ranked = [
+            canonical_id
+            for canonical_id, model in registry.models.items()
+            if model.lineage_rank is not None
+        ]
+        assert len(ranked) == 46, len(ranked)
+        assert ranked[0] == "anthropic/claude-fable-5.1", ranked[0]
+        assert registry.model(ranked[0]).lineage_rank == 5.1
+        assert registry.model("google/gemma-3-27b-it").lineage_rank is None
+        pro = registry.offer_group_route("deepseek/v4-pro", "gateway")
+        assert pro is not None and pro.model_id == "deepseek/deepseek-v4-pro", pro
+        assert registry.offer_group_route("openai/gpt-5.4", "gateway") is None
         validate_model_registry(registry, loaded)
         deployment = loaded.snapshot.resolve_price(
             model="moonshotai/kimi-k3",

@@ -224,7 +224,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-10-09"
+    assert registry.version == "2026-10-11"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -345,6 +345,110 @@ def test_released_is_optional_and_must_be_a_calendar_date():
         parse_model_registry(value)
 
 
+def test_lineage_rank_is_optional_and_reads_an_int_or_a_float():
+    value = document()
+    assert parse_model_registry(value).model("openai/gpt-5.6-sol").lineage_rank is None
+    value["models"][0]["lineage_rank"] = 5.6
+    assert parse_model_registry(value).model("openai/gpt-5.6-sol").lineage_rank == 5.6
+    value["models"][0]["lineage_rank"] = 5
+    rank = parse_model_registry(value).model("openai/gpt-5.6-sol").lineage_rank
+    assert isinstance(rank, float) and rank == 5.0
+
+
+def test_lineage_rank_is_unrelated_to_released_and_to_the_registry_version():
+    """The rank relates to nothing else, so a model released earlier may
+    outrank a newer one."""
+    value = document()
+    value["models"][0]["released"] = "2024-01-01"
+    value["models"][0]["lineage_rank"] = 99.5
+    assert parse_model_registry(value).model("openai/gpt-5.6-sol").lineage_rank == 99.5
+
+
+@pytest.mark.parametrize(
+    ("rank", "message"),
+    [
+        (True, "must be a number"),
+        (False, "must be a number"),
+        ("5.6", "must be a number"),
+        ([5.6], "must be a number"),
+        (float("inf"), "must be a finite number"),
+        (float("-inf"), "must be a finite number"),
+        (float("nan"), "must be a finite number"),
+        (10**400, "must be a finite number"),
+    ],
+)
+def test_lineage_rank_rejects_non_numeric_and_non_finite_values(rank, message):
+    value = document()
+    value["models"][0]["lineage_rank"] = rank
+    with pytest.raises(ModelRegistryError, match=message):
+        parse_model_registry(value)
+
+
+def test_offer_group_route_returns_the_first_route_the_group_declares():
+    value = document()
+    value["models"][0]["routes"].append(
+        {
+            "key": "gateway:openai/gpt-5.6-sol-alternate",
+            "id": "openai/gpt-5.6-sol-alternate",
+            "provider": "vercel",
+            "model_id": "openai/gpt-5.6",
+            "pricing_channel": "vercel-ai-gateway",
+            "execution_profiles": ["default"],
+        }
+    )
+    value["execution_profiles"][0]["routes"].append(
+        "gateway:openai/gpt-5.6-sol-alternate"
+    )
+    value["offer_groups"][0]["routes"] = [
+        "gateway:openai/gpt-5.6-sol",
+        "gateway:openai/gpt-5.6-sol-alternate",
+    ]
+    registry = parse_model_registry(value)
+    first = registry.offer_group_route("openai/gpt-5.6-sol", "gateway")
+    assert first is not None and first.id == "openai/gpt-5.6-sol"
+
+    value["offer_groups"][0]["routes"].reverse()
+    reversed_registry = parse_model_registry(value)
+    preferred = reversed_registry.offer_group_route("openai/gpt-5.6-sol", "gateway")
+    assert preferred is not None and preferred.id == "openai/gpt-5.6-sol-alternate"
+
+
+def test_offer_group_route_is_none_for_a_model_the_group_does_not_publish():
+    registry = parse_model_registry(document())
+    assert registry.offer_group_route("example/not-a-model", "gateway") is None
+
+
+def test_offer_group_route_rejects_an_unknown_offer_group():
+    """A typo must fail rather than report that no path can run the model."""
+    registry = parse_model_registry(document())
+    with pytest.raises(ModelRegistryError, match="unknown offer group"):
+        registry.offer_group_route("openai/gpt-5.6-sol", "gatewey")
+
+
+def test_bundled_offer_group_route_answers_the_outbound_string_per_path():
+    """The gateway route carries the provider's own model string, which is not
+    always the canonical id; a model with no route in a group answers None."""
+    registry = load_model_registry()
+
+    gateway = registry.offer_group_route("deepseek/v4-pro", "gateway")
+    assert gateway is not None
+    assert (gateway.id, gateway.model_id) == (
+        "deepseek/deepseek-v4-pro",
+        "deepseek/deepseek-v4-pro",
+    )
+    assert registry.offer_group_route("deepseek/v4-pro", "bedrock") is None
+
+    # Priced and offered on OpenAI's own API, but never through the gateway.
+    assert registry.offer_group_route("openai/gpt-5.4", "gateway") is None
+    direct = registry.offer_group_route("openai/gpt-5.4", "openai-direct")
+    assert direct is not None and direct.model_id == "gpt-5.4"
+
+    bedrock = registry.offer_group_route("google/gemma-3-27b-it", "bedrock")
+    assert bedrock is not None
+    assert (bedrock.provider, bedrock.model_id) == ("bedrock", "google.gemma-3-27b-it")
+    assert registry.offer_group_route("google/gemma-3-27b-it", "gateway") is None
+
+
 def test_release_date_prefers_the_recorded_date_and_names_its_basis():
     value = document()
     value["models"][0]["released"] = "2026-08-26"
@@ -398,6 +502,140 @@ def test_every_bundled_model_records_a_release_date():
         assert model.released is not None, canonical_id
         assert model.released <= version_day, canonical_id
         assert registry.release_date(canonical_id, catalog).basis == "released"
+
+
+# The bundled `models` declaration order with each model's lineage rank. That
+# order is what consumers derive a per-publisher order from, so a reorder of
+# `models.yaml` must fail here.
+BUNDLED_LINEAGE = [
+    ("anthropic/claude-fable-5.1", 5.1),
+    ("anthropic/claude-opus-5.5", 5.5),
+    ("anthropic/claude-sonnet-5.5", 5.5),
+    ("anthropic/claude-opus-5", 5.0),
+    ("anthropic/claude-sonnet-5", 5.0),
+    ("anthropic/claude-fable-5", 5.0),
+    ("anthropic/claude-opus-4.8", 4.8),
+    ("anthropic/claude-sonnet-4.6", 4.6),
+    ("anthropic/claude-haiku-4.5", 4.5),
+    ("openai/gpt-6.1-sol", 6.1),
+    ("openai/gpt-5.6-sol", 5.6),
+    ("openai/gpt-5.6-luna", 5.6),
+    ("openai/gpt-5.6-terra", 5.6),
+    ("openai/gpt-6-luna", 6.0),
+    ("openai/gpt-6-sol", 6.0),
+    ("openai/gpt-6-astra", 6.0),
+    ("openai/gpt-5.4", 5.4),
+    ("openai/gpt-5.4-mini", 5.4),
+    ("openai/gpt-5.4-nano", 5.4),
+    ("openai/gpt-5-mini", 5.0),
+    ("google/gemini-3.8-flash", 3.8),
+    ("google/gemini-3.7-flash", 3.7),
+    ("google/gemini-3.6-flash", 3.6),
+    ("google/gemini-3.5-flash", 3.5),
+    ("google/gemini-3.5-flash-lite", 3.5),
+    ("google/gemini-3.1-pro-preview", 3.1),
+    ("google/gemini-3.1-flash-lite", 3.1),
+    ("google/gemma-4-31b-it", 4.0),
+    ("google/gemma-4-26b-a4b-it", 4.0),
+    ("deepseek/v4-pro", 4.0),
+    ("deepseek/v4-flash", 4.0),
+    ("deepseek/deepseek-v4.1-flash", 4.1),
+    ("minimax/minimax-m3", 3.0),
+    ("moonshotai/kimi-k3", 3.0),
+    ("moonshotai/kimi-k2.5", 2.5),
+    ("moonshotai/kimi-k2.7-code", 2.7),
+    ("xai/grok-4.1-fast-reasoning", 4.1),
+    ("xai/grok-4.1-fast-non-reasoning", 4.1),
+    ("xai/grok-4.3", 4.3),
+    ("xai/grok-4.7", 4.7),
+    ("mistral/ministral-14b", 3.0),
+    ("nvidia/nemotron-3-super-120b-a12b", 3.0),
+    ("zai/glm-5.3", 5.3),
+    ("zai/glm-5.3-flash", 5.3),
+    ("alibaba/qwen3.8-flash", 3.8),
+    ("inception/mercury-2.5", 2.5),
+    ("deepseek/v3.1", None),
+    ("deepseek/v3.2", None),
+    ("fireworks/glm-5p2", None),
+    ("fireworks/qwen3p7-plus", None),
+    ("google/gemma-3-27b-it", None),
+]
+
+
+def test_bundled_registry_pins_its_lineage_ranks_and_declaration_order():
+    registry = load_model_registry()
+    assert [
+        (canonical_id, model.lineage_rank)
+        for canonical_id, model in registry.models.items()
+    ] == BUNDLED_LINEAGE
+    ranked = [entry for entry in BUNDLED_LINEAGE if entry[1] is not None]
+    assert len(ranked) == 46
+    assert len(BUNDLED_LINEAGE) == 51
+
+
+def test_bundled_declaration_order_derives_todays_per_publisher_order():
+    """A consumer grouping the declared models by publisher, in
+    first-appearance order, gets exactly this. Unranked models are skipped:
+    they are not offered where ranking applies."""
+    registry = load_model_registry()
+    families: dict[str, list[str]] = {}
+    for canonical_id, model in registry.models.items():
+        if model.lineage_rank is None:
+            continue
+        families.setdefault(model.publisher, []).append(canonical_id)
+
+    assert list(families) == [
+        "anthropic",
+        "openai",
+        "google",
+        "deepseek",
+        "minimax",
+        "moonshotai",
+        "xai",
+        "mistral",
+        "nvidia",
+        "zai",
+        "alibaba",
+        "inception",
+    ]
+    assert families["anthropic"] == [
+        "anthropic/claude-fable-5.1",
+        "anthropic/claude-opus-5.5",
+        "anthropic/claude-sonnet-5.5",
+        "anthropic/claude-opus-5",
+        "anthropic/claude-sonnet-5",
+        "anthropic/claude-fable-5",
+        "anthropic/claude-opus-4.8",
+        "anthropic/claude-sonnet-4.6",
+        "anthropic/claude-haiku-4.5",
+    ]
+    assert families["google"] == [
+        "google/gemini-3.8-flash",
+        "google/gemini-3.7-flash",
+        "google/gemini-3.6-flash",
+        "google/gemini-3.5-flash",
+        "google/gemini-3.5-flash-lite",
+        "google/gemini-3.1-pro-preview",
+        "google/gemini-3.1-flash-lite",
+        "google/gemma-4-31b-it",
+        "google/gemma-4-26b-a4b-it",
+    ]
+    assert families["deepseek"] == [
+        "deepseek/v4-pro",
+        "deepseek/v4-flash",
+        "deepseek/deepseek-v4.1-flash",
+    ]
+    assert families["inception"] == ["inception/mercury-2.5"]
+
+
+def test_a_lineage_rank_is_not_recoverable_from_a_release_date():
+    """Inside one publisher the recorded release order disagrees with the
+    lineage order, so the rank cannot be derived from a date."""
+    registry = load_model_registry()
+    gemma = registry.model("google/gemma-4-31b-it")
+    gemini = registry.model("google/gemini-3.8-flash")
+    assert gemma.released < gemini.released
+    assert gemma.lineage_rank > gemini.lineage_rank
 
 
 def test_bundled_registry_routes_resolve_in_pricing_catalog():
@@ -545,3 +783,6 @@ def test_registry_api_is_public():
     registry = load_model_registry()
     assert registry.release_date("openai/gpt-6-luna", load_catalog()) == ReleaseDate(date(2026, 9, 22), "released")
     assert registry.route("default:openai/gpt-6-luna").display_name == "GPT-6 Luna"
+    assert registry.model("openai/gpt-6-luna").lineage_rank == 6.0
+    offered = registry.offer_group_route("openai/gpt-6-luna", "gateway")
+    assert isinstance(offered, ModelRoute) and offered.id == "openai/gpt-6-luna"
