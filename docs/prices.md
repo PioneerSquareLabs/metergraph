@@ -32,6 +32,11 @@ models:
         source_url: https://platform.claude.com/docs/en/about-claude/pricing
 ```
 
+A row may also set `request_fee_per_1k_usd`: a fixed fee charged once per call on top of
+tokens, in USD per 1,000 calls. Use it where a channel bills a model's built-in work per
+request, such as a gateway pricing a search model's search per call. It appears in the
+call's cost and in its `request_usd` component.
+
 `rules` options:
 - `input_includes_cache_read` — whether the provider reports cached tokens inside
   `input_tokens`, in which case cache reads are deducted from billable input. Assumed for

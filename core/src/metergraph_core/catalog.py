@@ -209,19 +209,24 @@ class Price:
     # imply one: google-vertex-ai serves Anthropic's models beside Google's,
     # and the two report cache reads differently.
     publisher: str | None = None
+    # A fixed fee charged once per call on top of tokens, in USD per 1,000
+    # calls: a gateway billing a model's built-in search per request.
+    request_fee_per_1k_usd: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class CostComponents:
-    """A priced call's cost by what it paid for. The four parts sum to the
-    call's ``cost_usd`` exactly: each is quantized and the rounding residue
-    lands in the input part, so a consumer that stores them can rebuild the
-    total without a second rounding."""
+    """A priced call's cost by what it paid for. The parts sum to the call's
+    ``cost_usd`` exactly: each is quantized and the rounding residue lands in
+    the input part, so a consumer that stores them can rebuild the total
+    without a second rounding. ``request_usd`` is a per-call fee, zero on
+    every row that has none."""
 
     input_usd: Decimal
     output_usd: Decimal
     cache_read_usd: Decimal
     cache_write_usd: Decimal
+    request_usd: Decimal = Decimal("0")
 
 
 @dataclass(frozen=True, slots=True)
@@ -456,15 +461,20 @@ def _price_tokens(
             )
     if rules.get("uncaptured_fees"):
         reasons.append("uncaptured_fees")
+    request_usd = (
+        Decimal("0")
+        if price.request_fee_per_1k_usd is None
+        else price.request_fee_per_1k_usd / Decimal(1000)
+    )
 
     # The total is rounded once, as it always was; the parts are rounded
     # each and the residue goes to input, so they sum to the total exactly.
-    cost = (input_usd + output_usd + cache_read_usd + cache_write_usd).quantize(
+    cost = (input_usd + output_usd + cache_read_usd + cache_write_usd + request_usd).quantize(
         _COST_QUANTUM, rounding=ROUND_HALF_UP
     )
     parts = [
         part.quantize(_COST_QUANTUM, rounding=ROUND_HALF_UP)
-        for part in (input_usd, output_usd, cache_read_usd, cache_write_usd)
+        for part in (input_usd, output_usd, cache_read_usd, cache_write_usd, request_usd)
     ]
     parts[0] += cost - sum(parts)
     return cost, reasons, CostComponents(*parts)

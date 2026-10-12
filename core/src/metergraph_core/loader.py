@@ -305,6 +305,7 @@ def parse_catalog(
                     ),
                     batch_input_per_mtok=_decimal(price.get("batch_input_per_mtok")),
                     batch_output_per_mtok=_decimal(price.get("batch_output_per_mtok")),
+                    request_fee_per_1k_usd=_decimal(price.get("request_fee_per_1k_usd")),
                     rules=_freeze(price.get("rules") or {}),
                     effective_from=effective_from,
                     effective_to=effective_to,
