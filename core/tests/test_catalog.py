@@ -1795,3 +1795,40 @@ def test_an_unpriced_result_carries_no_components():
         provider="openai", model="no-such-model", at="2026-09-18", input_tokens=1, output_tokens=1
     )
     assert result.components is None and result.publisher is None
+
+
+def test_gateway_sonar_is_priced_in_full_with_its_per_call_search_fee():
+    catalog = _load_for_components()
+    # 1,000 input and 500 output tokens, plus one search: $0.00025 + $0.00125
+    # + $0.0025. The gateway bills Sonar's search per call, so nothing is left
+    # uncaptured and the call is fully priced.
+    result = catalog.price(
+        model="perplexity/sonar", channel="vercel-ai-gateway",
+        at="2026-10-11T12:00:00+00:00", input_tokens=1_000, output_tokens=500,
+    )
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.00400000")
+    parts = result.components
+    assert parts.request_usd == Decimal("0.00250000")
+    assert parts.input_usd + parts.output_usd + parts.cache_read_usd + parts.cache_write_usd + parts.request_usd == result.cost_usd
+
+
+def test_the_direct_sonar_row_still_reports_its_request_fee_as_uncaptured():
+    catalog = _load_for_components()
+    result = catalog.price(
+        model="perplexity/sonar", channel="perplexity-api",
+        at="2026-10-11T12:00:00+00:00", input_tokens=1_000, output_tokens=500,
+    )
+    assert result.status == "partial"
+    assert "uncaptured_fees" in result.reasons
+    assert result.components.request_usd == 0
+
+
+def test_a_row_without_a_request_fee_charges_none():
+    catalog = _load_for_components()
+    result = catalog.snapshot.cost(
+        provider="anthropic", model="claude-sonnet-4-6",
+        at="2026-09-18T12:00:00+00:00", input_tokens=1_000_000, output_tokens=0,
+    )
+    assert result.components.request_usd == 0
+    assert result.cost_usd == result.components.input_usd
