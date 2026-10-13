@@ -234,7 +234,50 @@ def test_haiku_5_5_records_its_long_context_tier():
         "threshold": 100000,
         "input_multiplier": 5,
         "output_multiplier": 5,
+        "threshold_counts_cached_tokens": True,
     }
+
+
+def test_haiku_5_5_direct_long_context_counts_cached_prompt_tokens():
+    result = SNAPSHOT.cost(
+        provider="anthropic",
+        model="claude-haiku-5-5",
+        at=_at("2026-10-13"),
+        input_tokens=20_000,
+        output_tokens=0,
+        cache_read_tokens=130_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.01650000")
+
+
+def test_haiku_5_5_direct_long_context_counts_cache_writes():
+    result = SNAPSHOT.cost(
+        provider="anthropic",
+        model="claude-haiku-5-5",
+        at=_at("2026-10-13"),
+        input_tokens=20_000,
+        output_tokens=0,
+        cache_write_5m_tokens=90_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.06625000")
+
+
+def test_haiku_5_5_gateway_long_context_does_not_double_count_cached_tokens():
+    result = SNAPSHOT.cost(
+        provider="anthropic",
+        model="anthropic/claude-haiku-5.5",
+        at=_at("2026-10-13"),
+        input_tokens=90_000,
+        output_tokens=0,
+        cache_read_tokens=20_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.00720000")
 
 
 def test_muse_wonder_direct_cached_input_is_not_billed_twice():

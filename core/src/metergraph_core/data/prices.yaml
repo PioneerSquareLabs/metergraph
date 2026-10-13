@@ -1199,7 +1199,7 @@ models:
         batch_input_per_mtok: 0.05
         batch_output_per_mtok: 0.25
         rules:
-          long_context: {threshold: 100000, input_multiplier: 5, output_multiplier: 5}
+          long_context: {threshold: 100000, input_multiplier: 5, output_multiplier: 5, threshold_counts_cached_tokens: true}
         source_url: https://www.anthropic.com/claude-haiku-5-5
       - channel: vercel-ai-gateway
         region: global
@@ -1209,7 +1209,7 @@ models:
         cache_read_per_mtok: 0.01
         cache_write_5m_per_mtok: 0.125
         rules:
-          long_context: {threshold: 100000, input_multiplier: 5, output_multiplier: 5}
+          long_context: {threshold: 100000, input_multiplier: 5, output_multiplier: 5, threshold_counts_cached_tokens: true}
         source_url: https://vercel.com/ai-gateway/models/claude-haiku-5.5
 
   - canonical_id: anthropic/claude-sonnet-5
