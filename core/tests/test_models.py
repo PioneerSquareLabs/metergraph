@@ -224,7 +224,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-10-09"
+    assert registry.version == "2026-10-13"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -248,8 +248,6 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "anthropic/claude-fable-5",
         "anthropic/claude-fable-5.1",
         "google/gemini-3.8-flash",
-        "google/gemini-3.7-flash",
-        "google/gemini-3.5-flash",
         "google/gemini-3.5-flash-lite",
         "google/gemini-3.1-flash-lite",
         "google/gemma-4-31b-it",
@@ -271,6 +269,10 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "zai/glm-5.3",
         "anthropic/claude-sonnet-4.6",
         "xai/grok-4.3",
+        "anthropic/claude-haiku-5.5",
+        "google/gemini-4-argon",
+        "mistral/mistral-large-4",
+        "meta/muse-wonder-1.0",
     ]
     assert [route.id for route in registry.candidates("fireworks")] == [
         "fireworks:accounts/fireworks/models/glm-5p2",
@@ -283,12 +285,15 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "openai:gpt-5.4",
         "openai:gpt-5.4-mini",
         "openai:gpt-5.4-nano",
+        "openai:gpt-6.1-sol",
     ]
     assert [route.id for route in registry.candidates("anthropic-direct")] == [
         "anthropic:claude-opus-5",
         "anthropic:claude-opus-4-8",
         "anthropic:claude-sonnet-5",
         "anthropic:claude-haiku-4-5",
+        "anthropic:claude-sonnet-5-5",
+        "anthropic:claude-haiku-5-5",
     ]
     assert [route.id for route in registry.candidates("bedrock")] == [
         "anthropic/claude-sonnet-5",
@@ -300,7 +305,7 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v3.2",
         "deepseek/deepseek-v3.1",
     ]
-    assert len(registry.routes_for_execution_profile("default")) == 57
+    assert len(registry.routes_for_execution_profile("default")) == 64
     assert len(registry.routes_for_execution_profile("bedrock")) == 8
 
 
@@ -487,6 +492,74 @@ def test_a_retired_model_is_priced_but_never_offered_or_routed():
     )
     assert resolved is not None
     assert resolved.canonical_model == "anthropic/claude-3-haiku"
+
+
+@pytest.mark.parametrize(
+    "model",
+    ["google/gemini-3.5-flash", "google/gemini-3.7-flash"],
+)
+def test_deprecated_gemini_flash_models_are_not_offered_but_keep_history(model):
+    registry = load_model_registry()
+    route = registry.route(f"default:{model}")
+
+    assert route not in registry.candidates("gateway")
+    assert route in registry.routes_for_execution_profile("default")
+    assert load_catalog().snapshot.resolve_price(
+        model=model,
+        channel="vercel-ai-gateway",
+        at=datetime(2026, 10, 7, tzinfo=timezone.utc),
+    ) is not None
+
+
+@pytest.mark.parametrize(
+    ("model", "display_name", "input_rate", "output_rate"),
+    [
+        ("anthropic/claude-haiku-5.5", "Claude Haiku 5.5", "0.10", "0.50"),
+        ("google/gemini-4-argon", "Gemini 4 Argon", "2.00", "10.00"),
+        ("mistral/mistral-large-4", "Mistral Large 4", "0.68", "2.09"),
+        ("meta/muse-wonder-1.0", "Muse Wonder 1.0", "4.00", "20.00"),
+    ],
+)
+def test_october_gateway_candidates_are_priced(
+    model, display_name, input_rate, output_rate
+):
+    registry = load_model_registry()
+    route = registry.route(f"default:{model}")
+
+    assert route in registry.candidates("gateway")
+    assert (route.canonical_id, route.display_name) == (model, display_name)
+    resolved = load_catalog().snapshot.resolve_price(
+        model=route.model_id,
+        channel=route.pricing_channel,
+        at=datetime(2026, 10, 13, tzinfo=timezone.utc),
+    )
+    assert resolved is not None
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
+
+
+@pytest.mark.parametrize(
+    ("offer_group", "route_key", "model_id"),
+    [
+        ("openai-direct", "default:openai:gpt-6.1-sol", "gpt-6.1-sol"),
+        (
+            "anthropic-direct",
+            "default:anthropic:claude-sonnet-5-5",
+            "claude-sonnet-5-5",
+        ),
+        (
+            "anthropic-direct",
+            "default:anthropic:claude-haiku-5-5",
+            "claude-haiku-5-5",
+        ),
+    ],
+)
+def test_latest_first_party_routes_are_offered(offer_group, route_key, model_id):
+    registry = load_model_registry()
+    route = registry.route(route_key)
+
+    assert route in registry.candidates(offer_group)
+    assert route.model_id == model_id
 
 
 @pytest.mark.parametrize(

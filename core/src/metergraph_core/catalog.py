@@ -380,7 +380,10 @@ def _price_tokens(
 
     billable_input = input_count
     deducted_input = 0
-    if counts_cache_read_in_input(price.publisher, price.pricing_channel, rules):
+    input_includes_cache_read = counts_cache_read_in_input(
+        price.publisher, price.pricing_channel, rules
+    )
+    if input_includes_cache_read:
         if cache_read_count > input_count:
             reasons.append("cache_read_exceeds_input")
             deducted_input = input_count
@@ -407,7 +410,13 @@ def _price_tokens(
     output_multiplier = Decimal("1")
     long_context = rules.get("long_context") or {}
     threshold = _tokens(long_context.get("threshold"))
-    if threshold is not None and input_count > threshold:
+    prompt_count = input_count
+    if long_context.get("threshold_counts_cached_tokens"):
+        if not input_includes_cache_read:
+            prompt_count += cache_read_count
+        if not rules.get("input_includes_cache_write"):
+            prompt_count += cache_write_count
+    if threshold is not None and prompt_count > threshold:
         input_multiplier = _decimal(long_context.get("input_multiplier")) or Decimal("1")
         output_multiplier = _decimal(
             long_context.get("output_multiplier")

@@ -1,4 +1,4 @@
-version: '2026-10-09'
+version: '2026-10-13'
 models:
 - canonical_id: openai/gpt-5.6-sol
   display_name: GPT-5.6 Sol
@@ -648,15 +648,87 @@ models:
     pricing_channel: vercel-ai-gateway
     execution_profiles:
     - default
+  - key: default:anthropic:claude-sonnet-5-5
+    id: anthropic:claude-sonnet-5-5
+    provider: anthropic
+    model_id: claude-sonnet-5-5
+    pricing_channel: anthropic-api
+    execution_profiles:
+    - default
+    display_name: Claude Sonnet 5.5 (direct)
+- canonical_id: anthropic/claude-haiku-5.5
+  display_name: Claude Haiku 5.5
+  publisher: anthropic
+  released: '2026-10-07'  # https://www.anthropic.com/claude-haiku-5-5
+  routes:
+  - key: default:anthropic/claude-haiku-5.5
+    id: anthropic/claude-haiku-5.5
+    provider: vercel
+    model_id: anthropic/claude-haiku-5.5
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
+  - key: default:anthropic:claude-haiku-5-5
+    id: anthropic:claude-haiku-5-5
+    provider: anthropic
+    model_id: claude-haiku-5-5
+    pricing_channel: anthropic-api
+    execution_profiles:
+    - default
+    display_name: Claude Haiku 5.5 (direct)
 - canonical_id: openai/gpt-6.1-sol
   display_name: GPT-6.1 Sol
   publisher: openai
-  released: '2026-09-29'  # https://www.sitepoint.com/gpt-6-1-sol-developers-pricing-quickstart/
+  released: '2026-09-29'  # https://developers.openai.com/api/docs/models/gpt-6.1-sol
   routes:
   - key: default:openai/gpt-6.1-sol
     id: openai/gpt-6.1-sol
     provider: vercel
     model_id: openai/gpt-6.1-sol
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
+  - key: default:openai:gpt-6.1-sol
+    id: openai:gpt-6.1-sol
+    provider: openai
+    model_id: gpt-6.1-sol
+    pricing_channel: openai-api
+    execution_profiles:
+    - default
+    display_name: GPT-6.1 Sol (direct)
+- canonical_id: google/gemini-4-argon
+  display_name: Gemini 4 Argon
+  publisher: google
+  released: '2026-10-13'  # https://ai.google.dev/gemini-api/docs/generate-content/latest-model
+  routes:
+  - key: default:google/gemini-4-argon
+    id: google/gemini-4-argon
+    provider: vercel
+    model_id: google/gemini-4-argon
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
+- canonical_id: mistral/mistral-large-4
+  display_name: Mistral Large 4
+  publisher: mistral
+  released: '2026-10-06'  # https://docs.mistral.ai/models/mistral-large
+  routes:
+  - key: default:mistral/mistral-large-4
+    id: mistral/mistral-large-4
+    provider: vercel
+    model_id: mistral/mistral-large-4
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
+- canonical_id: meta/muse-wonder-1.0
+  display_name: Muse Wonder 1.0
+  publisher: meta
+  released: '2026-10-12'  # https://about.fb.com/news/2026/10/introducing-muse-wonder-models/
+  routes:
+  - key: default:meta/muse-wonder-1.0
+    id: meta/muse-wonder-1.0
+    provider: vercel
+    model_id: meta/muse-wonder-1.0
     pricing_channel: vercel-ai-gateway
     execution_profiles:
     - default
@@ -780,6 +852,13 @@ execution_profiles:
   - default:anthropic:claude-haiku-4-5
   - default:anthropic/claude-sonnet-4.6
   - default:xai/grok-4.3
+  - default:anthropic/claude-haiku-5.5
+  - default:google/gemini-4-argon
+  - default:mistral/mistral-large-4
+  - default:meta/muse-wonder-1.0
+  - default:openai:gpt-6.1-sol
+  - default:anthropic:claude-sonnet-5-5
+  - default:anthropic:claude-haiku-5-5
 - id: bedrock
   routes:
   - bedrock:anthropic/claude-sonnet-5
@@ -816,8 +895,6 @@ offer_groups:
   - default:anthropic/claude-fable-5
   - default:anthropic/claude-fable-5.1
   - default:google/gemini-3.8-flash
-  - default:google/gemini-3.7-flash
-  - default:google/gemini-3.5-flash
   - default:google/gemini-3.5-flash-lite
   - default:google/gemini-3.1-flash-lite
   - default:google/gemma-4-31b-it
@@ -839,6 +916,10 @@ offer_groups:
   - default:zai/glm-5.3
   - default:anthropic/claude-sonnet-4.6
   - default:xai/grok-4.3
+  - default:anthropic/claude-haiku-5.5
+  - default:google/gemini-4-argon
+  - default:mistral/mistral-large-4
+  - default:meta/muse-wonder-1.0
 - id: fireworks
   credential: FIREWORKS_API_KEY
   routes:
@@ -853,6 +934,7 @@ offer_groups:
   - default:openai:gpt-5.4
   - default:openai:gpt-5.4-mini
   - default:openai:gpt-5.4-nano
+  - default:openai:gpt-6.1-sol
 - id: anthropic-direct
   credential: ANTHROPIC_API_KEY
   routes:
@@ -860,6 +942,8 @@ offer_groups:
   - default:anthropic:claude-opus-4-8
   - default:anthropic:claude-sonnet-5
   - default:anthropic:claude-haiku-4-5
+  - default:anthropic:claude-sonnet-5-5
+  - default:anthropic:claude-haiku-5-5
 - id: bedrock
   credential: null
   routes:

@@ -26,7 +26,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-10-07"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-10-13"
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
@@ -167,6 +167,131 @@ def test_pipeline_catalog_compatibility(model, channel, input_rate, output_rate)
     assert resolved is not None
     assert resolved.price.input_per_mtok == Decimal(input_rate)
     assert resolved.price.output_per_mtok == Decimal(output_rate)
+
+
+@pytest.mark.parametrize(
+    "model,channel,input_rate,output_rate,cache_read",
+    [
+        ("claude-haiku-5-5", "anthropic-api", "0.10", "0.50", "0.01"),
+        ("anthropic/claude-haiku-5.5", "vercel-ai-gateway", "0.10", "0.50", "0.01"),
+        ("gpt-6.1-sol", "openai-api", "2.00", "10.00", "0.10"),
+        ("gemini-4-argon", "google-api", "2.00", "10.00", "0.10"),
+        ("google/gemini-4-argon", "vercel-ai-gateway", "2.00", "10.00", "0.10"),
+        ("mistral-large-4", "mistral-api", "1.36", "4.18", "0.14"),
+        ("mistral/mistral-large-4", "vercel-ai-gateway", "0.68", "2.09", "0.07"),
+        ("muse-wonder-1.0", "meta-api", "4.00", "20.00", "0.20"),
+        ("meta/muse-wonder-1.0", "vercel-ai-gateway", "4.00", "20.00", "0.20"),
+    ],
+)
+def test_october_catalog_refresh_prices_current_models(
+    model, channel, input_rate, output_rate, cache_read
+):
+    resolved = SNAPSHOT.resolve_price(model=model, channel=channel, at=_at("2026-10-13"))
+
+    assert resolved is not None
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
+    assert resolved.price.cache_read_per_mtok == (
+        None if cache_read is None else Decimal(cache_read)
+    )
+
+
+def test_sonnet_5_5_cache_read_cut_preserves_history():
+    before = SNAPSHOT.resolve_price(
+        model="claude-sonnet-5-5", channel="anthropic-api", at=_at("2026-10-06")
+    )
+    after = SNAPSHOT.resolve_price(
+        model="claude-sonnet-5-5", channel="anthropic-api", at=_at("2026-10-07")
+    )
+
+    assert before is not None and after is not None
+    assert before.price.cache_read_per_mtok == Decimal("0.20")
+    assert after.price.cache_read_per_mtok == Decimal("0.10")
+
+
+def test_gemini_4_argon_introductory_price_has_a_future_end_date():
+    introductory = SNAPSHOT.resolve_price(
+        model="gemini-4-argon", channel="google-api", at=_at("2026-11-30")
+    )
+    standard = SNAPSHOT.resolve_price(
+        model="gemini-4-argon", channel="google-api", at=_at("2026-12-01")
+    )
+
+    assert introductory is not None and standard is not None
+    assert introductory.price.input_per_mtok == Decimal("2.00")
+    assert introductory.price.output_per_mtok == Decimal("10.00")
+    assert standard.price.input_per_mtok == Decimal("4.00")
+    assert standard.price.output_per_mtok == Decimal("20.00")
+
+
+def test_haiku_5_5_records_its_long_context_tier():
+    resolved = SNAPSHOT.resolve_price(
+        model="claude-haiku-5-5", channel="anthropic-api", at=_at("2026-10-13")
+    )
+
+    assert resolved is not None
+    assert resolved.rules["long_context"] == {
+        "threshold": 100000,
+        "input_multiplier": 5,
+        "output_multiplier": 5,
+        "threshold_counts_cached_tokens": True,
+    }
+
+
+def test_haiku_5_5_direct_long_context_counts_cached_prompt_tokens():
+    result = SNAPSHOT.cost(
+        provider="anthropic",
+        model="claude-haiku-5-5",
+        at=_at("2026-10-13"),
+        input_tokens=20_000,
+        output_tokens=0,
+        cache_read_tokens=130_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.01650000")
+
+
+def test_haiku_5_5_direct_long_context_counts_cache_writes():
+    result = SNAPSHOT.cost(
+        provider="anthropic",
+        model="claude-haiku-5-5",
+        at=_at("2026-10-13"),
+        input_tokens=20_000,
+        output_tokens=0,
+        cache_write_5m_tokens=90_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.06625000")
+
+
+def test_haiku_5_5_gateway_long_context_does_not_double_count_cached_tokens():
+    result = SNAPSHOT.cost(
+        provider="anthropic",
+        model="anthropic/claude-haiku-5.5",
+        at=_at("2026-10-13"),
+        input_tokens=90_000,
+        output_tokens=0,
+        cache_read_tokens=20_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.00720000")
+
+
+def test_muse_wonder_direct_cached_input_is_not_billed_twice():
+    result = SNAPSHOT.cost(
+        provider="meta",
+        model="muse-wonder-1.0",
+        at=_at("2026-10-13"),
+        input_tokens=1_000_000,
+        output_tokens=0,
+        cache_read_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.20000000")
 
 
 def test_current_spacexai_grok_identities_resolve_at_vercel_prices():
