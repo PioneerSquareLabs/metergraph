@@ -193,6 +193,12 @@ def effective_rows(document: Mapping[str, Any], today: date) -> list[CatalogRow]
         canonical_id = str(model["canonical_id"])
         aliases_by_channel: dict[str, list[tuple[str, str]]] = {}
         for alias in model.get("aliases") or []:
+            starts = alias.get("effective_from")
+            ends = alias.get("effective_to")
+            if (starts is not None and _date(starts) > today) or (
+                ends is not None and _date(ends) <= today
+            ):
+                continue
             aliases_by_channel.setdefault(str(alias["channel"]), []).append(
                 (str(alias["provider"]), str(alias["alias"]))
             )
