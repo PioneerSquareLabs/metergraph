@@ -120,6 +120,38 @@ def test_effective_rows_carry_the_channel_aliases():
     assert _row("vercel-ai-gateway").aliases == (("openai", "openai/gpt-x"),)
 
 
+def test_effective_rows_exclude_aliases_outside_their_effective_window():
+    document = _document()
+    document["models"][0]["aliases"] = [
+        {
+            "provider": "litellm",
+            "alias": "moving-latest",
+            "channel": "openai-api",
+            "effective_from": "2026-01-01",
+            "effective_to": "2026-10-05",
+        },
+        {
+            "provider": "openai",
+            "alias": "gpt-x",
+            "channel": "openai-api",
+        },
+        {
+            "provider": "litellm",
+            "alias": "future-latest",
+            "channel": "openai-api",
+            "effective_from": "2026-10-06",
+        },
+    ]
+
+    row = next(
+        row
+        for row in check_prices.effective_rows(document, TODAY)
+        if row.channel == "openai-api"
+    )
+
+    assert row.aliases == (("openai", "gpt-x"),)
+
+
 # --- Source conversion -------------------------------------------------------
 
 
