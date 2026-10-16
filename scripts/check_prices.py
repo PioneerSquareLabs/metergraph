@@ -7,8 +7,8 @@ two that agree with each other is an update. The script reads prices only
 and never edits the catalog.
 
 Provider sources, read from the provider's own page: ``openai``,
-``anthropic``, ``google`` (Gemini API), ``deepseek``, ``xai`` and
-``perplexity``; ``vercel`` is the AI Gateway's own list. Second opinions,
+``anthropic``, ``google`` (Gemini API), ``deepseek``, ``mistral``, ``xai``
+and ``perplexity``; ``vercel`` is the AI Gateway's own list. Second opinions,
 compared only where no provider price is readable: ``litellm`` (matched
 through ``provider: litellm`` aliases), ``modelsdev`` (matched by provider
 and model id) and ``portkey`` (one request per model, so opt-in). None needs
@@ -18,7 +18,7 @@ catalog lacks.
 Usage:
 
     python scripts/check_prices.py [--json report.json] [--cache-dir DIR]
-    python scripts/check_prices.py --sources openai,anthropic,google,deepseek,xai,perplexity,vercel,litellm,modelsdev,portkey
+    python scripts/check_prices.py --sources openai,anthropic,google,deepseek,mistral,xai,perplexity,vercel,litellm,modelsdev,portkey
 
 Exit status: 0 nothing to do, 2 an update signal, 1 with ``--strict`` when any
 source disagrees.
@@ -66,11 +66,12 @@ AUTHORITATIVE = {
     "anthropic-api": "anthropic",
     "google-api": "google",
     "deepseek-api": "deepseek",
+    "mistral-api": "mistral",
     "xai-api": "xai",
     "perplexity-api": "perplexity",
     "vercel-ai-gateway": "vercel",
 }
-PROVIDER_SOURCES = ("openai", "anthropic", "google", "deepseek", "xai", "perplexity", "vercel")
+PROVIDER_SOURCES = ("openai", "anthropic", "google", "deepseek", "mistral", "xai", "perplexity", "vercel")
 SECOND_OPINIONS = ("litellm", "modelsdev", "portkey")
 ALL_SOURCES = PROVIDER_SOURCES + SECOND_OPINIONS
 DEFAULT_SOURCES = ",".join(PROVIDER_SOURCES + ("litellm", "modelsdev"))
@@ -136,6 +137,7 @@ OPENAI_URL = "https://developers.openai.com/api/docs/pricing"
 ANTHROPIC_URL = "https://platform.claude.com/docs/en/about-claude/pricing"
 GOOGLE_URL = "https://ai.google.dev/gemini-api/docs/pricing"
 DEEPSEEK_URL = "https://api-docs.deepseek.com/quick_start/pricing"
+MISTRAL_URL = "https://docs.mistral.ai/models/mistral-large"
 XAI_URL = "https://docs.x.ai/developers/models"
 PERPLEXITY_URL = "https://docs.perplexity.ai/docs/getting-started/pricing"
 LITELLM_URL = (
@@ -502,6 +504,28 @@ def _parse_deepseek(html_text: str) -> dict[str, dict[str, Decimal]]:
     return table
 
 
+def _parse_mistral(html_text: str) -> dict[str, dict[str, Decimal]]:
+    """Mistral Large 4's model card embeds the active price and, during a
+    sale, the original price. Read the active ``price`` values by label."""
+    text = html.unescape(html_text).replace(r'\"', '"')
+    if "mistral-large-4" not in text:
+        return {}
+    start = text.find('"pricing":{"type":"custom"')
+    if start < 0:
+        return {}
+    block = text[start : start + 2000]
+    rates: dict[str, Decimal] = {}
+    fields = {"input": "input", "cached input": "cache_read", "output": "output"}
+    for price, label in re.findall(
+        r'"price":([0-9.]+).*?"label":"([^"]+)"', block
+    ):
+        field = fields.get(label.lower())
+        rate = _decimal(price)
+        if field is not None and rate is not None:
+            rates.setdefault(field, rate)
+    return {"mistral-large-4": rates} if "input" in rates and "output" in rates else {}
+
+
 # xAI's models page embeds each model once per cluster as JSON, with prices
 # in units of $0.0000000001 per token, so 20000 is $2 per million. The
 # us-central-1 cluster is the US regional endpoint, priced 10% above the
@@ -565,6 +589,7 @@ PROVIDER_PAGES: dict[str, tuple[str, str, Callable[[str], dict[str, dict[str, De
     "anthropic": (ANTHROPIC_URL, "anthropic-api", _parse_anthropic),
     "google": (GOOGLE_URL, "google-api", _parse_google),
     "deepseek": (DEEPSEEK_URL, "deepseek-api", _parse_deepseek),
+    "mistral": (MISTRAL_URL, "mistral-api", _parse_mistral),
     "xai": (XAI_URL, "xai-api", _parse_xai),
     "perplexity": (PERPLEXITY_URL, "perplexity-api", _parse_perplexity),
 }
