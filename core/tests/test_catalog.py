@@ -26,7 +26,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-10-15"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-10-16"
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
@@ -259,6 +259,63 @@ def test_gpt_5_2_pro_is_priced_for_direct_openai_access(model):
     assert resolved.price.cache_read_per_mtok is None
     assert resolved.price.batch_input_per_mtok is None
     assert resolved.price.batch_output_per_mtok is None
+
+
+@pytest.mark.parametrize(
+    (
+        "model",
+        "input_rate",
+        "output_rate",
+        "cache_read_rate",
+        "varies_by_provider",
+    ),
+    [
+        ("meta/muse-spark-open", "1.25", "4.25", "0.15", False),
+        ("nvidia/nemotron-3.5-super-vl", "0.20", "0.50", "0.04", True),
+        ("liquid/lfm2.5-24b-a2b", "0.05", "0.70", "0.025", False),
+        ("reflection/beam-free", "0", "0", None, False),
+        ("nvidia/nemotron-3.5-lightning-free", "0", "0", None, False),
+    ],
+)
+def test_october_16_gateway_catalog_additions(
+    model, input_rate, output_rate, cache_read_rate, varies_by_provider
+):
+    resolved = SNAPSHOT.resolve_price(
+        model=model,
+        channel="vercel-ai-gateway",
+        at=_at("2026-10-16"),
+    )
+
+    assert resolved is not None
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
+    assert resolved.price.cache_read_per_mtok == (
+        None if cache_read_rate is None else Decimal(cache_read_rate)
+    )
+    assert bool(resolved.rules.get("varies_by_provider")) is varies_by_provider
+
+
+def test_beam_is_recognized_but_unpriced_on_the_mixed_provider_gateway():
+    assert (
+        LOADED.canonical_model_id("reflection", "reflection/beam")
+        == "reflection/beam"
+    )
+    assert SNAPSHOT.resolve_price(
+        model="reflection/beam",
+        channel="vercel-ai-gateway",
+        at=_at("2026-10-16"),
+    ) is None
+    result = SNAPSHOT.cost(
+        provider="reflection",
+        model="reflection/beam",
+        at=_at("2026-10-16"),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    assert result.status == "unpriced"
+    assert result.canonical_model == "reflection/beam"
+    assert result.cost_usd is None
+    assert "no_effective_price" in result.reasons
 
 
 def test_sonnet_5_5_cache_read_cut_preserves_history():

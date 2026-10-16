@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-10-15"
+version: "2026-10-16"
 currency: USD
-pricing_verified_at: "2026-10-15"
+pricing_verified_at: "2026-10-16"
 models:
   - canonical_id: openai/gpt-6-sol
     publisher: openai
@@ -4511,6 +4511,97 @@ models:
         output_per_mtok: 4.4
         cache_read_per_mtok: 0.26
         source_url: https://docs.z.ai/guides/overview/pricing
+
+  - canonical_id: meta/muse-spark-open
+    publisher: meta
+    aliases:
+      - provider: meta
+        alias: meta/muse-spark-open
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-15"
+        input_per_mtok: 1.25
+        output_per_mtok: 4.25
+        cache_read_per_mtok: 0.15
+        source_url: https://vercel.com/ai-gateway/models/muse-spark-open
+
+  - canonical_id: nvidia/nemotron-3.5-super-vl
+    publisher: nvidia
+    aliases:
+      - provider: nvidia
+        alias: nvidia/nemotron-3.5-super-vl
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-15"
+        input_per_mtok: 0.20
+        output_per_mtok: 0.50
+        cache_read_per_mtok: 0.04
+        rules: {varies_by_provider: true}
+        source_url: https://vercel.com/ai-gateway/models/nemotron-3.5-super-vl
+
+  # Vercel marks this route as allowing data retention and prompt training. It
+  # is priced for observed traffic, but intentionally omitted from the default
+  # model registry and offer groups.
+  - canonical_id: liquid/lfm2.5-24b-a2b
+    publisher: liquid
+    aliases:
+      - provider: liquid
+        alias: liquid/lfm2.5-24b-a2b
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-13"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.70
+        cache_read_per_mtok: 0.025
+        source_url: https://vercel.com/ai-gateway/models/lfm2.5-24b-a2b
+
+  - canonical_id: reflection/beam
+    publisher: reflection
+    aliases:
+      - provider: reflection
+        alias: reflection/beam
+        channel: vercel-ai-gateway
+        effective_from: "2026-10-16"
+        source_url: https://vercel.com/ai-gateway/models/beam
+    # The gateway id can select one free, data-retaining provider or one of
+    # three paid providers. Keep the identity recognizable, but unpriced until
+    # the selected provider is captured with the call.
+
+  - canonical_id: reflection/beam-free
+    publisher: reflection
+    aliases:
+      - {provider: reflection, alias: reflection/beam-free, channel: vercel-ai-gateway}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-16"
+        input_per_mtok: 0.00
+        output_per_mtok: 0.00
+        source_url: https://vercel.com/ai-gateway/models/beam-free
+
+  # Vercel says this free trial route may retain prompts and responses for
+  # model improvement. It is recognized for observed spend, but intentionally
+  # omitted from the default model registry and offer groups.
+  - canonical_id: nvidia/nemotron-3.5-lightning-free
+    publisher: nvidia
+    aliases:
+      - {provider: nvidia, alias: nvidia/nemotron-3.5-lightning-free, channel: vercel-ai-gateway}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-14"
+        input_per_mtok: 0.00
+        output_per_mtok: 0.00
+        source_url: https://vercel.com/ai-gateway/models/nemotron-3.5-lightning-free
 retrieval:
   - channel: anthropic-api
     operation: web_search

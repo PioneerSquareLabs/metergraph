@@ -4,7 +4,7 @@ check, against inline fixtures. No test touches the network."""
 import importlib.util
 import json
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
@@ -164,6 +164,44 @@ def test_vercel_quotes_convert_per_token_strings_to_per_million():
     assert _row("openai-api") not in quotes
 
 
+def test_vercel_missing_models_reports_only_uncataloged_language_models():
+    recent = int(datetime(2026, 10, 2, tzinfo=timezone.utc).timestamp())
+    old = int(datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp())
+    document = _document()
+    document["models"].append(
+        {
+            "canonical_id": "reflection/beam",
+            "aliases": [
+                {
+                    "provider": "reflection",
+                    "alias": "reflection/beam",
+                    "channel": "vercel-ai-gateway",
+                }
+            ],
+        }
+    )
+    data = {
+        "data": [
+            {"id": "openai/gpt-x", "type": "language", "released": recent},
+            {"id": "reflection/beam", "type": "language", "released": recent},
+            {"id": "meta/new-language-model", "type": "language", "released": recent},
+            {"id": "meta/old-language-model", "type": "language", "released": old},
+            {"id": "stealth/experimental-model", "type": "language", "released": recent},
+            {"id": "openai/new-image-model", "type": "image", "released": recent},
+            {"id": "openai/new-evaluation-model", "type": "evaluation", "released": recent},
+        ]
+    }
+
+    assert check_prices._vercel_missing_models(
+        data,
+        check_prices.effective_rows(document, TODAY),
+        released_since=date(2026, 9, 24),
+        document=document,
+    ) == [
+        "meta/new-language-model"
+    ]
+
+
 def test_litellm_quotes_match_through_litellm_aliases_and_flag_other_channels():
     data = {
         "gpt-x": {
@@ -315,7 +353,57 @@ def test_main_exits_zero_when_sources_agree(tmp_path, capsys):
     _seed_cache(cache, check_prices.VERCEL_URL, {"data": [{"id": "openai/gpt-x", "pricing": {"input": "0.000002", "output": "0.000008"}}]})
     status = check_prices.main(["--catalog", str(catalog), "--sources", "vercel", "--cache-dir", str(cache), "--today", "2026-10-05"])
     assert status == 0
-    assert "- confirmed: 1" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "- confirmed: 1" in output
+    assert "Models the provider lists that the catalog does not" not in output
+
+
+def test_main_reports_vercel_language_models_missing_from_the_catalog(tmp_path):
+    recent = int(datetime(2026, 10, 2, tzinfo=timezone.utc).timestamp())
+    catalog = tmp_path / "prices.yaml"
+    catalog.write_text(json.dumps(_document()))
+    cache = tmp_path / "cache"
+    _seed_cache(
+        cache,
+        check_prices.VERCEL_URL,
+        {
+            "data": [
+                {
+                    "id": "openai/gpt-x",
+                    "type": "language",
+                    "released": recent,
+                    "pricing": {"input": "0.000002", "output": "0.000008"},
+                },
+                {
+                    "id": "meta/new-language-model",
+                    "type": "language",
+                    "released": recent,
+                    "pricing": {"input": "0.000001", "output": "0.000004"},
+                },
+            ]
+        },
+    )
+    report = tmp_path / "report.json"
+
+    status = check_prices.main(
+        [
+            "--catalog",
+            str(catalog),
+            "--sources",
+            "vercel",
+            "--cache-dir",
+            str(cache),
+            "--json",
+            str(report),
+            "--today",
+            "2026-10-05",
+        ]
+    )
+
+    assert status == 0
+    assert json.loads(report.read_text())["missing_models"] == {
+        "vercel": ["meta/new-language-model"]
+    }
 
 
 def test_main_rejects_an_unknown_source(tmp_path):

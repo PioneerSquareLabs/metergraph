@@ -33,7 +33,7 @@ import re
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -59,6 +59,7 @@ MTOK = Decimal(1_000_000)
 # million tokens, whichever is looser.
 RELATIVE_TOLERANCE = Decimal("0.01")
 ABSOLUTE_TOLERANCE = Decimal("0.001")
+VERCEL_DISCOVERY_LOOKBACK_DAYS = 7
 
 # The source that is the channel's own price list.
 AUTHORITATIVE = {
@@ -264,6 +265,56 @@ def _vercel_quotes(data: Mapping[str, Any], rows: list[CatalogRow]) -> dict[Cata
             quotes[row] = _closest_variant(row, "vercel", alias, _vercel_variants(pricing))
             break
     return quotes
+
+
+def _vercel_missing_models(
+    data: Mapping[str, Any],
+    rows: list[CatalogRow],
+    *,
+    released_since: date,
+    document: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Recent language model ids Vercel lists that the catalog does not.
+
+    Evaluation and media entries have separate billing units that the token
+    catalog cannot represent. Stealth ids are temporary aliases, not stable
+    model identities.
+    """
+    known = {
+        alias
+        for row in rows
+        if row.channel == "vercel-ai-gateway"
+        for _, alias in row.aliases
+    }
+    known |= {
+        row.canonical_id for row in rows if row.channel == "vercel-ai-gateway"
+    }
+    for entry in (document or {}).get("models") or []:
+        aliases = [
+            str(alias.get("alias") or "")
+            for alias in entry.get("aliases") or []
+            if alias.get("channel") == "vercel-ai-gateway"
+        ]
+        if aliases:
+            known.add(str(entry.get("canonical_id") or ""))
+            known.update(aliases)
+    missing = []
+    for model in data.get("data") or []:
+        model_id = str(model.get("id") or "")
+        released = model.get("released")
+        try:
+            released_on = datetime.fromtimestamp(int(released), timezone.utc).date()
+        except (TypeError, ValueError, OSError, OverflowError):
+            continue
+        if (
+            model.get("type") == "language"
+            and released_on >= released_since
+            and model_id
+            and not model_id.startswith("stealth/")
+            and model_id not in known
+        ):
+            missing.append(model_id)
+    return sorted(missing)
 
 
 def _vercel_rates(pricing: Mapping[str, Any], multiplier: Decimal = Decimal(1)) -> dict[str, Decimal]:
@@ -804,7 +855,7 @@ def render_markdown(findings: list[Finding], sources: list[str], today: date, mi
                     f"| {finding.row.canonical_id} | {finding.row.channel}{region} | {name} | {_money(ours)} | {', '.join(values)}{extra} |"
                 )
         lines.append("")
-    if missing:
+    if missing and any(missing.values()):
         lines += ["## Models the provider lists that the catalog does not", ""]
         for source, names in sorted(missing.items()):
             if names:
@@ -931,7 +982,15 @@ def main(argv: list[str] | None = None) -> int:
             quotes_by_source[source] = _page_quotes(source, table, rows)
             missing[source] = _missing_models(source, table, rows)
     if "vercel" in sources:
-        quotes_by_source["vercel"] = _vercel_quotes(fetch_json(VERCEL_URL, args.cache_dir) or {}, rows)
+        data = fetch_json(VERCEL_URL, args.cache_dir) or {}
+        quotes_by_source["vercel"] = _vercel_quotes(data, rows)
+        verified_at = _date(document.get("pricing_verified_at") or args.today)
+        missing["vercel"] = _vercel_missing_models(
+            data,
+            rows,
+            released_since=verified_at - timedelta(days=VERCEL_DISCOVERY_LOOKBACK_DAYS),
+            document=document,
+        )
     if "litellm" in sources:
         quotes_by_source["litellm"] = _litellm_quotes(fetch_json(LITELLM_URL, args.cache_dir) or {}, rows)
     if "modelsdev" in sources:
