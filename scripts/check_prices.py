@@ -272,6 +272,7 @@ def _vercel_missing_models(
     rows: list[CatalogRow],
     *,
     released_since: date,
+    document: Mapping[str, Any] | None = None,
 ) -> list[str]:
     """Recent language model ids Vercel lists that the catalog does not.
 
@@ -288,6 +289,15 @@ def _vercel_missing_models(
     known |= {
         row.canonical_id for row in rows if row.channel == "vercel-ai-gateway"
     }
+    for entry in (document or {}).get("models") or []:
+        aliases = [
+            str(alias.get("alias") or "")
+            for alias in entry.get("aliases") or []
+            if alias.get("channel") == "vercel-ai-gateway"
+        ]
+        if aliases:
+            known.add(str(entry.get("canonical_id") or ""))
+            known.update(aliases)
     missing = []
     for model in data.get("data") or []:
         model_id = str(model.get("id") or "")
@@ -979,6 +989,7 @@ def main(argv: list[str] | None = None) -> int:
             data,
             rows,
             released_since=verified_at - timedelta(days=VERCEL_DISCOVERY_LOOKBACK_DAYS),
+            document=document,
         )
     if "litellm" in sources:
         quotes_by_source["litellm"] = _litellm_quotes(fetch_json(LITELLM_URL, args.cache_dir) or {}, rows)

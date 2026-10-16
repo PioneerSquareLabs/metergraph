@@ -756,30 +756,6 @@ models:
     pricing_channel: vercel-ai-gateway
     execution_profiles:
     - default
-- canonical_id: liquid/lfm2.5-24b-a2b
-  display_name: LFM2.5-24B-A2B
-  publisher: liquid
-  released: '2026-10-13'  # https://vercel.com/ai-gateway/models/lfm2.5-24b-a2b
-  routes:
-  - key: default:liquid/lfm2.5-24b-a2b
-    id: liquid/lfm2.5-24b-a2b
-    provider: vercel
-    model_id: liquid/lfm2.5-24b-a2b
-    pricing_channel: vercel-ai-gateway
-    execution_profiles:
-    - default
-- canonical_id: reflection/beam
-  display_name: Beam 1.0
-  publisher: reflection
-  released: '2026-10-16'  # https://reflection.ai/blog/beam-is-available
-  routes:
-  - key: default:reflection/beam
-    id: reflection/beam
-    provider: vercel
-    model_id: reflection/beam
-    pricing_channel: vercel-ai-gateway
-    execution_profiles:
-    - default
 - canonical_id: xai/grok-4.7
   display_name: Grok 4.7
   publisher: xai
@@ -906,8 +882,6 @@ execution_profiles:
   - default:meta/muse-wonder-1.0
   - default:meta/muse-spark-open
   - default:nvidia/nemotron-3.5-super-vl
-  - default:liquid/lfm2.5-24b-a2b
-  - default:reflection/beam
   - default:openai:gpt-6.1-sol
   - default:anthropic:claude-sonnet-5-5
   - default:anthropic:claude-haiku-5-5
@@ -974,8 +948,6 @@ offer_groups:
   - default:meta/muse-wonder-1.0
   - default:meta/muse-spark-open
   - default:nvidia/nemotron-3.5-super-vl
-  - default:liquid/lfm2.5-24b-a2b
-  - default:reflection/beam
 - id: fireworks
   credential: FIREWORKS_API_KEY
   routes:

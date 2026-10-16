@@ -167,9 +167,23 @@ def test_vercel_quotes_convert_per_token_strings_to_per_million():
 def test_vercel_missing_models_reports_only_uncataloged_language_models():
     recent = int(datetime(2026, 10, 2, tzinfo=timezone.utc).timestamp())
     old = int(datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp())
+    document = _document()
+    document["models"].append(
+        {
+            "canonical_id": "reflection/beam",
+            "aliases": [
+                {
+                    "provider": "reflection",
+                    "alias": "reflection/beam",
+                    "channel": "vercel-ai-gateway",
+                }
+            ],
+        }
+    )
     data = {
         "data": [
             {"id": "openai/gpt-x", "type": "language", "released": recent},
+            {"id": "reflection/beam", "type": "language", "released": recent},
             {"id": "meta/new-language-model", "type": "language", "released": recent},
             {"id": "meta/old-language-model", "type": "language", "released": old},
             {"id": "stealth/experimental-model", "type": "language", "released": recent},
@@ -179,7 +193,10 @@ def test_vercel_missing_models_reports_only_uncataloged_language_models():
     }
 
     assert check_prices._vercel_missing_models(
-        data, _rows(), released_since=date(2026, 9, 24)
+        data,
+        check_prices.effective_rows(document, TODAY),
+        released_since=date(2026, 9, 24),
+        document=document,
     ) == [
         "meta/new-language-model"
     ]

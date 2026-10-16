@@ -275,10 +275,10 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "meta/muse-wonder-1.0",
         "meta/muse-spark-open",
         "nvidia/nemotron-3.5-super-vl",
-        "liquid/lfm2.5-24b-a2b",
-        "reflection/beam",
     ]
     gateway_ids = {route.id for route in registry.candidates("gateway")}
+    assert "liquid/lfm2.5-24b-a2b" not in gateway_ids
+    assert "reflection/beam" not in gateway_ids
     assert "reflection/beam-free" not in gateway_ids
     assert "nvidia/nemotron-3.5-lightning-free" not in gateway_ids
     assert [route.id for route in registry.candidates("fireworks")] == [
@@ -312,7 +312,7 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v3.2",
         "deepseek/deepseek-v3.1",
     ]
-    assert len(registry.routes_for_execution_profile("default")) == 68
+    assert len(registry.routes_for_execution_profile("default")) == 66
     assert len(registry.routes_for_execution_profile("bedrock")) == 8
 
 

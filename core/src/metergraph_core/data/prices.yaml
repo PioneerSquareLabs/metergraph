@@ -4545,6 +4545,9 @@ models:
         rules: {varies_by_provider: true}
         source_url: https://vercel.com/ai-gateway/models/nemotron-3.5-super-vl
 
+  # Vercel marks this route as allowing data retention and prompt training. It
+  # is priced for observed traffic, but intentionally omitted from the default
+  # model registry and offer groups.
   - canonical_id: liquid/lfm2.5-24b-a2b
     publisher: liquid
     aliases:
@@ -4564,15 +4567,14 @@ models:
   - canonical_id: reflection/beam
     publisher: reflection
     aliases:
-      - {provider: reflection, alias: reflection/beam, channel: vercel-ai-gateway}
-    prices:
-      - channel: vercel-ai-gateway
-        region: global
+      - provider: reflection
+        alias: reflection/beam
+        channel: vercel-ai-gateway
         effective_from: "2026-10-16"
-        input_per_mtok: 0.00
-        output_per_mtok: 0.00
-        rules: {varies_by_provider: true}
         source_url: https://vercel.com/ai-gateway/models/beam
+    # The gateway id can select one free, data-retaining provider or one of
+    # three paid providers. Keep the identity recognizable, but unpriced until
+    # the selected provider is captured with the call.
 
   - canonical_id: reflection/beam-free
     publisher: reflection
