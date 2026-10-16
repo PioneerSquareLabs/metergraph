@@ -224,7 +224,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-10-13"
+    assert registry.version == "2026-10-16"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -273,7 +273,14 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "google/gemini-4-argon",
         "mistral/mistral-large-4",
         "meta/muse-wonder-1.0",
+        "meta/muse-spark-open",
+        "nvidia/nemotron-3.5-super-vl",
+        "liquid/lfm2.5-24b-a2b",
+        "reflection/beam",
     ]
+    gateway_ids = {route.id for route in registry.candidates("gateway")}
+    assert "reflection/beam-free" not in gateway_ids
+    assert "nvidia/nemotron-3.5-lightning-free" not in gateway_ids
     assert [route.id for route in registry.candidates("fireworks")] == [
         "fireworks:accounts/fireworks/models/glm-5p2",
         "fireworks:accounts/fireworks/models/qwen3p7-plus",
@@ -305,7 +312,7 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v3.2",
         "deepseek/deepseek-v3.1",
     ]
-    assert len(registry.routes_for_execution_profile("default")) == 64
+    assert len(registry.routes_for_execution_profile("default")) == 68
     assert len(registry.routes_for_execution_profile("bedrock")) == 8
 
 
