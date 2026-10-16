@@ -26,7 +26,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-10-13"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-10-15"
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
@@ -177,7 +177,7 @@ def test_pipeline_catalog_compatibility(model, channel, input_rate, output_rate)
         ("gpt-6.1-sol", "openai-api", "2.00", "10.00", "0.10"),
         ("gemini-4-argon", "google-api", "2.00", "10.00", "0.10"),
         ("google/gemini-4-argon", "vercel-ai-gateway", "2.00", "10.00", "0.10"),
-        ("mistral-large-4", "mistral-api", "1.36", "4.18", "0.14"),
+        ("mistral-large-4", "mistral-api", "0.68", "2.09", "0.07"),
         ("mistral/mistral-large-4", "vercel-ai-gateway", "0.68", "2.09", "0.07"),
         ("muse-wonder-1.0", "meta-api", "4.00", "20.00", "0.20"),
         ("meta/muse-wonder-1.0", "vercel-ai-gateway", "4.00", "20.00", "0.20"),
@@ -194,6 +194,71 @@ def test_october_catalog_refresh_prices_current_models(
     assert resolved.price.cache_read_per_mtok == (
         None if cache_read is None else Decimal(cache_read)
     )
+
+
+def test_mistral_large_4_launch_sale_and_standard_price_boundaries():
+    launch = SNAPSHOT.resolve_price(
+        model="mistral-large-4", channel="mistral-api", at=_at("2026-10-06")
+    )
+    middle = SNAPSHOT.resolve_price(
+        model="mistral-large-4", channel="mistral-api", at=_at("2026-10-14")
+    )
+    last_sale_day = SNAPSHOT.resolve_price(
+        model="mistral-large-4", channel="mistral-api", at=_at("2026-10-19")
+    )
+    restored = SNAPSHOT.resolve_price(
+        model="mistral-large-4", channel="mistral-api", at=_at("2026-10-20")
+    )
+
+    assert launch is not None and middle is not None
+    assert last_sale_day is not None and restored is not None
+    assert launch.price.input_per_mtok == Decimal("0.68")
+    assert launch.price.output_per_mtok == Decimal("2.09")
+    assert launch.price.cache_read_per_mtok == Decimal("0.07")
+    assert launch.price.batch_input_per_mtok == Decimal("0.34")
+    assert launch.price.batch_output_per_mtok == Decimal("1.045")
+    assert middle.price.input_per_mtok == Decimal("0.68")
+    assert last_sale_day.price.input_per_mtok == Decimal("0.68")
+    assert restored.price.input_per_mtok == Decimal("1.36")
+    assert restored.price.output_per_mtok == Decimal("4.18")
+    assert restored.price.cache_read_per_mtok == Decimal("0.14")
+    assert restored.price.batch_input_per_mtok == Decimal("0.68")
+    assert restored.price.batch_output_per_mtok == Decimal("2.09")
+
+
+def test_mythos_5_1_is_priced_for_direct_anthropic_access():
+    resolved = SNAPSHOT.resolve_price(
+        model="claude-mythos-5-1",
+        channel="anthropic-api",
+        at=_at("2026-10-15"),
+    )
+
+    assert resolved is not None
+    assert resolved.canonical_model == "anthropic/claude-mythos-5.1"
+    assert resolved.price.input_per_mtok == Decimal("10")
+    assert resolved.price.output_per_mtok == Decimal("50")
+    assert resolved.price.cache_read_per_mtok == Decimal("0.25")
+    assert resolved.price.cache_write_5m_per_mtok == Decimal("12.5")
+    assert resolved.price.cache_write_1h_per_mtok == Decimal("20")
+    assert resolved.price.batch_input_per_mtok == Decimal("5")
+    assert resolved.price.batch_output_per_mtok == Decimal("25")
+
+
+@pytest.mark.parametrize("model", ["gpt-5.2-pro", "gpt-5.2-pro-2025-12-11"])
+def test_gpt_5_2_pro_is_priced_for_direct_openai_access(model):
+    resolved = SNAPSHOT.resolve_price(
+        model=model,
+        channel="openai-api",
+        at=_at("2026-10-15"),
+    )
+
+    assert resolved is not None
+    assert resolved.canonical_model == "openai/gpt-5.2-pro"
+    assert resolved.price.input_per_mtok == Decimal("21")
+    assert resolved.price.output_per_mtok == Decimal("168")
+    assert resolved.price.cache_read_per_mtok is None
+    assert resolved.price.batch_input_per_mtok is None
+    assert resolved.price.batch_output_per_mtok is None
 
 
 def test_sonnet_5_5_cache_read_cut_preserves_history():

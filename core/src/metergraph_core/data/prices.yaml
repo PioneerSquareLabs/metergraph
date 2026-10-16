@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-10-13"
+version: "2026-10-15"
 currency: USD
-pricing_verified_at: "2026-10-13"
+pricing_verified_at: "2026-10-15"
 models:
   - canonical_id: openai/gpt-6-sol
     publisher: openai
@@ -791,6 +791,22 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
+  - canonical_id: openai/gpt-5.2-pro
+    publisher: openai
+    aliases:
+      - {provider: openai, alias: gpt-5.2-pro, channel: openai-api}
+      - {provider: openai, alias: gpt-5.2-pro-2025-12-11, channel: openai-api}
+      - {provider: openai, alias: openai/gpt-5.2-pro, channel: openai-api}
+      - {provider: litellm, alias: gpt-5.2-pro, channel: openai-api}
+      - {provider: unknown, alias: gpt-5.2-pro, channel: openai-api}
+    prices:
+      - channel: openai-api
+        region: global
+        effective_from: "2025-12-11"
+        input_per_mtok: 21.00
+        output_per_mtok: 168.00
+        source_url: https://developers.openai.com/api/docs/models/gpt-5.2-pro
 
   - canonical_id: anthropic/claude-fable-5.1
     publisher: anthropic
@@ -1889,9 +1905,21 @@ models:
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
     prices:
+      # The launch discount runs for two weeks from the October 6 release.
+      # https://docs.mistral.ai/resources/changelogs
       - channel: mistral-api
         region: global
         effective_from: "2026-10-06"
+        effective_to: "2026-10-20"
+        input_per_mtok: 0.68
+        output_per_mtok: 2.09
+        cache_read_per_mtok: 0.07
+        batch_input_per_mtok: 0.34
+        batch_output_per_mtok: 1.045
+        source_url: https://docs.mistral.ai/models/mistral-large
+      - channel: mistral-api
+        region: global
+        effective_from: "2026-10-20"
         input_per_mtok: 1.36
         output_per_mtok: 4.18
         cache_read_per_mtok: 0.14
@@ -3817,6 +3845,27 @@ models:
         cache_read_per_mtok: 0.08
         cache_write_5m_per_mtok: 1
         source_url: https://vercel.com/ai-gateway/models/claude-haiku-3.5/providers
+  - canonical_id: anthropic/claude-mythos-5.1
+    publisher: anthropic
+    aliases:
+      - {provider: anthropic, alias: claude-mythos-5-1, channel: anthropic-api}
+      - {provider: anthropic, alias: anthropic/claude-mythos-5-1, channel: anthropic-api}
+      - {provider: litellm, alias: claude-mythos-5-1, channel: anthropic-api}
+      - {provider: unknown, alias: claude-mythos-5-1, channel: anthropic-api}
+    prices:
+      # Cache hits are 0.025x input on Mythos 5.1.
+      - channel: anthropic-api
+        region: global
+        effective_from: "2026-09-01"
+        input_per_mtok: 10.00
+        output_per_mtok: 50.00
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 12.50
+        cache_write_1h_per_mtok: 20.00
+        batch_input_per_mtok: 5.00
+        batch_output_per_mtok: 25.00
+        source_url: https://platform.claude.com/docs/en/about-claude/pricing
+
   - canonical_id: anthropic/claude-mythos-5
     publisher: anthropic
     aliases:

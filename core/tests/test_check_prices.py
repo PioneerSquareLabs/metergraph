@@ -471,6 +471,40 @@ def test_perplexity_page_reads_the_calculators_pricing_object():
     assert check_prices._missing_models("perplexity", table, rows) == ["sonar-pro"]
 
 
+def test_mistral_page_reads_the_current_sale_price_as_authoritative():
+    page = (
+        r'\"name\":\"mistral-large-4\",\"pricing\":'
+        r'{\"type\":\"custom\",\"free\":false,\"input\":['
+        r'{\"type\":\"range\",\"price\":0.68,\"label\":\"Input\",\"originalPrice\":1.36},'
+        r'{\"type\":\"range\",\"price\":0.07,\"label\":\"Cached input\",\"originalPrice\":0.14}],'
+        r'\"output\":[{\"type\":\"range\",\"price\":2.09,\"label\":\"Output\",\"originalPrice\":4.18}]}'
+    )
+    table = check_prices._parse_mistral(page)
+    assert table == {
+        "mistral-large-4": {
+            "input": Decimal("0.68"),
+            "cache_read": Decimal("0.07"),
+            "output": Decimal("2.09"),
+        }
+    }
+    rows = check_prices.effective_rows(
+        _single_row_document(
+            "mistral/mistral-large-4",
+            "mistral",
+            "mistral-large-4",
+            "mistral-api",
+            1.36,
+            4.18,
+        ),
+        TODAY,
+    )
+    quote = _quotes("mistral", page, rows)[rows[0]]
+    assert quote.source == "mistral"
+    [finding] = check_prices.compare(rows, {"mistral": {rows[0]: quote}})
+    assert finding.authority == "mistral"
+    assert finding.verdict == "update"
+
+
 def test_vercel_quotes_prefer_the_regional_or_peak_variant_the_row_carries():
     data = {"data": [{"id": "openai/gpt-x", "pricing": {
         "input": "0.000001", "output": "0.000004",
