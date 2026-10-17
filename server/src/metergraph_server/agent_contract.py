@@ -763,7 +763,102 @@ SCHEMAS: dict[str, dict[str, Any]] = {
 }
 
 
+_DISCOVERY_SOURCE = _object({
+    "source_run_id": {"type": "string"},
+    "capture_window": _object({"since": {"type": "string"}, "until": {"type": "string"}}, ("since", "until")),
+    "sampling_seed": _nullable("integer"),
+    "profile_id": {"type": "string"}, "profile_version": {"type": "integer"},
+}, ("source_run_id", "capture_window", "sampling_seed", "profile_id", "profile_version"))
+_SELECTION_REFERENCE = _object({
+    "source_run_id": {"type": "string"}, "pattern_id": {"type": "string"},
+    "pattern_set_version": {"type": "string"},
+}, ("source_run_id", "pattern_id", "pattern_set_version"))
+_DISCOVERY_PROPERTIES = {
+    **_ENVELOPE_PROPERTIES,
+    "content_included": {"const": False},
+    "environment": {"type": "null"},
+    "environment_selection_supported": {"const": False},
+    "blocking_reasons": _array({"type": "string"}),
+    "source": _nullable_schema(_DISCOVERY_SOURCE),
+    "selection_reference": _SELECTION_REFERENCE,
+}
+SCHEMAS["agent-access/classified-workloads"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    **_object({**_DISCOVERY_PROPERTIES, "workloads": {
+        "type": "array", "maxItems": 200,
+        "items": _object({"pattern_id": {"type": "string"}, "display_name": {"type": "string"},
+            "pattern_set_version": {"type": "string"}, "classified_sample_count": {"type": "integer", "minimum": 0},
+            "selection_reference": _SELECTION_REFERENCE,
+        }, ("pattern_id", "display_name", "pattern_set_version", "classified_sample_count", "selection_reference")),
+    }}, ("schema_version", "provenance", "content_included", "blocking_reasons", "source", "workloads", "evidence")),
+}
+SCHEMAS["agent-access/workload-readiness"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    **_object({**_DISCOVERY_PROPERTIES, "traces": {
+        "type": "array", "maxItems": 50,
+        "items": _object({"classification_trace_id": {"type": "string"}, "trace_id": _nullable("string"), "started_at": {"type": "string"},
+            "last_span_at": {"type": "string"}, "matched_call_count": {"type": "integer", "minimum": 1},
+        }, ("classification_trace_id", "trace_id", "started_at", "last_span_at", "matched_call_count")),
+    }, "counts": _object({
+        "classified_sample_records": {"type": "integer", "minimum": 0},
+        "excluded_incompatible_classified_records": {"type": "integer", "minimum": 0},
+        "retained_records": {"type": "integer", "minimum": 0},
+        "eligible_records_by_capture_metadata": {"type": "integer", "minimum": 0},
+        "missing_or_uncaptured_records": {"type": "integer", "minimum": 0},
+        "workload_population_records": {"type": "null"},
+        "population_scope": {"const": "classified_sample"},
+        "unit": {"const": "classification_capture_records"},
+    }, ("classified_sample_records", "retained_records", "eligible_records_by_capture_metadata",
+        "missing_or_uncaptured_records", "workload_population_records", "population_scope")),
+    "retained_window": _object({"since": {"type": "string"}, "until": {"type": "string"},
+        "empty": {"type": "boolean"}}, ("since", "until", "empty")),
+    "selection": _object({
+        "mode": {"const": "server_sample_at_launch"},
+        "explicit_trace_ids_supported": {"const": False},
+        "frozen_cohort_execution_supported": {"const": False},
+        "representative_metadata_only": {"const": True},
+        "sample_size": {"type": "integer", "minimum": 1},
+        "launch_contract": {"const": "pattern_id_only"},
+        "durable_provenance_owner": {"type": "string"},
+    }, ("mode", "explicit_trace_ids_supported", "frozen_cohort_execution_supported",
+        "representative_metadata_only", "sample_size", "launch_contract", "durable_provenance_owner"))},
+        ("schema_version", "provenance", "content_included", "blocking_reasons", "traces")),
+}
+SCHEMAS["agent-access/model-readiness"] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    **_object({**_DISCOVERY_PROPERTIES, "models": _array(_object({
+        "model_id": {"type": "string"}, "display_name": {"type": "string"},
+        "provider": _nullable("string"), "selected": _nullable("boolean"),
+    }, ("model_id", "display_name", "provider", "selected"))),
+        "provider_readiness": _object({
+            "ready": {"type": "boolean"}, "deployment_profile": {"type": "string"},
+            "control_channel": {"type": "string"}, "required_keys": _array({"type": "string"}),
+            "missing_keys": _array({"type": "string"}), "configured_keys": _array({"type": "string"}),
+            "code": _nullable("string"),
+        }, ("ready", "deployment_profile", "control_channel", "required_keys", "missing_keys", "configured_keys", "code")),
+        "provider_calls_verified": {"const": False},
+        "profile_id": {"type": "string"}, "profile_version": {"type": "integer"},
+        "readiness_basis": {"enum": ["configured_credential_names", "deployment_policy"]},
+        "candidate_selection_mode": {"type": "string"}, "candidate_pool_complete": {"type": "boolean"},
+    }, ("schema_version", "provenance", "content_included", "blocking_reasons", "models")),
+}
+
 TOOL_CONTRACT = {
+    "metergraph_list_classified_workloads": {
+        "capability": "classified_workloads", "privacy_class": "metadata",
+        "required_scope": "agent:read", "schema": "agent-access/classified-workloads",
+        "mutates": False, "external_calls": False,
+    },
+    "metergraph_get_workload_readiness": {
+        "capability": "workload_readiness", "privacy_class": "metadata",
+        "required_scope": "agent:read", "schema": "agent-access/workload-readiness",
+        "mutates": False, "external_calls": False,
+    },
+    "metergraph_get_model_readiness": {
+        "capability": "model_readiness", "privacy_class": "metadata",
+        "required_scope": "agent:read", "schema": "agent-access/model-readiness",
+        "mutates": False, "external_calls": False,
+    },
     "metergraph_get_workspace_context": {
         "capability": "workspace_context",
         "privacy_class": "metadata",

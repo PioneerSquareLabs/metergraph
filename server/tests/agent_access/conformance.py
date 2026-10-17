@@ -106,6 +106,22 @@ def check_capability_discovery(call: Call, profile: Mapping[str, Any]) -> list[s
     return failures
 
 
+def _classified_reference(call: Call) -> tuple[dict[str, str] | None, str | None]:
+    document, is_error = call("metergraph_list_classified_workloads", {"limit": 1})
+    if is_error:
+        return None, None
+    workloads = document.get("workloads") if isinstance(document, Mapping) else None
+    if not isinstance(workloads, list):
+        return None, "classified-workloads response has no workload array"
+    if not workloads:
+        return None, None
+    reference = workloads[0].get("selection_reference") if isinstance(workloads[0], Mapping) else None
+    fields = ("source_run_id", "pattern_id", "pattern_set_version")
+    if not isinstance(reference, Mapping) or any(not isinstance(reference.get(field), str) or not reference[field] for field in fields):
+        return None, "classified-workloads response has no valid selection reference"
+    return {field: reference[field] for field in fields}, None
+
+
 def check_content_free(call: Call, profile: Mapping[str, Any]) -> list[str]:
     failures: list[str] = []
     for name in _metadata_tools(profile):
@@ -118,6 +134,13 @@ def check_content_free(call: Call, profile: Mapping[str, Any]) -> list[str]:
             if not reports:
                 continue
             arguments = {"analysis_id": reports[0].get("analysis_id")}
+        elif name == "metergraph_get_workload_readiness":
+            reference, failure = _classified_reference(call)
+            if failure:
+                failures.append(failure)
+            if reference is None:
+                continue
+            arguments = reference
         result, is_error = call(name, arguments)
         document = _document(result, is_error)
         if document is None:
@@ -164,28 +187,43 @@ def check_bounds(call: Call) -> list[str]:
     return failures
 
 
-def check_stable_errors(call: Call) -> list[str]:
+def _expected_error(profile: Mapping[str, Any] | None, tool: str, default: str) -> str:
+    """A tool the profile does not offer must fail with unsupported_capability."""
+    if profile is None:
+        return default
+    spec = profile["tools"].get(tool)
+    if spec is not None and not spec.get("available", True):
+        return profile.get("unsupported_error_code", "unsupported_capability")
+    return default
+
+
+def check_stable_errors(call: Call, profile: Mapping[str, Any] | None = None) -> list[str]:
     failures: list[str] = []
     unknown, unknown_error = call("metergraph_unknown", {})
     if not unknown_error or _error_code(unknown) != -32602:
         failures.append("unknown tool did not return JSON-RPC -32602")
 
+    expected_replay = _expected_error(profile, "metergraph_replay_trace", "forbidden")
     replay, replay_error = call(
         "metergraph_replay_trace", {"trace_id": "missing-trace"}
     )
-    if not replay_error or _error_code(replay) != "forbidden":
-        failures.append("replay without scope did not return forbidden")
+    if not replay_error or _error_code(replay) != expected_replay:
+        failures.append(f"replay without scope did not return {expected_replay}")
 
+    expected_missing = _expected_error(profile, "metergraph_get_trace", "not_found")
     missing, missing_error = call(
         "metergraph_get_trace", {"trace_id": "missing-trace"}
     )
-    if not missing_error or _error_code(missing) != "not_found":
-        failures.append("unknown trace id did not return not_found")
+    if not missing_error or _error_code(missing) != expected_missing:
+        failures.append(f"unknown trace id did not return {expected_missing}")
     return failures
 
 
 def check_schemas(call: Call) -> list[str]:
     failures: list[str] = []
+    classified_reference, failure = _classified_reference(call)
+    if failure:
+        failures.append(failure)
     listed, listed_error = call("metergraph_list_reports", {"limit": 1})
     reports = listed.get("reports", []) if not listed_error and isinstance(listed, Mapping) else []
     report_id = reports[0].get("analysis_id") if reports else None
@@ -206,6 +244,10 @@ def check_schemas(call: Call) -> list[str]:
             arguments = {"days": 90, "limit": 200}
         elif name == "metergraph_list_reports":
             arguments = {"limit": 200}
+        elif name == "metergraph_get_workload_readiness":
+            if classified_reference is None:
+                continue
+            arguments = classified_reference
         elif name == "metergraph_get_report":
             if report_id is None:
                 continue
