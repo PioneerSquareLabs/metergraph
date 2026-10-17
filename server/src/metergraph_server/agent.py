@@ -23,6 +23,8 @@ _UNSUPPORTED = frozenset(
     {
         "ingestion_health",
         "incidents",
+        "analysis_runs",
+        "analysis_run",
         "reports",
         "report_detail",
         "report_evidence",
@@ -520,6 +522,16 @@ def agent_ingestion_health(days: int = Query(7, ge=1, le=MAX_AGENT_DAYS)):
 @router.get("/v1/agent/incidents")
 def agent_incidents(limit: int = Query(50, ge=1, le=MAX_AGENT_ROWS)):
     return _rest_response(_unsupported("incidents"), 501)
+
+
+@router.get("/v1/agent/analysis-runs")
+def agent_analysis_runs(limit: int = Query(50, ge=1, le=MAX_AGENT_ROWS), cursor: str | None = Query(None, min_length=1, max_length=512)):
+    return _rest_response(_unsupported("analysis_runs"), 501)
+
+
+@router.get("/v1/agent/analysis-runs/{run_id}")
+def agent_analysis_run(run_id: str):
+    return _rest_response(_unsupported("analysis_run"), 501)
 
 
 @router.get("/v1/agent/reports")

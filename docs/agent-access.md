@@ -49,3 +49,8 @@ Access, while an agent-only token is rejected by the ingest endpoints.
 For rotation, add the new token to the comma-separated list and restart,
 update clients, then remove the old token and restart again. The stdio bridge
 reads `METERGRAPH_URL` and `METERGRAPH_AGENT_TOKEN` and never prints the token.
+
+Analysis-run list and detail discovery are advertised as unavailable in this
+OSS server. Both MCP tools and the authenticated `/v1/agent/analysis-runs`
+REST routes return `unsupported_capability`. Imported reports and lifecycle
+records require a deployment with those capabilities.

@@ -112,6 +112,12 @@ def check_content_free(call: Call, profile: Mapping[str, Any]) -> list[str]:
         arguments: dict[str, Any] = {}
         if name == "metergraph_list_reports":
             arguments = {"limit": 1}
+        elif name == "metergraph_get_analysis_run":
+            listed, listed_error = call("metergraph_list_analysis_runs", {"limit": 1})
+            runs = listed.get("runs", []) if not listed_error and isinstance(listed, Mapping) else []
+            if not runs:
+                continue
+            arguments = {"run_id": runs[0].get("run_id")}
         elif name == "metergraph_get_report":
             listed, listed_error = call("metergraph_list_reports", {"limit": 1})
             reports = listed.get("reports", []) if not listed_error and isinstance(listed, Mapping) else []
@@ -138,6 +144,7 @@ def check_bounds(call: Call) -> list[str]:
         ("metergraph_get_usage", {"days": 91}),
         ("metergraph_get_usage", {"limit": 201}),
         ("metergraph_list_reports", {"limit": 201}),
+        ("metergraph_list_analysis_runs", {"limit": 201}),
     ):
         result, is_error = call(name, arguments)
         if not is_error or _error_code(result) != -32602:
@@ -189,6 +196,9 @@ def check_schemas(call: Call) -> list[str]:
     listed, listed_error = call("metergraph_list_reports", {"limit": 1})
     reports = listed.get("reports", []) if not listed_error and isinstance(listed, Mapping) else []
     report_id = reports[0].get("analysis_id") if reports else None
+    run_list, run_error = call("metergraph_list_analysis_runs", {"limit": 1})
+    runs = run_list.get("runs", []) if not run_error and isinstance(run_list, Mapping) else []
+    run_id = runs[0].get("run_id") if runs else None
     report_workload_id = None
     if report_id is not None:
         detail, detail_error = call("metergraph_get_report", {"analysis_id": report_id})
@@ -204,7 +214,11 @@ def check_schemas(call: Call) -> list[str]:
             arguments = {"limit": 200}
         elif name == "metergraph_query_traces":
             arguments = {"days": 90, "limit": 200}
-        elif name == "metergraph_list_reports":
+        elif name == "metergraph_get_analysis_run":
+            if run_id is None:
+                continue
+            arguments = {"run_id": run_id}
+        elif name in {"metergraph_list_reports", "metergraph_list_analysis_runs"}:
             arguments = {"limit": 200}
         elif name == "metergraph_get_report":
             if report_id is None:

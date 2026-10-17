@@ -120,6 +120,8 @@ def test_unsupported_capabilities_and_auth_boundaries(client):
     for name, arguments in (
         ("metergraph_get_ingestion_health", {}),
         ("metergraph_list_incidents", {}),
+        ("metergraph_list_analysis_runs", {}),
+        ("metergraph_get_analysis_run", {"run_id": "00000000-0000-0000-0000-000000000001"}),
         ("metergraph_list_reports", {}),
         ("metergraph_get_report", {"analysis_id": "missing"}),
         ("metergraph_get_report_evidence", {"analysis_id": "missing", "workload_id": "missing"}),
@@ -207,3 +209,17 @@ def test_agent_contract_covers_tools_and_fixture_exactly():
     assert set(agent_contract.TOOL_CONTRACT) == names
     profile = json.loads(FIXTURE.read_text())
     assert set(profile["tools"]) == names
+
+
+def test_analysis_run_rest_routes_are_authenticated_and_explicitly_unsupported(client):
+    for path in ["/v1/agent/analysis-runs", "/v1/agent/analysis-runs/00000000-0000-0000-0000-000000000001"]:
+        assert client.get(path).status_code == 401
+        response = client.get(path, headers=AUTH)
+        assert response.status_code == 501
+        assert response.json()["error"]["code"] == "unsupported_capability"
+
+
+def test_unsupported_capability_fixture_matches_deployment_contract():
+    from metergraph_server import agent
+    profile = json.loads(FIXTURE.read_text())
+    assert set(profile["unsupported_capabilities"]) == agent._UNSUPPORTED
