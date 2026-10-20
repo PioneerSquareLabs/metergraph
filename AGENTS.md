@@ -24,3 +24,13 @@ publishing; CI repeats common reference checks but cannot undo a disclosure.
 Report suspected vulnerabilities privately to maintainers. A historical
 harmless tracker ID alone does not require
 rewriting Git history.
+
+## Release versioning
+
+Published packages follow SemVer. Before releasing, check whether the change
+breaks a public contract or behavior: removing or renaming a public method,
+argument, or result field, or changing what an existing method, argument, or
+result means. While a package is pre-1.0, a breaking change bumps the minor
+version (`0.2.x` -> `0.3.0`); at 1.0 and later, it bumps the major version.
+Update dependent version pins and release verification expectations in the same
+change.
