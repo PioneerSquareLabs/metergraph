@@ -578,8 +578,9 @@ def redact_evidence(evidence: Mapping[str, Any]) -> dict[str, Any]:
                     "rows": [
                         {
                             "label": _slug(row[0]) if row else "",
+                            # Plain decimal text, never scientific notation.
                             "amounts": [
-                                str(amount)
+                                format(amount, "f")
                                 for cell in row[1:]
                                 if (amount := dollars(cell)) is not None
                             ],

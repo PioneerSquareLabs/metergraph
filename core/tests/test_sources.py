@@ -365,7 +365,9 @@ def test_google_registers_vertex_ai_as_reviewed_discovery_only():
         "google",
         "google-vertex-ai",
         True,
-        "https://cloud.google.com/vertex-ai/generative-ai/pricing",
+        # The current destination of Google's Vertex AI generative pricing
+        # page; registering it keeps the allowlisted fetch free of redirects.
+        "https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing",
     )
     assert source.low_risk.eligible is False
     assert source.fingerprint is None

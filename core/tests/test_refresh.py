@@ -859,6 +859,12 @@ def test_redacted_table_evidence_keeps_normalized_labels_and_amounts():
     }
 
 
+def test_redacted_amounts_are_plain_decimals_even_when_tiny():
+    page = "<table><tr><th>Model</th><th>Per token</th></tr><tr><td>Tiny</td><td>$0.0000001</td></tr></table>"
+    evidence = discovery_evidence(_discovery_source("token-table"), page, _document(), observed_on=OBSERVED_ON)
+    assert evidence["evidence"]["tables"] == [{"columns": 2, "rows": [{"label": "tiny", "amounts": ["0.0000001"]}]}]
+
+
 def test_redacted_license_evidence_keeps_candidates_and_drops_statements():
     evidence = discovery_evidence(_discovery_source("gpu-license-prose"), _generic("gpu-license-prose"), _document(), observed_on=OBSERVED_ON)
     assert evidence["evidence"] == {

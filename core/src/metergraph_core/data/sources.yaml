@@ -154,12 +154,15 @@ sources:
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
 
   # Gemini and partner models on Vertex AI. Prices vary by model, context
-  # length, tier and processing mode; reviewed discovery only.
+  # length, tier and processing mode; reviewed discovery only. The URL is the
+  # current destination of Google's Vertex AI generative pricing page
+  # (cloud.google.com/vertex-ai/generative-ai/pricing redirects here), so the
+  # allowlisted fetch needs no redirect.
   - id: google-vertex-ai-pricing
     provider: google
     channel: google-vertex-ai
     catalog_channel: true
-    url: https://cloud.google.com/vertex-ai/generative-ai/pricing
+    url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
     parser: html-tables
     source_shape: token_option_dependent
     clarity: option_dependent
