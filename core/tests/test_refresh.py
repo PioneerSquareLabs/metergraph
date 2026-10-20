@@ -512,8 +512,8 @@ def test_discovery_evidence_lists_candidates_with_prior_values_and_reasons():
     assert evidence["fingerprint_matches"] is True
     assert evidence["applicable"] is True
     assert evidence["candidates"] == [
-        {"model_key": "gpt-legacy", "region": "global", "canonical_id": None, "reason": "unknown_model", "prior": None, "candidate": {"input_per_mtok": "2.5", "cache_read_per_mtok": "1.25", "output_per_mtok": "10"}, "missing_dimensions": []},
-        {"model_key": "gpt-x", "region": "global", "canonical_id": "example/gpt-x", "reason": "changed", "prior": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "9"}, "candidate": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "8"}, "missing_dimensions": []},
+        {"model_key": "gpt-legacy", "region": "global", "canonical_id": None, "reason": "unknown_model", "prior": None, "candidate": {"input_per_mtok": "2.5", "cache_read_per_mtok": "1.25", "output_per_mtok": "10"}, "missing_dimensions": [], "invalid_dimensions": []},
+        {"model_key": "gpt-x", "region": "global", "canonical_id": "example/gpt-x", "reason": "changed", "prior": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "9"}, "candidate": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "8"}, "missing_dimensions": [], "invalid_dimensions": []},
     ]
     assert evidence["retention"] == {"store_raw": False, "redistribute_raw": False, "excerpt_chars": 0, "reason": "Synthetic test source."}
     assert evidence["excerpt"] is None
@@ -979,6 +979,7 @@ def test_discovery_reports_a_cache_rate_that_disappears_with_nothing_else_change
             "prior": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "8"},
             "candidate": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "output_per_mtok": "8"},
             "missing_dimensions": ["cache_write_5m_per_mtok"],
+            "invalid_dimensions": [],
         }
     ]
     assert evidence["operations"] == []
@@ -1004,6 +1005,43 @@ def test_discovery_lists_a_missing_rate_alongside_a_changed_one():
     evidence = discovery_evidence(source, _NO_CACHE_WRITE, _document(), observed_on=OBSERVED_ON)
     [candidate] = evidence["candidates"]
     assert (candidate["reason"], candidate["missing_dimensions"]) == ("changed", ["cache_write_5m_per_mtok"])
+
+
+@pytest.mark.parametrize(
+    ("current", "shown"),
+    [("not-a-rate", "not-a-rate"), (float("nan"), "nan"), ("Infinity", "Infinity"), (0.0, "0.0"), (-2.0, "-2.0")],
+    ids=["unparsable", "nan", "infinite-text", "zero", "negative"],
+)
+def test_discovery_reports_an_invalid_current_rate_and_proposes_nothing(current, shown):
+    # The loader accepts each of these; an unparsable rate loads as absent.
+    document = _with_gpt_x(**dict(GPT_X, input_per_mtok=current))
+    load_catalog_document(document)
+    source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
+    evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
+    [candidate] = evidence["candidates"]
+    assert (candidate["model_key"], candidate["reason"]) == ("gpt-x", "invalid_current_rate")
+    assert candidate["invalid_dimensions"] == ["input_per_mtok"]
+    assert candidate["prior"]["input_per_mtok"] == shown
+    assert candidate["candidate"]["input_per_mtok"] == "2"
+    assert evidence["operations"] == []
+
+
+def test_an_unparsable_current_rate_escalates_as_invalid_in_a_refresh():
+    result = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok="not-a-rate")))
+    assert result.delta["operations"] == []
+    [escalation] = result.escalations
+    assert (escalation.reason, escalation.dimension, escalation.current, escalation.observed) == (
+        "invalid_current_rate", "input_per_mtok", "not-a-rate", "2"
+    )
+
+
+def test_an_unparsable_current_rate_the_page_drops_escalates_without_crashing():
+    document = _with_gpt_x(**dict(GPT_X, cache_write_5m_per_mtok="n/a"))
+    result = _plan(document, _no_cache_write_registry(), {"openai-api-pricing": _NO_CACHE_WRITE})
+    assert result.delta["operations"] == []
+    assert [(e.reason, e.dimension, e.current) for e in result.escalations] == [
+        ("missing_rate", "cache_write_5m_per_mtok", "n/a")
+    ]
 
 
 def test_discovery_proposes_no_operation_for_an_ambiguous_row():

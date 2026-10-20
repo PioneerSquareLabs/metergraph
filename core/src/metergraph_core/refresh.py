@@ -147,6 +147,20 @@ def _rate(value: Any) -> Decimal | None:
         return None
 
 
+def _valid_rate(value: Any) -> Decimal | None:
+    """``value`` as a positive finite rate, or None when it is absent,
+    unparsable, non-finite, zero or negative. The catalog loader accepts all
+    of those, so the planner and discovery must check."""
+    rate = _rate(value)
+    return rate if rate is not None and rate.is_finite() and rate > 0 else None
+
+
+def _rate_text(value: Any) -> str:
+    """A rate as evidence text: normalized when valid, else as written."""
+    rate = _valid_rate(value)
+    return _money(rate) if rate is not None else str(value)
+
+
 def _day(value: Any) -> date:
     """The UTC date of an effective date given as a date, a naive or aware
     datetime, or an ISO string with or without an offset."""
@@ -300,19 +314,20 @@ def _compare_row(source: PriceSource, match: _RowMatch, ambiguous: Iterable[str]
     # otherwise copying the row forward would keep a stale value.
     for dimension in source.dimensions:
         if row.get(dimension) is not None and dimension not in rate.rates:
-            escalations.append(escalate("missing_rate", dimension=dimension, current=_money(_rate(row[dimension]))))
+            escalations.append(escalate("missing_rate", dimension=dimension, current=_rate_text(row[dimension])))
     changed: dict[str, Decimal] = {}
     for dimension in source.dimensions:
         observed = rate.rates.get(dimension)
         if observed is None:
             continue
-        current = _rate(row.get(dimension))
-        values = {"dimension": dimension, "current": _money(current) if current is not None else None, "observed": _money(observed)}
+        raw = row.get(dimension)
+        current = _valid_rate(raw)
+        values = {"dimension": dimension, "current": _rate_text(raw) if raw is not None else None, "observed": _money(observed)}
         if not observed.is_finite() or observed <= 0:
             escalations.append(escalate("non_positive_rate", **values))
-        elif current is None:
+        elif raw is None:
             escalations.append(escalate("new_dimension", **values))
-        elif not current.is_finite() or current <= 0:
+        elif current is None:
             # The relative bound needs a positive, finite denominator; a zero,
             # negative or non-finite catalog rate would void it.
             escalations.append(escalate("invalid_current_rate", detail="the catalog rate is not a positive finite number", **values))
@@ -562,7 +577,7 @@ def plan_low_risk_refresh(
 
 def _rates_json(rates: Mapping[str, Any], dimensions: Iterable[str]) -> dict[str, str]:
     return {
-        dimension: _money(_rate(rates[dimension]))
+        dimension: _rate_text(rates[dimension])
         for dimension in dimensions
         if rates.get(dimension) is not None
     }
@@ -593,20 +608,25 @@ def discovery_evidence(
             # Every represented rate the row carries is compared, so one the
             # page no longer shows is evidence even when the rest agree.
             missing = [d for d in prior if d not in candidate]
+            # A catalog rate that is not a positive finite number is shown as
+            # written and blocks any proposed operation.
+            invalid = [d for d in prior if _valid_rate(match.row[d]) is None]
             differs = any(prior.get(d) != v for d, v in candidate.items())
-            if differs or missing:
+            if differs or missing or invalid:
+                reason = "invalid_current_rate" if invalid else "changed" if differs else "missing_rate"
                 candidates.append(
                     {
                         "model_key": match.rate.model_key,
                         "region": match.key.region,
                         "canonical_id": match.canonical_id,
-                        "reason": "changed" if differs else "missing_rate",
+                        "reason": reason,
                         "prior": prior,
                         "candidate": candidate,
                         "missing_dimensions": missing,
+                        "invalid_dimensions": invalid,
                     }
                 )
-                complete = not missing
+                complete = not missing and not invalid
                 ambiguous = regional_key(match.rate.model_key, match.rate.region) in extraction.ambiguities
                 if (
                     complete
@@ -620,7 +640,7 @@ def discovery_evidence(
                     operations.append(_replace_operation(source, match, changed, observed_on))
         for rate, reason in unclaimed:
             candidates.append(
-                {"model_key": rate.model_key, "region": rate.region, "canonical_id": None, "reason": reason, "prior": None, "candidate": _rates_json(rate.rates, source.dimensions), "missing_dimensions": []}
+                {"model_key": rate.model_key, "region": rate.region, "canonical_id": None, "reason": reason, "prior": None, "candidate": _rates_json(rate.rates, source.dimensions), "missing_dimensions": [], "invalid_dimensions": []}
             )
         candidates.sort(key=lambda c: (c["model_key"], c["region"]))
     excerpt = None

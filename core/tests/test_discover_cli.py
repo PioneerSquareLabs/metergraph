@@ -179,6 +179,18 @@ def test_escalated_low_risk_sources_get_reviewable_proposed_deltas(paths, capsys
     assert operation["price"]["input_per_mtok"] == "2"
 
 
+def test_an_unparsable_catalog_rate_is_review_evidence_not_a_crash(paths, capsys):
+    paths["catalog"].write_text(yaml.safe_dump(_catalog(gpt_x_input="not-a-rate")))
+    report = _escalation_report(paths["tmp"])
+    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "", "--escalations", str(report)], capsys)
+    proposal = _proposal(output, "openai-api-pricing")
+    [candidate] = [c for c in proposal["evidence"]["candidates"] if c["model_key"] == "gpt-x"]
+    assert (candidate["reason"], candidate["invalid_dimensions"]) == ("invalid_current_rate", ["input_per_mtok"])
+    assert candidate["prior"]["input_per_mtok"] == "not-a-rate"
+    assert proposal["evidence"]["operations"] == []
+    assert proposal["proposed_delta"] is None
+
+
 def test_a_new_model_is_evidence_and_never_an_operation(paths, capsys):
     report = _escalation_report(paths["tmp"], reason="unknown_model")
     output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "", "--escalations", str(report)], capsys)
