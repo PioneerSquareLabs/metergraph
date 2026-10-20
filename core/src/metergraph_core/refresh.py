@@ -6,9 +6,9 @@ low-risk source may make, one observation per source (including runs with
 no change, so a missing run is detectable), and an escalation for every
 change it leaves out. It never fetches, applies the delta, or writes.
 
-A low-risk change updates an existing rate on an existing row of an existing
-model, within the source's relative bound, starting on the UTC observation
-date. New models, new regions, new dimensions, models a page no longer
+A low-risk change updates an existing rate, in one of the source's allowed
+dimensions, on an existing row of an existing model, starting on the UTC
+observation date. New models, new regions, new dimensions, models a page no longer
 lists, ambiguous parses, format changes, invalid rates and backdated or
 same-day effective dates escalate instead.
 
@@ -337,20 +337,15 @@ def _compare_row(source: PriceSource, match: _RowMatch, ambiguous: Iterable[str]
         elif raw is None:
             escalations.append(escalate("new_dimension", **values))
         elif current is None:
-            # The relative bound needs a positive, finite denominator; a zero,
-            # negative or non-finite catalog rate would void it.
+            # A catalog rate that is not a positive finite number is not a
+            # trustworthy row to compare or continue.
             escalations.append(escalate("invalid_current_rate", detail="the catalog rate is not a positive finite number", **values))
         elif observed == current:
             continue
         elif dimension not in source.low_risk.dimensions:
             escalations.append(escalate("dimension_not_allowed", **values))
         else:
-            relative = abs(observed - current) / current
-            if relative > source.low_risk.max_relative_change:
-                detail = f"relative change {_money(relative)} exceeds {_money(source.low_risk.max_relative_change)}"
-                escalations.append(escalate("bound_exceeded", detail=detail, **values))
-            else:
-                changed[dimension] = observed
+            changed[dimension] = observed
     if escalations or not changed:
         return None, escalations
     if row.get("effective_to") is not None:

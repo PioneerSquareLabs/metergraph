@@ -169,8 +169,6 @@ def _source_json(source: PriceSource) -> dict[str, Any]:
         "channel": source.channel,
         "url": source.url,
         "parser": source.parser,
-        "source_shape": source.source_shape,
-        "clarity": source.clarity,
         "dimensions": list(source.dimensions),
     }
 

@@ -37,11 +37,9 @@ def _source(source_id, parser, channel, url):
         "catalog_channel": True,
         "url": url,
         "parser": parser,
-        "source_shape": "token_table",
-        "clarity": "structured",
         "dimensions": dimensions,
         "fingerprint": structural_fingerprint(parser, content),
-        "low_risk": {"eligible": True, "max_relative_change": "0.5", "dimensions": dimensions},
+        "low_risk": {"eligible": True, "dimensions": dimensions},
     }
 
 
@@ -110,7 +108,7 @@ def test_cli_reports_no_change_and_exits_zero(setup, capsys):
     assert output["observed_on"] == "2026-10-20"
 
 
-def test_cli_emits_a_delta_for_an_in_bounds_change(setup, capsys):
+def test_cli_emits_a_delta_for_a_change(setup, capsys):
     write, _, content, _ = setup
     status, output = _run(write(_catalog(gpt_x_output=9.0)) + ["--content-dir", str(content)], capsys)
     assert status == 2
@@ -148,7 +146,7 @@ def test_cli_limits_the_run_to_named_sources(setup, capsys):
 
 
 def _not_low_risk(entry):
-    return dict(entry, low_risk={"eligible": False, "max_relative_change": None, "dimensions": []})
+    return dict(entry, low_risk={"eligible": False, "dimensions": []})
 
 
 def test_an_explicitly_selected_source_without_a_content_file_is_reported(setup, capsys):

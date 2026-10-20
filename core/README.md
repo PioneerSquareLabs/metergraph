@@ -268,13 +268,11 @@ catalog. Each entry records:
   channel yet (`catalog_channel`);
 - the official pricing `url`, the only address a refresh tool may fetch for it;
 - the `parser` that reads it;
-- the page's `source_shape` (a token table, embedded data, a model card,
-  option-dependent token prices, or GPU-hour or license pricing) and `clarity`
-  (structured, semi-structured, prose, or option-dependent);
-- the catalog price columns it represents (`dimensions`);
+- the price dimensions it represents (`dimensions`): catalog price columns, or
+  GPU-hour and license units;
 - the page's expected structural `fingerprint`;
-- `low_risk`: whether automated refreshes may use it, and for eligible sources
-  the largest relative change and the dimensions they may change.
+- `low_risk`: whether automated refreshes may use it (`eligible`), and the
+  `dimensions` an eligible source may change.
 
 To inspect the registered source for a provider:
 
@@ -289,7 +287,7 @@ for source in load_source_registry().sources:
 Seeding a source does not make it low-risk. Low-risk means a proven official
 parser whose live structural fingerprint has been reviewed and recorded.
 OpenAI, Anthropic, Google (Gemini API) and xAI start low-risk; each may change
-existing rates on existing rows by up to 50 percent.
+existing rates, in its allowed dimensions, on existing rows.
 
 Every other source is reviewed discovery only. It is read with a generic
 parser, `html-tables` for any page's tables or `gpu-license-prose` for GPU or
@@ -324,15 +322,15 @@ an input the run read.
 
 `scripts/refresh_prices.py` takes the registry and a current catalog document.
 For each low-risk source it fetches the registered URL, checks the page's
-fingerprint, extracts prices, checks invariants and bounds, and prints a JSON
+fingerprint, extracts prices, checks invariants, and prints a JSON
 report: a pricing delta for the changes that pass, one observation per source
 (including sources with no change), and every escalation. New models, new
 regions, new dimensions, rows a page no longer lists, ambiguous parses, format
-changes, non-positive or missing rates, duplicated model entries, changes beyond
-the bound, changes to a row that already has a scheduled end, a row more than
-one selected source proposes (whether or not they agree), invalid current
-catalog rates, and backdated or same-day effective dates escalate. A change takes
-effect on the UTC observation date. It exits 0 with no change, 2 with a delta or
+changes, non-positive or missing rates, changes outside the allowed
+dimensions, duplicated model entries, changes to a row that already has a
+scheduled end, a row more than one selected source proposes (whether or not
+they agree), invalid current catalog rates, and backdated or same-day
+effective dates escalate. A change takes effect on the UTC observation date. It exits 0 with no change, 2 with a delta or
 an escalation, and 1 on error.
 
 `scripts/discover_prices.py` scans sources that are not low-risk, the sources
@@ -358,9 +356,9 @@ Model providers, new and existing, can check and improve how MeterGraph prices
 their models:
 
 1. **Review your entry.** Find your provider in `sources.yaml` (or run the
-   snippet above) and check the registered pricing URL, its source shape and
-   clarity, and the dimensions it represents. Then check your models' current
-   rows in `prices.yaml`.
+   snippet above) and check the registered pricing URL, its parser, and the
+   dimensions it represents. Then check your models' current rows in
+   `prices.yaml`.
 2. **Propose a correction or a new source.** Edit your entry or add a new
    provider with its official pricing URL. A new source starts non-low-risk.
 3. **Add the extractor, fixture and tests when proposing low-risk status.** A

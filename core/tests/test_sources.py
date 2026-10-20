@@ -3,7 +3,6 @@ their fixtures."""
 
 import re
 from datetime import date
-from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -27,15 +26,9 @@ def _entry(**overrides):
         "catalog_channel": True,
         "url": "https://example.com/pricing",
         "parser": "openai",
-        "source_shape": "token_table",
-        "clarity": "structured",
         "dimensions": ["input_per_mtok", "output_per_mtok", "cache_read_per_mtok"],
         "fingerprint": "sha256:" + "a" * 64,
-        "low_risk": {
-            "eligible": True,
-            "max_relative_change": "0.5",
-            "dimensions": ["input_per_mtok", "output_per_mtok"],
-        },
+        "low_risk": {"eligible": True, "dimensions": ["input_per_mtok", "output_per_mtok"]},
     }
     entry.update(overrides)
     return entry
@@ -52,7 +45,7 @@ def _registry(*entries, **overrides):
 
 def _not_low_risk(**overrides):
     return _entry(
-        low_risk={"eligible": False, "max_relative_change": None, "dimensions": []},
+        low_risk={"eligible": False, "dimensions": []},
         **overrides,
     )
 
@@ -66,7 +59,6 @@ def test_parse_reads_an_entry():
     assert source.parser == "openai"
     assert source.dimensions == ("input_per_mtok", "output_per_mtok", "cache_read_per_mtok")
     assert source.low_risk.eligible is True
-    assert source.low_risk.max_relative_change == Decimal("0.5")
     assert source.low_risk.dimensions == ("input_per_mtok", "output_per_mtok")
 
 
@@ -108,8 +100,6 @@ def test_allowed_urls_is_exactly_the_registered_urls():
         (_registry(_entry(url="http://example.com/pricing")), "url must be an https URL"),
         (_registry(_entry(url="https://")), "url must be an https URL"),
         (_registry(_entry(parser="scraper")), "unknown parser 'scraper'"),
-        (_registry(_entry(source_shape="pdf")), "unknown source_shape 'pdf'"),
-        (_registry(_entry(clarity="clear")), "unknown clarity 'clear'"),
         (_registry(_entry(dimensions=["input_per_mtok", "vibes"])), "unknown dimension 'vibes'"),
         (_registry(_entry(dimensions=["input_per_mtok", "input_per_mtok"])), "duplicate dimension"),
         (_registry(_entry(fingerprint="abc")), "fingerprint must be null or sha256:"),
@@ -137,34 +127,27 @@ def test_low_risk_requires_a_parser_that_emits_price_rows():
 
 
 def test_low_risk_dimensions_must_be_dimensions_the_source_represents():
-    low_risk = {
-        "eligible": True,
-        "max_relative_change": "0.5",
-        "dimensions": ["input_per_mtok", "batch_input_per_mtok"],
-    }
+    low_risk = {"eligible": True, "dimensions": ["input_per_mtok", "batch_input_per_mtok"]}
     with pytest.raises(SourceRegistryError, match="low-risk dimension 'batch_input_per_mtok' is not a source dimension"):
         parse_source_registry(_registry(_entry(low_risk=low_risk)))
 
 
 def test_low_risk_needs_at_least_one_dimension():
-    low_risk = {"eligible": True, "max_relative_change": "0.5", "dimensions": []}
+    low_risk = {"eligible": True, "dimensions": []}
     with pytest.raises(SourceRegistryError, match="low-risk source needs dimensions"):
         parse_source_registry(_registry(_entry(low_risk=low_risk)))
 
 
-@pytest.mark.parametrize("bound", ["0", "1.5", "-0.1", 0.5, None, "half"])
-def test_low_risk_bound_is_a_decimal_string_above_zero_up_to_one(bound):
-    low_risk = {"eligible": True, "max_relative_change": bound, "dimensions": ["input_per_mtok"]}
-    with pytest.raises(SourceRegistryError, match="max_relative_change must be a decimal string in"):
+def test_a_source_that_is_not_low_risk_allows_no_dimensions():
+    low_risk = {"eligible": False, "dimensions": ["input_per_mtok"]}
+    with pytest.raises(SourceRegistryError, match="non-low-risk source allows no low-risk dimensions"):
         parse_source_registry(_registry(_entry(low_risk=low_risk)))
 
 
-def test_a_source_that_is_not_low_risk_carries_no_bounds():
-    low_risk = {"eligible": False, "max_relative_change": "0.5", "dimensions": []}
-    with pytest.raises(SourceRegistryError, match="non-low-risk source carries no low-risk bounds"):
-        parse_source_registry(_registry(_entry(low_risk=low_risk)))
-    low_risk = {"eligible": False, "max_relative_change": None, "dimensions": ["input_per_mtok"]}
-    with pytest.raises(SourceRegistryError, match="non-low-risk source carries no low-risk bounds"):
+@pytest.mark.parametrize("field", ["max_relative_change", "bound"])
+def test_low_risk_rejects_fields_beyond_eligibility_and_dimensions(field):
+    low_risk = {"eligible": True, "dimensions": ["input_per_mtok"], field: "0.5"}
+    with pytest.raises(SourceRegistryError, match=f"example-api-pricing: low_risk has unknown field '{field}'"):
         parse_source_registry(_registry(_entry(low_risk=low_risk)))
 
 
@@ -173,27 +156,9 @@ def test_low_risk_eligibility_must_be_a_boolean():
         parse_source_registry(_registry(_entry(low_risk={"eligible": "yes"})))
 
 
-def test_gpu_or_license_sources_carry_no_token_dimensions():
-    entry = _not_low_risk(
-        parser="gpu-license-prose",
-        source_shape="gpu_hour_or_license",
-        dimensions=["input_per_mtok"],
-    )
-    with pytest.raises(SourceRegistryError, match="gpu_hour_or_license source cannot represent token dimension 'input_per_mtok'"):
-        parse_source_registry(_registry(entry))
-
-
-def test_token_sources_carry_no_gpu_or_license_dimensions():
-    entry = _not_low_risk(dimensions=["gpu_hour_usd"])
-    with pytest.raises(SourceRegistryError, match="token source cannot represent dimension 'gpu_hour_usd'"):
-        parse_source_registry(_registry(entry))
-
-
 def test_a_gpu_or_license_source_records_its_non_token_dimensions():
     entry = _not_low_risk(
         parser="gpu-license-prose",
-        source_shape="gpu_hour_or_license",
-        clarity="option_dependent",
         dimensions=["gpu_hour_usd", "license_per_gpu_year_usd"],
     )
     source = parse_source_registry(_registry(entry)).get("example-api-pricing")
@@ -206,7 +171,6 @@ def test_one_provider_may_register_one_url_for_several_channels():
         provider="aws",
         channel="aws-bedrock",
         parser="html-tables",
-        source_shape="token_option_dependent",
         url="https://example.com/bedrock",
     )
     geo = dict(bedrock, id="aws-bedrock-geo-pricing", channel="aws-bedrock-geo")
@@ -220,9 +184,8 @@ def test_two_providers_may_not_share_a_url():
         parse_source_registry(_registry(_entry(), other))
 
 
-@pytest.mark.parametrize("field", ["evidence", "store_raw", "excerpt_chars", "retention"])
+@pytest.mark.parametrize("field", ["evidence", "store_raw", "excerpt_chars", "source_shape", "clarity"])
 def test_a_source_entry_rejects_unknown_fields(field):
-    # Raw page content is never kept, so no entry configures retention.
     with pytest.raises(SourceRegistryError, match=f"example-api-pricing: unknown field '{field}'"):
         parse_source_registry(_registry(_entry(**{field: {}})))
 
@@ -259,7 +222,6 @@ def test_validate_accepts_catalog_and_registry_only_channels():
         channel="azure-foundry",
         catalog_channel=False,
         parser="html-tables",
-        source_shape="token_option_dependent",
         url="https://example.com/azure",
     )
     validate_source_registry(parse_source_registry(_registry(_entry(), azure)), _catalog())
@@ -329,12 +291,6 @@ def test_sources_whose_live_parse_is_unreviewed_start_without_low_risk_status():
         assert source.catalog_channel is True
 
 
-def test_initial_low_risk_bound_is_a_fifty_percent_relative_change():
-    assert {
-        source.low_risk.max_relative_change for source in load_source_registry().low_risk()
-    } == {Decimal("0.5")}
-
-
 def test_low_risk_sources_read_the_pages_the_price_checker_reads():
     check_prices = _load_check_prices()
     registry = load_source_registry()
@@ -389,7 +345,7 @@ def test_fireworks_and_zai_start_without_low_risk_status():
 
 def test_nvidia_records_gpu_or_license_pricing_and_no_token_dimensions():
     [nvidia] = [s for s in load_source_registry().sources if s.provider == "nvidia"]
-    assert nvidia.source_shape == "gpu_hour_or_license"
+    assert nvidia.parser == "gpu-license-prose"
     assert set(nvidia.dimensions) == {"gpu_hour_usd", "license_per_gpu_year_usd"}
 
 

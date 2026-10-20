@@ -38,18 +38,18 @@ def _openai():
     dimensions = ["input_per_mtok", "cache_read_per_mtok", "cache_write_5m_per_mtok", "output_per_mtok"]
     return {
         "id": "openai-api-pricing", "provider": "openai", "channel": "openai-api", "catalog_channel": True,
-        "url": OPENAI_URL, "parser": "openai", "source_shape": "token_embedded_data", "clarity": "structured",
+        "url": OPENAI_URL, "parser": "openai",
         "dimensions": dimensions, "fingerprint": structural_fingerprint("openai", _fixture("openai-api-pricing")),
-        "low_risk": {"eligible": True, "max_relative_change": "0.5", "dimensions": dimensions},
+        "low_risk": {"eligible": True, "dimensions": dimensions},
     }
 
 
 def _discovery_only(source_id, provider, channel, parser, url, **overrides):
     entry = {
         "id": source_id, "provider": provider, "channel": channel, "catalog_channel": True,
-        "url": url, "parser": parser, "source_shape": "token_table", "clarity": "semi_structured",
+        "url": url, "parser": parser,
         "dimensions": ["input_per_mtok", "output_per_mtok"], "fingerprint": None,
-        "low_risk": {"eligible": False, "max_relative_change": None, "dimensions": []},
+        "low_risk": {"eligible": False, "dimensions": []},
     }
     entry.update(overrides)
     return entry
@@ -63,7 +63,7 @@ def _sources():
         _discovery_only("shared-page-geo-pricing", "example-shared", "shared-geo-api", "html-tables", SHARED_URL),
         _discovery_only(
             "license-source-pricing", "example-license", "license-only", "gpu-license-prose", LICENSE_URL,
-            catalog_channel=False, source_shape="gpu_hour_or_license", clarity="prose",
+            catalog_channel=False,
             dimensions=["gpu_hour_usd", "license_per_gpu_year_usd"],
         ),
     ]
@@ -152,14 +152,14 @@ def test_discovery_fetches_only_registry_urls_once_each(paths, capsys, monkeypat
     assert fetched == [TABLES_URL, SHARED_URL, LICENSE_URL]
 
 
-def _escalation_report(tmp, reason="bound_exceeded"):
+def _escalation_report(tmp, reason="dimension_not_allowed"):
     report = tmp / "refresh.json"
     report.write_text(json.dumps({
         "schema_version": 1,
         "observed_on": "2026-10-20",
         "escalations": [{"result": "escalated", "source_id": "openai-api-pricing", "reason": reason, "key": None,
                          "model_key": "gpt-x", "region": "global", "dimension": "input_per_mtok",
-                         "current": "1", "observed": "2", "detail": "relative change 1 exceeds 0.5"}],
+                         "current": "1", "observed": "2", "detail": ""}],
     }))
     return report
 
@@ -170,7 +170,7 @@ def test_escalated_low_risk_sources_get_reviewable_proposed_deltas(paths, capsys
     output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "", "--escalations", str(report)], capsys)
     [proposal] = output["proposals"]
     assert proposal["source_id"] == "openai-api-pricing"
-    assert proposal["reasons"] == ["escalation:bound_exceeded"]
+    assert proposal["reasons"] == ["escalation:dimension_not_allowed"]
     assert proposal["escalations"][0]["model_key"] == "gpt-x"
     delta = proposal["proposed_delta"]
     assert delta["provenance"]["requires_review"] is True
@@ -270,7 +270,7 @@ def test_the_adapter_receives_only_the_source_its_content_and_current_rows(paths
     source, content, current_rows = args
     assert source == {
         "id": "table-source-pricing", "provider": "example-tables", "channel": "tables-api", "url": TABLES_URL,
-        "parser": "html-tables", "source_shape": "token_table", "clarity": "semi_structured",
+        "parser": "html-tables",
         "dimensions": ["input_per_mtok", "output_per_mtok"],
     }
     assert content == _generic("token-table")

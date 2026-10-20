@@ -1,9 +1,9 @@
 """The public pricing source registry.
 
 Each entry names one official pricing source: the provider and catalog
-channel it prices, its URL, the parser that reads it, the shape and clarity
-of the page, the pricing dimensions it represents, and whether automated
-low-risk refreshes may use it and within which bounds. The registry is
+channel it prices, its URL, the parser that reads it, the pricing
+dimensions it represents, and whether automated low-risk refreshes may use
+it and for which dimensions. The registry is
 reviewed data: a source becomes low-risk only through a reviewed change to
 this file.
 
@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -36,20 +35,12 @@ PARSER_EMITS_ROWS: Mapping[str, bool] = MappingProxyType(
 )
 TOKEN_DIMENSIONS = RATE_FIELDS
 NON_TOKEN_DIMENSIONS = ("gpu_hour_usd", "license_per_gpu_year_usd")
-SOURCE_SHAPES = (
-    "token_table",
-    "token_embedded_data",
-    "token_model_card",
-    "token_option_dependent",
-    "gpu_hour_or_license",
-)
-CLARITIES = ("structured", "semi_structured", "prose", "option_dependent")
 
 _ID = re.compile(r"[a-z0-9][a-z0-9-]*")
 _SOURCE_FIELDS = frozenset(
     (
         "id", "provider", "channel", "catalog_channel", "url", "parser",
-        "source_shape", "clarity", "dimensions", "fingerprint", "low_risk",
+        "dimensions", "fingerprint", "low_risk",
     )
 )
 _FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
@@ -63,8 +54,6 @@ class SourceRegistryError(ValueError):
 @dataclass(frozen=True, slots=True)
 class LowRiskPolicy:
     eligible: bool
-    # The largest relative change a low-risk update may make to one rate.
-    max_relative_change: Decimal | None
     # The catalog price columns a low-risk update may change.
     dimensions: tuple[str, ...]
 
@@ -78,8 +67,6 @@ class PriceSource:
     catalog_channel: bool
     url: str
     parser: str
-    source_shape: str
-    clarity: str
     dimensions: tuple[str, ...]
     # The expected structural fingerprint of the page; None until reviewed.
     fingerprint: str | None
@@ -118,27 +105,21 @@ def _text(value: Any) -> str | None:
 def _low_risk(raw: Any, label: str, dimensions: tuple[str, ...]) -> LowRiskPolicy:
     if not isinstance(raw, Mapping):
         raise SourceRegistryError(f"{label}: low_risk must be a mapping")
+    for field in raw:
+        if field not in ("eligible", "dimensions"):
+            raise SourceRegistryError(f"{label}: low_risk has unknown field {field!r}")
     eligible = _boolean(
         raw.get("eligible"), f"{label}: low_risk.eligible must be true or false"
     )
-    bound = raw.get("max_relative_change")
     allowed = raw.get("dimensions") or []
     if not isinstance(allowed, list):
         raise SourceRegistryError(f"{label}: low_risk.dimensions must be a list")
     if not eligible:
-        if bound is not None or allowed:
+        if allowed:
             raise SourceRegistryError(
-                f"{label}: a non-low-risk source carries no low-risk bounds"
+                f"{label}: a non-low-risk source allows no low-risk dimensions"
             )
-        return LowRiskPolicy(False, None, ())
-    try:
-        parsed = Decimal(bound) if isinstance(bound, str) else None
-    except InvalidOperation:
-        parsed = None
-    if parsed is None or not parsed.is_finite() or not Decimal(0) < parsed <= 1:
-        raise SourceRegistryError(
-            f"{label}: max_relative_change must be a decimal string in (0, 1]"
-        )
+        return LowRiskPolicy(False, ())
     if not allowed:
         raise SourceRegistryError(f"{label}: a low-risk source needs dimensions")
     for dimension in allowed:
@@ -146,7 +127,7 @@ def _low_risk(raw: Any, label: str, dimensions: tuple[str, ...]) -> LowRiskPolic
             raise SourceRegistryError(
                 f"{label}: low-risk dimension {dimension!r} is not a source dimension"
             )
-    return LowRiskPolicy(True, parsed, tuple(allowed))
+    return LowRiskPolicy(True, tuple(allowed))
 
 
 def _source(raw: Any) -> PriceSource:
@@ -174,27 +155,12 @@ def _source(raw: Any) -> PriceSource:
     parser = raw.get("parser")
     if parser not in PARSER_EMITS_ROWS:
         raise SourceRegistryError(f"{label}: unknown parser {parser!r}")
-    shape = raw.get("source_shape")
-    if shape not in SOURCE_SHAPES:
-        raise SourceRegistryError(f"{label}: unknown source_shape {shape!r}")
-    clarity = raw.get("clarity")
-    if clarity not in CLARITIES:
-        raise SourceRegistryError(f"{label}: unknown clarity {clarity!r}")
     raw_dimensions = raw.get("dimensions")
     if not isinstance(raw_dimensions, list):
         raise SourceRegistryError(f"{label}: dimensions must be a list")
     for dimension in raw_dimensions:
         if dimension not in TOKEN_DIMENSIONS + NON_TOKEN_DIMENSIONS:
             raise SourceRegistryError(f"{label}: unknown dimension {dimension!r}")
-        if shape == "gpu_hour_or_license" and dimension in TOKEN_DIMENSIONS:
-            raise SourceRegistryError(
-                f"{label}: a gpu_hour_or_license source cannot represent token "
-                f"dimension {dimension!r}"
-            )
-        if shape != "gpu_hour_or_license" and dimension in NON_TOKEN_DIMENSIONS:
-            raise SourceRegistryError(
-                f"{label}: a token source cannot represent dimension {dimension!r}"
-            )
     if len(set(raw_dimensions)) != len(raw_dimensions):
         raise SourceRegistryError(f"{label}: duplicate dimension")
     dimensions = tuple(raw_dimensions)
@@ -220,8 +186,6 @@ def _source(raw: Any) -> PriceSource:
         catalog_channel=catalog_channel,
         url=url,
         parser=parser,
-        source_shape=shape,
-        clarity=clarity,
         dimensions=dimensions,
         fingerprint=fingerprint,
         low_risk=low_risk,

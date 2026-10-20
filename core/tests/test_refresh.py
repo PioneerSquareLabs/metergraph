@@ -33,14 +33,12 @@ def _source(source_id, parser, channel, provider, *, low_risk=True, fingerprint=
         "catalog_channel": True,
         "url": url or f"https://example.com/{parser}-pricing",
         "parser": parser,
-        "source_shape": "token_table",
-        "clarity": "structured",
         "dimensions": dimensions,
         "fingerprint": fingerprint,
         "low_risk": (
-            {"eligible": True, "max_relative_change": "0.5", "dimensions": low_risk_dimensions or dimensions}
+            {"eligible": True, "dimensions": low_risk_dimensions or dimensions}
             if low_risk
-            else {"eligible": False, "max_relative_change": None, "dimensions": []}
+            else {"eligible": False, "dimensions": []}
         ),
     }
 
@@ -118,7 +116,7 @@ def test_unchanged_content_yields_an_empty_delta_and_an_unchanged_observation():
     assert observation.changes == 0
 
 
-def test_an_in_bounds_change_replaces_the_row_with_its_exact_current_state():
+def test_a_change_replaces_the_row_with_its_exact_current_state():
     document = _with_gpt_x(**dict(GPT_X, input_per_mtok=2.5))
     result = _plan(document)
     assert result.escalations == ()
@@ -143,34 +141,31 @@ def test_an_in_bounds_change_replaces_the_row_with_its_exact_current_state():
     assert result.observations[0].changes == 1
 
 
-def test_a_change_of_exactly_the_bound_is_in_bounds():
-    result = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok=4.0)))
-    assert [op["price"]["input_per_mtok"] for op in result.delta["operations"]] == ["2"]
-
-
-def test_a_change_beyond_the_bound_escalates():
-    result = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok=1.0)))
-    assert result.delta["operations"] == []
-    [escalation] = result.escalations
-    assert escalation.reason == "bound_exceeded"
-    assert escalation.result == "escalated"
-    assert escalation.dimension == "input_per_mtok"
-    assert (escalation.current, escalation.observed) == ("1", "2")
-    assert result.observations[0].result == "escalated"
+@pytest.mark.parametrize(("current", "proposed"), [(1.0, "2"), (10.0, "2")], ids=["doubled", "cut-by-80-percent"])
+def test_a_large_change_is_proposed_when_every_invariant_holds(current, proposed):
+    # No relative-change threshold: a reviewed source on an existing row and
+    # dimension is trusted for the size of the change.
+    result = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok=current)))
+    assert result.escalations == ()
+    [operation] = result.delta["operations"]
+    assert operation["price"]["input_per_mtok"] == proposed
+    assert result.observations[0].result == "changed"
 
 
 def test_one_escalated_rate_holds_back_the_whole_row():
-    result = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok=1.0, output_per_mtok=7.0)))
+    # input changes within the allowed dimensions; cache_read is not allowed.
+    registry = _registry(_openai_source(low_risk_dimensions=["input_per_mtok", "output_per_mtok"]))
+    result = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok=1.0, cache_read_per_mtok=0.25)), registry)
     assert result.delta["operations"] == []
-    assert [e.reason for e in result.escalations] == ["bound_exceeded"]
+    assert [e.reason for e in result.escalations] == ["dimension_not_allowed"]
 
 
 def test_rows_are_independent():
-    document = _with_gpt_x(**dict(GPT_X, input_per_mtok=1.0))
+    document = _with_gpt_x(**dict(GPT_X, input_per_mtok=-1.0))
     document["models"][1]["prices"][0]["output_per_mtok"] = 2.0
     result = _plan(document)
     assert [op["key"]["canonical_id"] for op in result.delta["operations"]] == ["example/gpt-x-mini"]
-    assert [e.reason for e in result.escalations] == ["bound_exceeded"]
+    assert [e.reason for e in result.escalations] == ["invalid_current_rate"]
     assert result.observations[0].result == "changed_and_escalated"
 
 
@@ -379,8 +374,8 @@ def test_a_non_positive_rate_escalates():
     [-1.0, 0.0, "-0.5", float("nan"), float("inf"), "NaN", "-Infinity"],
     ids=["negative", "zero", "negative-text", "nan", "infinite", "nan-text", "negative-infinite-text"],
 )
-def test_an_invalid_current_rate_escalates_before_any_bound_math(current):
-    # The catalog loader accepts these; the planner must not divide by them.
+def test_an_invalid_current_rate_escalates(current):
+    # The catalog loader accepts these; the planner must not continue them.
     document = _with_gpt_x(**dict(GPT_X, input_per_mtok=current))
     result = _plan(document)
     assert result.delta["operations"] == []
@@ -388,14 +383,6 @@ def test_an_invalid_current_rate_escalates_before_any_bound_math(current):
     assert (escalation.reason, escalation.dimension, escalation.observed) == (
         "invalid_current_rate", "input_per_mtok", "2"
     )
-
-
-def test_a_negative_current_rate_cannot_pass_the_bound_through_its_sign():
-    # Against -4 the change to 2 would look like -150%, under any positive
-    # bound if the denominator's sign were trusted.
-    result = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok=-4.0)))
-    assert result.delta["operations"] == []
-    assert [e.reason for e in result.escalations] == ["invalid_current_rate"]
 
 
 def test_a_missing_required_rate_escalates():
@@ -482,19 +469,19 @@ def test_refresh_is_deterministic():
 
 
 def test_the_result_serializes_to_json_data():
-    data = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok=1.0))).as_json()
+    data = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok=-1.0))).as_json()
     assert data["observations"][0]["result"] == "escalated"
     assert data["escalations"][0] == {
         "result": "escalated",
         "source_id": "openai-api-pricing",
-        "reason": "bound_exceeded",
+        "reason": "invalid_current_rate",
         "key": {"canonical_id": "example/gpt-x", "channel": "openai-api", "region": "global", "effective_from": "2026-01-01"},
         "model_key": "gpt-x",
         "region": "global",
         "dimension": "input_per_mtok",
-        "current": "1",
+        "current": "-1.0",
         "observed": "2",
-        "detail": "relative change 1 exceeds 0.5",
+        "detail": "the catalog rate is not a positive finite number",
     }
 
 
@@ -520,7 +507,7 @@ def test_discovery_evidence_lists_candidates_with_prior_values_and_reasons():
 
 def test_discovery_evidence_proposes_operations_only_for_changed_catalog_rows():
     source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
-    # Beyond the low-risk bound, and the catalog lacks gpt-legacy.
+    # gpt-x changed, and the catalog lacks gpt-legacy.
     document = _with_gpt_x(**dict(GPT_X, input_per_mtok=1.0))
     del document["models"][2]
     evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
@@ -831,11 +818,11 @@ def test_discovery_evidence_with_datetime_rows_serializes_to_json():
 # --- Raw page content is never emitted ----------------------------------------------
 
 GENERIC = Path(__file__).parent / "fixtures" / "discovery"
-# Each generic synthetic page with the discovery parser, shape and dimensions
+# Each generic synthetic page with the discovery parser and dimensions
 # of a source that would be read with it.
 GENERIC_SOURCES = {
-    "token-table": ("html-tables", "token_table", ["input_per_mtok", "output_per_mtok"]),
-    "gpu-license-prose": ("gpu-license-prose", "gpu_hour_or_license", ["gpu_hour_usd", "license_per_gpu_year_usd"]),
+    "token-table": ("html-tables", ["input_per_mtok", "output_per_mtok"]),
+    "gpu-license-prose": ("gpu-license-prose", ["gpu_hour_usd", "license_per_gpu_year_usd"]),
 }
 
 
@@ -844,9 +831,9 @@ def _generic(name):
 
 
 def _discovery_source(page):
-    parser, shape, dimensions = GENERIC_SOURCES[page]
+    parser, dimensions = GENERIC_SOURCES[page]
     entry = _source("example-discovery-pricing", parser, "example-channel", "example", low_risk=False, fingerprint=None, dimensions=dimensions)
-    entry.update(source_shape=shape, catalog_channel=False)
+    entry.update(catalog_channel=False)
     return _registry(entry).get("example-discovery-pricing")
 
 
@@ -1064,7 +1051,7 @@ def test_an_unparsable_current_rate_the_page_drops_escalates_without_crashing():
 
 
 def test_discovery_proposes_no_operation_for_an_ambiguous_row():
-    source = _registry(dict(_xai_source(), low_risk={"eligible": False, "max_relative_change": None, "dimensions": []})).get("xai-api-pricing")
+    source = _registry(dict(_xai_source(), low_risk={"eligible": False, "dimensions": []})).get("xai-api-pricing")
     document = _xai_document(global_output=6.0)
     document["models"][0]["prices"][1]["input_per_mtok"] = 2.0
     evidence = discovery_evidence(source, _XAI_TWO_US_PRICES, document, observed_on=OBSERVED_ON)
