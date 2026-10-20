@@ -1,4 +1,4 @@
-version: '2026-10-16'
+version: '2026-10-19'
 models:
 - canonical_id: openai/gpt-5.6-sol
   display_name: GPT-5.6 Sol
@@ -447,6 +447,30 @@ models:
     pricing_channel: vercel-ai-gateway
     execution_profiles:
     - default
+- canonical_id: deepseek/deepseek-v4.1-flash-1017
+  display_name: DeepSeek V4.1 Flash 1017
+  publisher: deepseek
+  released: '2026-10-17'  # https://vercel.com/ai-gateway/models/deepseek-v4.1-flash-1017
+  routes:
+  - key: default:deepseek/deepseek-v4.1-flash-1017
+    id: deepseek/deepseek-v4.1-flash-1017
+    provider: vercel
+    model_id: deepseek/deepseek-v4.1-flash-1017
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
+- canonical_id: deepseek/deepseek-v4.1-flash-1017-fast
+  display_name: DeepSeek V4.1 Flash 1017 Fast
+  publisher: deepseek
+  released: '2026-10-17'  # https://vercel.com/ai-gateway/models/deepseek-v4.1-flash-1017-fast
+  routes:
+  - key: default:deepseek/deepseek-v4.1-flash-1017-fast
+    id: deepseek/deepseek-v4.1-flash-1017-fast
+    provider: vercel
+    model_id: deepseek/deepseek-v4.1-flash-1017-fast
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
 - canonical_id: alibaba/qwen3.8-flash
   display_name: Qwen 3.8 Flash
   publisher: alibaba
@@ -468,6 +492,18 @@ models:
     id: inception/mercury-2.5
     provider: vercel
     model_id: inception/mercury-2.5
+    pricing_channel: vercel-ai-gateway
+    execution_profiles:
+    - default
+- canonical_id: inception/mercury-3
+  display_name: Mercury 3
+  publisher: inception
+  released: '2026-10-19'  # https://www.inceptionlabs.ai/blog/introducing-mercury-3
+  routes:
+  - key: default:inception/mercury-3
+    id: inception/mercury-3
+    provider: vercel
+    model_id: inception/mercury-3
     pricing_channel: vercel-ai-gateway
     execution_profiles:
     - default
@@ -882,6 +918,9 @@ execution_profiles:
   - default:meta/muse-wonder-1.0
   - default:meta/muse-spark-open
   - default:nvidia/nemotron-3.5-super-vl
+  - default:deepseek/deepseek-v4.1-flash-1017
+  - default:deepseek/deepseek-v4.1-flash-1017-fast
+  - default:inception/mercury-3
   - default:openai:gpt-6.1-sol
   - default:anthropic:claude-sonnet-5-5
   - default:anthropic:claude-haiku-5-5
@@ -948,6 +987,9 @@ offer_groups:
   - default:meta/muse-wonder-1.0
   - default:meta/muse-spark-open
   - default:nvidia/nemotron-3.5-super-vl
+  - default:deepseek/deepseek-v4.1-flash-1017
+  - default:deepseek/deepseek-v4.1-flash-1017-fast
+  - default:inception/mercury-3
 - id: fireworks
   credential: FIREWORKS_API_KEY
   routes:

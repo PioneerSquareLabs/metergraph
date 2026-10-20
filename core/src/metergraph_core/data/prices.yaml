@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-10-16"
+version: "2026-10-19"
 currency: USD
-pricing_verified_at: "2026-10-16"
+pricing_verified_at: "2026-10-19"
 models:
   - canonical_id: openai/gpt-6-sol
     publisher: openai
@@ -2709,11 +2709,27 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-02"
+        effective_to: "2026-10-19"
         input_per_mtok: 0.30
         output_per_mtok: 1.20
         cache_read_per_mtok: 0.007
         rules:
           varies_by_provider: true
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-19"
+        # Store Vercel's 2x peak rate; this rule restores its off-peak rate.
+        input_per_mtok: 0.15
+        output_per_mtok: 0.60
+        cache_read_per_mtok: 0.003
+        rules:
+          input_includes_cache_read: true
+          varies_by_provider: true
+          off_peak_discount:
+            multiplier: 0.5
+            peak_hours_utc: [[1, 4], [6, 10]]
+            peak_weekdays_only: true
         source_url: https://ai-gateway.vercel.sh/v1/models
       # Displayed serverless billing rates take precedence over conflicting prose.
       - channel: fireworks-api
@@ -4602,6 +4618,119 @@ models:
         input_per_mtok: 0.00
         output_per_mtok: 0.00
         source_url: https://vercel.com/ai-gateway/models/nemotron-3.5-lightning-free
+
+  - canonical_id: deepseek/deepseek-v4.1-flash-1017
+    publisher: deepseek
+    aliases:
+      - provider: deepseek
+        alias: deepseek/deepseek-v4.1-flash-1017
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-17"
+        # Store Vercel's 2x peak rate; this rule restores its off-peak rate.
+        input_per_mtok: 0.15
+        output_per_mtok: 0.60
+        cache_read_per_mtok: 0.003
+        rules:
+          input_includes_cache_read: true
+          varies_by_provider: true
+          off_peak_discount:
+            multiplier: 0.5
+            peak_hours_utc: [[1, 4], [6, 10]]
+            peak_weekdays_only: true
+        source_url: https://vercel.com/ai-gateway/models/deepseek-v4.1-flash-1017
+
+  - canonical_id: deepseek/deepseek-v4.1-flash-1017-fast
+    publisher: deepseek
+    aliases:
+      - provider: deepseek
+        alias: deepseek/deepseek-v4.1-flash-1017-fast
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-17"
+        # The source lists a fixed Baseten rate without peak pricing.
+        input_per_mtok: 0.60
+        output_per_mtok: 2.40
+        cache_read_per_mtok: 0.014
+        source_url: https://vercel.com/ai-gateway/models/deepseek-v4.1-flash-1017-fast
+
+  # Price observed traffic, but exclude this route from default execution while
+  # Vercel permits retention and prompt training.
+  - canonical_id: elorian/glimpse
+    publisher: elorian
+    aliases:
+      - provider: elorian
+        alias: elorian/glimpse
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-16"
+        input_per_mtok: 0.60
+        output_per_mtok: 3.00
+        cache_read_per_mtok: 0.06
+        source_url: https://vercel.com/ai-gateway/models/glimpse
+
+  - canonical_id: inception/mercury-3
+    publisher: inception
+    aliases:
+      - provider: inception
+        alias: inception/mercury-3
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      # No end date is published for this 50% launch price. Close the row when
+      # Inception or Vercel announces the standard rate.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-19"
+        input_per_mtok: 0.10
+        output_per_mtok: 0.35
+        cache_read_per_mtok: 0.01
+        source_url: https://www.inceptionlabs.ai/blog/introducing-mercury-3
+
+  # Price observed traffic, but exclude this route from default execution while
+  # Vercel permits retention and prompt training.
+  - canonical_id: minimax/minimax-m3.1-flash
+    publisher: minimax
+    aliases:
+      - {provider: minimax, alias: minimax-m3.1-flash, channel: minimax-api}
+      - {provider: litellm, alias: minimax-m3.1-flash, channel: minimax-api}
+      - {provider: unknown, alias: minimax-m3.1-flash, channel: minimax-api}
+      - provider: minimax
+        alias: minimax/minimax-m3.1-flash
+        channel: vercel-ai-gateway
+        rules: {input_includes_cache_read: true}
+    prices:
+      - channel: minimax-api
+        region: global
+        effective_from: "2026-10-19"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.60
+        cache_read_per_mtok: 0.015
+        source_url: https://www.minimax.io/blog/minimax-m31f
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-19"
+        effective_to: "2026-10-23"
+        input_per_mtok: 0.00
+        output_per_mtok: 0.00
+        cache_read_per_mtok: 0.00
+        source_url: https://vercel.com/changelog/minimax-m3-1-flash-now-available-on-ai-gateway-for-free
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-23"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.60
+        cache_read_per_mtok: 0.015
+        source_url: https://vercel.com/changelog/minimax-m3-1-flash-now-available-on-ai-gateway-for-free
 retrieval:
   - channel: anthropic-api
     operation: web_search
