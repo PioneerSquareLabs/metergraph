@@ -467,6 +467,53 @@ def test_discovery_evidence_quotes_only_the_permitted_excerpt():
     assert evidence["excerpt"] == "Prices chang"
 
 
+# --- Several aliases of one model on the page ----------------------------------------
+
+
+def _gpt_x_with_aliases(*aliases, **rates):
+    """gpt-x answering to several page names; gpt-x-mini is not its own model."""
+    document = _with_gpt_x(**rates)
+    del document["models"][1]
+    document["models"][0]["aliases"] = [
+        {"provider": "openai", "alias": alias, "channel": "openai-api"} for alias in aliases
+    ]
+    return document
+
+
+def test_aliases_whose_page_prices_disagree_escalate_as_ambiguous():
+    # The page prices gpt-x and gpt-x-mini differently; both name one model.
+    document = _gpt_x_with_aliases("gpt-x", "gpt-x-mini", **dict(GPT_X, output_per_mtok=9.0))
+    result = _plan(document)
+    assert result.delta["operations"] == []
+    assert _reasons(result) == [("openai-api-pricing", "ambiguous_parse", "example/gpt-x")]
+    assert "gpt-x-mini" in result.escalations[0].detail
+
+
+_GPT_X_LATEST = _fixture("openai-api-pricing").replace(
+    "[1,[[0,&quot;gpt-x-mini&quot;]",
+    "[1,[[0,&quot;gpt-x-latest&quot;],[0,2],[0,0.2],[0,2.5],[0,8]]][1,[[0,&quot;gpt-x-mini&quot;]",
+)
+
+
+def test_aliases_whose_page_prices_agree_are_one_match():
+    document = _gpt_x_with_aliases("gpt-x", "gpt-x-latest", **dict(GPT_X, output_per_mtok=9.0))
+    document["models"].insert(
+        1, _model("example/gpt-x-mini", "gpt-x-mini", _row(input_per_mtok=0.4, cache_read_per_mtok=0.04, output_per_mtok=1.6))
+    )
+    result = _plan(document, contents={"openai-api-pricing": _GPT_X_LATEST})
+    assert result.escalations == ()
+    [operation] = result.delta["operations"]
+    assert (operation["key"]["canonical_id"], operation["price"]["output_per_mtok"]) == ("example/gpt-x", "8")
+
+
+def test_discovery_proposes_no_operation_when_aliases_disagree():
+    source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
+    document = _gpt_x_with_aliases("gpt-x", "gpt-x-mini", **dict(GPT_X, output_per_mtok=9.0))
+    evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
+    assert evidence["operations"] == []
+    assert "gpt-x-mini" not in [c["model_key"] for c in evidence["candidates"] if c["reason"] == "unknown_model"]
+
+
 # --- Rows with a scheduled end -------------------------------------------------------
 
 

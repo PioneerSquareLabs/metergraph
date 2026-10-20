@@ -173,6 +173,9 @@ class _RowMatch:
     row: Mapping[str, Any]
     rate: ExtractedRate | None
     duplicate_model: bool
+    # Page entries for the row's other aliases whose rates differ from
+    # ``rate``; any makes the row ambiguous.
+    disagreeing: tuple[ExtractedRate, ...] = ()
 
 
 def _names(entry: Mapping[str, Any], channel: str, day: date) -> list[str]:
@@ -211,17 +214,28 @@ def _match(
             if row.get("channel") != source.channel or not _in_effect(row, day, dated=True):
                 continue
             region = str(row.get("region") or "global")
-            found = None
+            # Every page entry an active alias names belongs to this row: the
+            # first is its rate, and any that disagrees makes it ambiguous.
+            found: list[ExtractedRate] = []
             for name in names:
                 rates = page_match(source.parser, tables, name, region)
                 if rates is not None:
-                    found = next(r for k, r in by_key.items() if tables[k] is rates)
-                    break
-            if found is not None:
-                claimed.add(regional_key(found.model_key, found.region))
-                matched_models.add(found.model_key)
+                    entry_rate = next(r for k, r in by_key.items() if tables[k] is rates)
+                    if entry_rate not in found:
+                        found.append(entry_rate)
+            for entry_rate in found:
+                claimed.add(regional_key(entry_rate.model_key, entry_rate.region))
+                matched_models.add(entry_rate.model_key)
+            first = found[0] if found else None
             matches.append(
-                _RowMatch(canonical_id, row_key(canonical_id, row), row, found, counts[canonical_id] > 1)
+                _RowMatch(
+                    canonical_id,
+                    row_key(canonical_id, row),
+                    row,
+                    first,
+                    counts[canonical_id] > 1,
+                    tuple(r for r in found[1:] if dict(r.rates) != dict(first.rates)),
+                )
             )
     unclaimed = [
         (rate, "new_region" if rate.model_key in matched_models else "unknown_model")
@@ -248,6 +262,9 @@ def _compare_row(source: PriceSource, match: _RowMatch, ambiguous: Iterable[str]
     # one region never blocks, or hides behind, another region's row.
     if regional_key(rate.model_key, rate.region) in ambiguous:
         return None, [escalate("ambiguous_parse", detail="the page gives two candidate values")]
+    if match.disagreeing:
+        names = ", ".join(r.model_key for r in (rate,) + match.disagreeing)
+        return None, [escalate("ambiguous_parse", detail=f"the page prices this model's aliases differently: {names}")]
     escalations: list[Escalation] = []
     # Every represented rate the row carries must still be on the page;
     # otherwise copying the row forward would keep a stale value.
@@ -465,6 +482,7 @@ def discovery_evidence(
                 ambiguous = regional_key(match.rate.model_key, match.rate.region) in extraction.ambiguities
                 if (
                     complete
+                    and not match.disagreeing
                     and match.row.get("effective_to") is None
                     and not ambiguous
                     and not match.duplicate_model
