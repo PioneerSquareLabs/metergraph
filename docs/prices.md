@@ -112,8 +112,8 @@ Every stored call gets a `cost_status`:
    registry, the delta format, and the provider contribution path.
 5. Open a PR; CI validates structure, dates, and window overlaps.
 6. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
-6. Self-hosters: mount an updated file with `MG_PRICES_PATH=/path/to/prices.yaml` — no rebuild needed.
-7. If a change adds, removes, or renames a route used by
+7. Self-hosters: mount an updated file with `MG_PRICES_PATH=/path/to/prices.yaml` — no rebuild needed.
+8. If a change adds, removes, or renames a route used by
    `core/src/metergraph_core/data/models.yaml`, update that registry in the same
    release and run its cross-catalog validation. A price entry alone never adds
    a model to a managed candidate field.
