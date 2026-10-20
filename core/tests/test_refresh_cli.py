@@ -341,6 +341,87 @@ def test_a_failed_fetch_is_observed_and_escalated(setup, capsys, monkeypatch):
     assert "connection reset" in output["escalations"][0]["detail"]
 
 
+# --- Outputs never overwrite inputs ------------------------------------------------
+
+
+def _snapshot(*paths):
+    return {path: path.read_bytes() for path in paths}
+
+
+def _refused(argv, capsys, *inputs):
+    before = _snapshot(*inputs)
+    status = refresh_prices.main(argv)
+    captured = capsys.readouterr()
+    assert status == 1
+    assert "refusing to write" in captured.err
+    assert captured.out == ""
+    assert _snapshot(*inputs) == before
+    return captured.err
+
+
+def test_the_report_may_not_overwrite_the_catalog(setup, capsys):
+    write, catalog, content, tmp_path = setup
+    argv = write(_catalog(gpt_x_output=9.0))
+    _refused(argv + ["--content-dir", str(content), "--json", str(catalog)], capsys, catalog)
+
+
+def test_the_report_may_not_overwrite_the_registry_through_a_symlink(setup, capsys):
+    write, _, content, tmp_path = setup
+    argv = write()
+    registry = tmp_path / "sources.yaml"
+    link = tmp_path / "report.json"
+    link.symlink_to(registry)
+    _refused(argv + ["--content-dir", str(content), "--json", str(link)], capsys, registry)
+
+
+def test_the_report_may_not_overwrite_the_catalog_through_a_symlinked_directory(setup, capsys):
+    write, catalog, content, tmp_path = setup
+    argv = write()
+    linked_dir = tmp_path / "linked"
+    linked_dir.symlink_to(tmp_path, target_is_directory=True)
+    _refused(argv + ["--content-dir", str(content), "--json", str(linked_dir / "prices.yaml")], capsys, catalog)
+
+
+def test_the_report_may_not_overwrite_a_content_file_it_read(setup, capsys):
+    write, _, content, _ = setup
+    page = content / "openai-api-pricing.html"
+    _refused(write() + ["--content-dir", str(content), "--json", str(page)], capsys, page)
+
+
+def test_evidence_files_may_not_overwrite_content_files_they_read(setup, capsys, tmp_path):
+    write, _, content, _ = setup
+    # A content file named like the evidence file the run would write.
+    (content / "openai-api-pricing.html").rename(content / "openai-api-pricing.json")
+    page = content / "openai-api-pricing.json"
+    report = tmp_path / "report.json"
+    err = _refused(
+        write() + ["--content-dir", str(content), "--evidence-dir", str(content), "--json", str(report)],
+        capsys,
+        page,
+    )
+    assert "openai-api-pricing.json" in err
+    assert not report.exists()
+
+
+def test_the_report_may_not_overwrite_an_evidence_file(setup, capsys, tmp_path):
+    write, _, content, _ = setup
+    evidence = tmp_path / "evidence"
+    status = refresh_prices.main(
+        write() + ["--content-dir", str(content), "--evidence-dir", str(evidence), "--json", str(evidence / "openai-api-pricing.json")]
+    )
+    assert status == 1
+    assert "refusing to write" in capsys.readouterr().err
+    assert not evidence.exists()
+
+
+def test_a_new_report_path_beside_the_inputs_is_written(setup, capsys, tmp_path):
+    write, _, content, _ = setup
+    report = tmp_path / "fresh-report.json"
+    status, output = _run(write() + ["--content-dir", str(content), "--json", str(report)], capsys)
+    assert status == 0
+    assert json.loads(report.read_text()) == output
+
+
 def test_cli_never_writes_the_catalog(setup, capsys):
     write, catalog, content, _ = setup
     argv = write(_catalog(gpt_x_output=9.0))

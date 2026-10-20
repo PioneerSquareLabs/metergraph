@@ -83,9 +83,36 @@ def fetch_text(url: str, allowed: frozenset[str], timeout: float = 30.0) -> str:
         return response.read().decode("utf-8", errors="ignore")
 
 
-def read_content(content_dir: Path, source_id: str) -> str | None:
+def content_file(content_dir: Path, source_id: str) -> Path | None:
+    """The ``<source-id>.*`` file a content directory supplies, if any."""
     matches = sorted(content_dir.glob(f"{source_id}.*"))
-    return matches[0].read_text(errors="ignore") if matches else None
+    return matches[0] if matches else None
+
+
+def read_content(content_dir: Path, source_id: str) -> str | None:
+    path = content_file(content_dir, source_id)
+    return path.read_text(errors="ignore") if path is not None else None
+
+
+def _same_file(first: Path, second: Path) -> bool:
+    """Whether two paths name one file, following symlinks. A path that does
+    not exist yet is compared by its resolved location."""
+    try:
+        return first.samefile(second)
+    except OSError:
+        return first.resolve() == second.resolve()
+
+
+def refuse_overwrites(outputs: list[Path], inputs: list[Path]) -> None:
+    """Refuse before anything is written when an output would replace an
+    input the run read, or another output of the same run."""
+    for index, output in enumerate(outputs):
+        for source in inputs:
+            if _same_file(output, source):
+                raise ValueError(f"refusing to write {output}: it is the input {source}")
+        for other in outputs[:index]:
+            if _same_file(output, other):
+                raise ValueError(f"refusing to write {output}: it is also the output {other}")
 
 
 def select_sources(registry: SourceRegistry, names: str | None) -> SourceRegistry:
@@ -101,23 +128,31 @@ def select_sources(registry: SourceRegistry, names: str | None) -> SourceRegistr
 
 def gather(
     registry: SourceRegistry, content_dir: Path | None, allowed: frozenset[str]
-) -> tuple[dict[str, str], dict[str, str]]:
-    """Content per source id, and the reason each missing one is missing."""
+) -> tuple[dict[str, str], dict[str, str], list[Path]]:
+    """Content per source id, the reason each missing one is missing, and
+    the content files read."""
     contents: dict[str, str] = {}
     errors: dict[str, str] = {}
+    read: list[Path] = []
     for source in registry.sources:
         if content_dir is not None:
-            content = read_content(content_dir, source.id)
-            if content is None:
+            path = content_file(content_dir, source.id)
+            if path is None:
                 errors[source.id] = f"no {source.id}.* file in {content_dir}"
             else:
-                contents[source.id] = content
+                contents[source.id] = path.read_text(errors="ignore")
+                read.append(path)
             continue
         try:
             contents[source.id] = fetch_text(source.url, allowed)
         except (OSError, ValueError) as exc:
             errors[source.id] = f"fetch failed: {exc}"
-    return contents, errors
+    return contents, errors, read
+
+
+def evidence_paths(evidence_dir: Path, registry: SourceRegistry, contents: dict[str, str]) -> list[Path]:
+    """The evidence files write_evidence would write."""
+    return [evidence_dir / f"{source.id}.json" for source in registry.sources if source.id in contents]
 
 
 def write_evidence(evidence_dir: Path, registry: SourceRegistry, contents: dict[str, str], document: dict, observed_on: date) -> None:
@@ -149,8 +184,14 @@ def main(argv: list[str] | None = None) -> int:
         document = yaml.safe_load(args.catalog.read_text())
         full_registry = load_source_registry(args.registry)
         registry = select_sources(full_registry, args.sources)
-        contents, errors = gather(registry, args.content_dir, full_registry.allowed_urls())
+        contents, errors, read = gather(registry, args.content_dir, full_registry.allowed_urls())
         result = plan_low_risk_refresh(document, registry, contents, observed_on=args.observed_on)
+        # Nothing is written, not even the report on stdout, until no output
+        # would replace an input or another output.
+        outputs = [args.json] if args.json else []
+        if args.evidence_dir:
+            outputs += evidence_paths(args.evidence_dir, registry, contents)
+        refuse_overwrites(outputs, [args.catalog, args.registry] + read)
     except (OSError, ValueError, SourceRegistryError, yaml.YAMLError) as exc:
         print(f"refresh_prices: {exc}", file=sys.stderr)
         return 1

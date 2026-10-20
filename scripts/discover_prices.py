@@ -64,7 +64,7 @@ from metergraph_core.sources import (  # noqa: E402
     SourceRegistryError,
     load_source_registry,
 )
-from refresh_prices import fetch_text, read_content  # noqa: E402
+from refresh_prices import content_file, fetch_text, refuse_overwrites  # noqa: E402
 
 REPORT_SCHEMA_VERSION = 1
 _URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
@@ -170,7 +170,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        report = discover(args)
+        inputs: list[Path] = []
+        report = discover(args, inputs)
+        # Nothing is written, not even the report on stdout, if the report
+        # file would replace an input the run read.
+        if args.json:
+            refuse_overwrites([args.json], inputs)
     except (DiscoveryError, OSError, ValueError, SourceRegistryError, yaml.YAMLError) as exc:
         print(f"discover_prices: {exc}", file=sys.stderr)
         return 1
@@ -181,9 +186,13 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def discover(args: argparse.Namespace) -> dict[str, Any]:
+def discover(args: argparse.Namespace, inputs: list[Path]) -> dict[str, Any]:
+    """Build the report, recording every file read in ``inputs``."""
     new_source = read_new_source(args.new_source) if args.new_source else None
+    if args.new_source and args.new_source != "-":
+        inputs.append(Path(args.new_source))
     adapter = load_adapter(args.llm_adapter) if args.llm_adapter else None
+    inputs += [args.catalog, args.registry]
     document = yaml.safe_load(args.catalog.read_text())
     load_catalog_document(document)
     registry = load_source_registry(args.registry)
@@ -196,6 +205,7 @@ def discover(args: argparse.Namespace) -> dict[str, Any]:
         requested = {registry.get(name.strip()).id for name in args.sources.split(",") if name.strip()}
     escalations: dict[str, list[dict]] = {}
     if args.escalations:
+        inputs.append(args.escalations)
         for escalation in json.loads(args.escalations.read_text()).get("escalations") or []:
             source_id = registry.get(str(escalation.get("source_id"))).id
             escalations.setdefault(source_id, []).append(escalation)
@@ -219,10 +229,12 @@ def discover(args: argparse.Namespace) -> dict[str, Any]:
         }
         proposals.append(proposal)
         if args.content_dir is not None:
-            content = read_content(args.content_dir, source.id)
-            if content is None:
+            path = content_file(args.content_dir, source.id)
+            if path is None:
                 proposal["error"] = f"no {source.id}.* file in {args.content_dir}"
                 continue
+            content = path.read_text(errors="ignore")
+            inputs.append(path)
         else:
             if source.url not in fetched:
                 try:

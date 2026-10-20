@@ -332,6 +332,71 @@ def test_an_adapter_that_returns_a_non_list_is_reported(paths, capsys, monkeypat
     assert _proposal(output, "fireworks-api-pricing")["adapter"]["error"] == "the adapter must return a list"
 
 
+# --- The report never overwrites an input -----------------------------------------
+
+
+def _refused(argv, capsys, *inputs):
+    before = {path: path.read_bytes() for path in inputs}
+    status = discover_prices.main(argv)
+    captured = capsys.readouterr()
+    assert status == 1
+    assert "refusing to write" in captured.err
+    assert captured.out == ""
+    assert {path: path.read_bytes() for path in inputs} == before
+
+
+def test_the_report_may_not_overwrite_the_catalog(paths, capsys):
+    catalog = paths["catalog"]
+    _refused(paths["base"] + ["--content-dir", str(paths["content"]), "--json", str(catalog)], capsys, catalog)
+
+
+def test_the_report_may_not_overwrite_the_catalog_through_a_symlink(paths, capsys):
+    link = paths["tmp"] / "report.json"
+    link.symlink_to(paths["catalog"])
+    _refused(paths["base"] + ["--content-dir", str(paths["content"]), "--json", str(link)], capsys, paths["catalog"])
+
+
+def test_the_report_may_not_overwrite_the_registry(paths, capsys):
+    registry = paths["tmp"] / "sources.yaml"
+    _refused(paths["base"] + ["--content-dir", str(paths["content"]), "--json", str(registry)], capsys, registry)
+
+
+def test_the_report_may_not_overwrite_the_escalations_it_read(paths, capsys):
+    report = _escalation_report(paths["tmp"])
+    _refused(
+        paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "", "--escalations", str(report), "--json", str(report)],
+        capsys,
+        report,
+    )
+
+
+def test_the_report_may_not_overwrite_the_new_source_file_through_a_symlink(paths, capsys):
+    page = paths["tmp"] / "new-provider.html"
+    page.write_text("<table><tr><th>Model</th></tr></table>")
+    link = paths["tmp"] / "out.json"
+    link.symlink_to(page)
+    _refused(
+        paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "", "--new-source", str(page), "--json", str(link)],
+        capsys,
+        page,
+    )
+
+
+def test_the_report_may_not_overwrite_a_content_file_it_read(paths, capsys):
+    page = paths["content"] / "fireworks-api-pricing.html"
+    _refused(
+        paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "fireworks-api-pricing", "--json", str(page)],
+        capsys,
+        page,
+    )
+
+
+def test_a_report_beside_the_inputs_is_written(paths, capsys):
+    report = paths["tmp"] / "discovery.json"
+    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--json", str(report)], capsys)
+    assert json.loads(report.read_text()) == output
+
+
 def test_an_unloadable_adapter_is_an_error(paths, capsys):
     assert discover_prices.main(paths["base"] + ["--content-dir", str(paths["content"]), "--llm-adapter", "no_such_module:propose"]) == 1
     assert "cannot load adapter" in capsys.readouterr().err
