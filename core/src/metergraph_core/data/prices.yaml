@@ -2719,15 +2719,13 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-19"
-        # The live feed publishes the off-peak rate plus a 2x peak multiplier.
-        # Store the peak rate so the shared discount rule applies it once.
+        # Store Vercel's 2x peak rate; this rule restores its off-peak rate.
         input_per_mtok: 0.15
         output_per_mtok: 0.60
         cache_read_per_mtok: 0.003
         rules:
           input_includes_cache_read: true
           varies_by_provider: true
-          # Peak rate; halved outside the listed weekday windows.
           off_peak_discount:
             multiplier: 0.5
             peak_hours_utc: [[1, 4], [6, 10]]
@@ -4632,15 +4630,13 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-17"
-        # The live feed publishes the off-peak rate plus a 2x peak multiplier.
-        # Store the peak rate so the shared discount rule applies it once.
+        # Store Vercel's 2x peak rate; this rule restores its off-peak rate.
         input_per_mtok: 0.15
         output_per_mtok: 0.60
         cache_read_per_mtok: 0.003
         rules:
           input_includes_cache_read: true
           varies_by_provider: true
-          # Peak rate; halved outside the listed weekday windows.
           off_peak_discount:
             multiplier: 0.5
             peak_hours_utc: [[1, 4], [6, 10]]
@@ -4658,15 +4654,14 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-17"
-        # Vercel reports one fixed Baseten rate and no peak-pricing rule.
+        # The source lists a fixed Baseten rate without peak pricing.
         input_per_mtok: 0.60
         output_per_mtok: 2.40
         cache_read_per_mtok: 0.014
         source_url: https://vercel.com/ai-gateway/models/deepseek-v4.1-flash-1017-fast
 
-  # Vercel marks this route as allowing data retention and prompt training. It
-  # is priced for observed traffic, but intentionally omitted from the default
-  # model registry and offer groups.
+  # Price observed traffic, but exclude this route from default execution while
+  # Vercel permits retention and prompt training.
   - canonical_id: elorian/glimpse
     publisher: elorian
     aliases:
@@ -4691,8 +4686,8 @@ models:
         channel: vercel-ai-gateway
         rules: {input_includes_cache_read: true}
     prices:
-      # Inception and Vercel describe this as a 50% launch price, but publish
-      # no end date. Keep it current until either source announces the change.
+      # No end date is published for this 50% launch price. Close the row when
+      # Inception or Vercel announces the standard rate.
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-19"
@@ -4701,9 +4696,8 @@ models:
         cache_read_per_mtok: 0.01
         source_url: https://www.inceptionlabs.ai/blog/introducing-mercury-3
 
-  # Vercel marks this route as allowing data retention and prompt training. It
-  # is priced for observed traffic, but intentionally omitted from the default
-  # model registry and offer groups.
+  # Price observed traffic, but exclude this route from default execution while
+  # Vercel permits retention and prompt training.
   - canonical_id: minimax/minimax-m3.1-flash
     publisher: minimax
     aliases:
