@@ -224,7 +224,7 @@ def test_registry_document_shape_is_required(mutation):
 
 def test_bundled_registry_preserves_current_execution_and_product_fields():
     registry = load_model_registry()
-    assert registry.version == "2026-10-16"
+    assert registry.version == "2026-10-19"
     assert [route.id for route in registry.candidates("gateway")] == [
         "anthropic/claude-sonnet-5",
         "anthropic/claude-opus-5",
@@ -275,12 +275,17 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "meta/muse-wonder-1.0",
         "meta/muse-spark-open",
         "nvidia/nemotron-3.5-super-vl",
+        "deepseek/deepseek-v4.1-flash-1017",
+        "deepseek/deepseek-v4.1-flash-1017-fast",
+        "inception/mercury-3",
     ]
     gateway_ids = {route.id for route in registry.candidates("gateway")}
     assert "liquid/lfm2.5-24b-a2b" not in gateway_ids
     assert "reflection/beam" not in gateway_ids
     assert "reflection/beam-free" not in gateway_ids
     assert "nvidia/nemotron-3.5-lightning-free" not in gateway_ids
+    assert "elorian/glimpse" not in gateway_ids
+    assert "minimax/minimax-m3.1-flash" not in gateway_ids
     assert [route.id for route in registry.candidates("fireworks")] == [
         "fireworks:accounts/fireworks/models/glm-5p2",
         "fireworks:accounts/fireworks/models/qwen3p7-plus",
@@ -312,7 +317,7 @@ def test_bundled_registry_preserves_current_execution_and_product_fields():
         "deepseek/deepseek-v3.2",
         "deepseek/deepseek-v3.1",
     ]
-    assert len(registry.routes_for_execution_profile("default")) == 66
+    assert len(registry.routes_for_execution_profile("default")) == 69
     assert len(registry.routes_for_execution_profile("bedrock")) == 8
 
 
@@ -539,6 +544,51 @@ def test_october_gateway_candidates_are_priced(
         model=route.model_id,
         channel=route.pricing_channel,
         at=datetime(2026, 10, 13, tzinfo=timezone.utc),
+    )
+    assert resolved is not None
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
+
+
+@pytest.mark.parametrize(
+    ("route_key", "canonical_id", "display_name", "input_rate", "output_rate"),
+    [
+        (
+            "default:deepseek/deepseek-v4.1-flash-1017",
+            "deepseek/deepseek-v4.1-flash-1017",
+            "DeepSeek V4.1 Flash 1017",
+            "0.15",
+            "0.60",
+        ),
+        (
+            "default:deepseek/deepseek-v4.1-flash-1017-fast",
+            "deepseek/deepseek-v4.1-flash-1017-fast",
+            "DeepSeek V4.1 Flash 1017 Fast",
+            "0.60",
+            "2.40",
+        ),
+        (
+            "default:inception/mercury-3",
+            "inception/mercury-3",
+            "Mercury 3",
+            "0.10",
+            "0.35",
+        ),
+    ],
+)
+def test_october_19_gateway_routes_are_priced_candidates(
+    route_key, canonical_id, display_name, input_rate, output_rate
+):
+    registry = load_model_registry()
+    route = registry.route(route_key)
+
+    assert route in registry.candidates("gateway")
+    assert route in registry.reachable_candidates({"AI_GATEWAY_API_KEY"})
+    assert (route.canonical_id, route.display_name) == (canonical_id, display_name)
+    resolved = load_catalog().snapshot.resolve_price(
+        model=route.model_id,
+        channel=route.pricing_channel,
+        at=datetime(2026, 10, 19, 5, tzinfo=timezone.utc),
     )
     assert resolved is not None
     assert resolved.price.input_per_mtok == Decimal(input_rate)

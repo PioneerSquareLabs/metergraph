@@ -26,7 +26,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-10-16"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-10-19"
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
@@ -293,6 +293,148 @@ def test_october_16_gateway_catalog_additions(
         None if cache_read_rate is None else Decimal(cache_read_rate)
     )
     assert bool(resolved.rules.get("varies_by_provider")) is varies_by_provider
+
+
+def test_deepseek_v4_1_flash_gateway_reprice_preserves_history_and_peak_windows():
+    before = SNAPSHOT.resolve_price(
+        model="deepseek/deepseek-v4.1-flash",
+        channel="vercel-ai-gateway",
+        at=datetime(2026, 10, 18, 2, tzinfo=timezone.utc),
+    )
+    peak = LOADED.price(
+        model="deepseek/deepseek-v4.1-flash",
+        channel="vercel-ai-gateway",
+        at=datetime(2026, 10, 19, 2, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    off_peak = LOADED.price(
+        model="deepseek/deepseek-v4.1-flash",
+        channel="vercel-ai-gateway",
+        at=datetime(2026, 10, 19, 5, tzinfo=timezone.utc),
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+
+    assert before is not None
+    assert before.price.input_per_mtok == Decimal("0.30")
+    assert before.price.output_per_mtok == Decimal("1.20")
+    assert before.price.cache_read_per_mtok == Decimal("0.007")
+    assert peak.status == off_peak.status == "priced"
+    assert peak.cost_usd == Decimal("0.75000000")
+    assert off_peak.cost_usd == Decimal("0.37500000")
+
+
+@pytest.mark.parametrize(
+    (
+        "model",
+        "channel",
+        "at",
+        "input_rate",
+        "output_rate",
+        "cache_read_rate",
+    ),
+    [
+        (
+            "deepseek/deepseek-v4.1-flash-1017",
+            "vercel-ai-gateway",
+            "2026-10-17",
+            "0.15",
+            "0.60",
+            "0.003",
+        ),
+        (
+            "deepseek/deepseek-v4.1-flash-1017-fast",
+            "vercel-ai-gateway",
+            "2026-10-19",
+            "0.60",
+            "2.40",
+            "0.014",
+        ),
+        (
+            "elorian/glimpse",
+            "vercel-ai-gateway",
+            "2026-10-19",
+            "0.60",
+            "3.00",
+            "0.06",
+        ),
+        (
+            "inception/mercury-3",
+            "vercel-ai-gateway",
+            "2026-10-19",
+            "0.10",
+            "0.35",
+            "0.01",
+        ),
+        (
+            "minimax/minimax-m3.1-flash",
+            "minimax-api",
+            "2026-10-19",
+            "0.15",
+            "0.60",
+            "0.015",
+        ),
+    ],
+)
+def test_october_19_catalog_additions(
+    model, channel, at, input_rate, output_rate, cache_read_rate
+):
+    resolved = SNAPSHOT.resolve_price(model=model, channel=channel, at=_at(at))
+
+    assert resolved is not None
+    assert resolved.price.input_per_mtok == Decimal(input_rate)
+    assert resolved.price.output_per_mtok == Decimal(output_rate)
+    assert resolved.price.cache_read_per_mtok == Decimal(cache_read_rate)
+
+
+def test_minimax_m3_1_flash_gateway_promotion_ends_after_october_22():
+    free = SNAPSHOT.resolve_price(
+        model="minimax/minimax-m3.1-flash",
+        channel="vercel-ai-gateway",
+        at=_at("2026-10-22"),
+    )
+    standard = SNAPSHOT.resolve_price(
+        model="minimax/minimax-m3.1-flash",
+        channel="vercel-ai-gateway",
+        at=_at("2026-10-23"),
+    )
+
+    assert free is not None and standard is not None
+    assert free.price.input_per_mtok == Decimal("0")
+    assert free.price.output_per_mtok == Decimal("0")
+    assert standard.price.input_per_mtok == Decimal("0.15")
+    assert standard.price.output_per_mtok == Decimal("0.60")
+    assert standard.price.cache_read_per_mtok == Decimal("0.015")
+
+
+def test_minimax_m3_1_flash_promotion_prices_cache_reads_at_zero():
+    result = LOADED.price(
+        model="minimax/minimax-m3.1-flash",
+        channel="vercel-ai-gateway",
+        at=_at("2026-10-22"),
+        input_tokens=1_000_000,
+        output_tokens=0,
+        cache_read_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0")
+
+
+def test_deepseek_v4_1_flash_1017_fast_has_fixed_gateway_pricing():
+    costs = {
+        LOADED.price(
+            model="deepseek/deepseek-v4.1-flash-1017-fast",
+            channel="vercel-ai-gateway",
+            at=datetime(2026, 10, 19, hour, tzinfo=timezone.utc),
+            input_tokens=1_000_000,
+            output_tokens=1_000_000,
+        ).cost_usd
+        for hour in (2, 5)
+    }
+
+    assert costs == {Decimal("3.00000000")}
 
 
 def test_beam_is_recognized_but_unpriced_on_the_mixed_provider_gateway():
