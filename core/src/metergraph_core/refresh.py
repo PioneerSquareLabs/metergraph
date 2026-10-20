@@ -266,26 +266,33 @@ def _compare_row(source: PriceSource, match: _RowMatch, ambiguous: Iterable[str]
         return None, [escalate("unrepresented_dimension", dimension=unrepresented[0], detail="the source cannot update this rate with the others")]
     if _day(row["effective_from"]) >= observed_on:
         return None, [escalate("not_after_current", detail=f"the current row starts {match.key.effective_from}")]
+    return _replace_operation(source, match, changed, observed_on), []
+
+
+def _replace_operation(
+    source: PriceSource, match: _RowMatch, changed: Mapping[str, Decimal], observed_on: date
+) -> dict[str, Any]:
+    """Close ``match``'s row on ``observed_on`` and continue it with the
+    ``changed`` rates, citing the source."""
+    row = match.row
     price: dict[str, Any] = {
         "channel": match.key.channel,
         "region": match.key.region,
         "effective_from": observed_on.isoformat(),
     }
     for field in RATE_FIELDS:
-        if row.get(field) is not None:
-            price[field] = _money(changed.get(field, _rate(row[field])))
+        value = changed.get(field, _rate(row.get(field)))
+        if value is not None:
+            price[field] = _money(value)
     if row.get("rules"):
         price["rules"] = copy.deepcopy(row["rules"])
     price["source_url"] = source.url
-    return (
-        {
-            "op": "replace_price",
-            "key": _key_json(match.key),
-            "expect": copy.deepcopy(dict(row)),
-            "price": price,
-        },
-        [],
-    )
+    return {
+        "op": "replace_price",
+        "key": _key_json(match.key),
+        "expect": copy.deepcopy(dict(row)),
+        "price": price,
+    }
 
 
 def _refresh_source(
@@ -412,10 +419,12 @@ def discovery_evidence(
 ) -> dict[str, Any]:
     """The evidence a reviewer needs for ``source``: its fingerprint against
     the registry's, the normalized extraction, and -- where the parser yields
-    rates -- each candidate value with the prior catalog value and the reason
-    it needs review. It is deterministic and never an applicable delta."""
+    rates -- each candidate value with the prior catalog value, the reason it
+    needs review, and a proposed operation for each changed catalog row. It
+    is deterministic; its operations are proposals that need review."""
     extraction = extract(source.parser, content)
     candidates: list[dict[str, Any]] = []
+    operations: list[dict[str, Any]] = []
     if extraction.applicable:
         matches, unclaimed = _match(source, extraction, document, observed_on)
         for match in matches:
@@ -427,6 +436,9 @@ def discovery_evidence(
                 candidates.append(
                     {"model_key": match.rate.model_key, "region": match.key.region, "canonical_id": match.canonical_id, "reason": "changed", "prior": prior, "candidate": candidate}
                 )
+                if not match.duplicate_model and _day(match.row["effective_from"]) < observed_on:
+                    changed = {d: v for d, v in match.rate.rates.items() if d in source.dimensions}
+                    operations.append(_replace_operation(source, match, changed, observed_on))
         for rate, reason in unclaimed:
             candidates.append(
                 {"model_key": rate.model_key, "region": rate.region, "canonical_id": None, "reason": reason, "prior": None, "candidate": _rates_json(rate.rates, source.dimensions)}
@@ -448,6 +460,9 @@ def discovery_evidence(
         "applicable": extraction.applicable,
         "ambiguities": list(extraction.ambiguities),
         "candidates": candidates,
+        # Reviewable replace_price operations for changed catalog rows; new
+        # models and regions stay evidence only.
+        "operations": operations,
         "evidence": copy.deepcopy(extraction.evidence),
         "retention": {
             "store_raw": source.evidence.store_raw,

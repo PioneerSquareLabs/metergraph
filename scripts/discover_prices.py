@@ -1,0 +1,294 @@
+"""Gather pricing evidence and proposals for human review.
+
+The script scans registry sources that are not low-risk (or those named with
+``--sources``), the sources behind escalations from a refresh report
+(``--escalations``), and new-source content supplied from a file or stdin
+(``--new-source``). For each it emits deterministic evidence -- candidate
+values, prior catalog values, the reason review is needed, and the source's
+evidence-retention policy -- plus a proposed delta for changed catalog rows.
+
+Registered sources are fetched only from their registered URLs, or read as
+``<source-id>.*`` from ``--content-dir``. New-source content never comes
+from a URL.
+
+An optional adapter (``--llm-adapter module:callable``) may read each
+source's content. It is called as ``propose(source, content, current_rows)``
+and returns a list of delta operations. Its output is schema-validated and
+recorded as review evidence only. Everything this script emits requires
+review: it holds no credentials, cannot mark a source low-risk, and never
+applies a delta, writes the catalog, publishes, or touches GitHub.
+
+Usage:
+
+    python scripts/discover_prices.py [--catalog prices.yaml] [--registry sources.yaml]
+        [--sources id,...] [--escalations refresh.json] [--new-source PATH|-]
+        [--content-dir DIR] [--llm-adapter module:callable]
+        [--observed-on YYYY-MM-DD] [--json report.json]
+
+Exit status: 0 the report was written, 1 an error.
+"""
+
+from __future__ import annotations
+
+import argparse
+import copy
+import hashlib
+import importlib
+import json
+import re
+import sys
+from datetime import date, datetime, timezone
+from pathlib import Path
+from typing import Any, Callable, Mapping
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+# Run against the in-repository core, not whatever version is installed.
+for _path in (str(REPOSITORY_ROOT / "core" / "src"), str(Path(__file__).resolve().parent)):
+    if _path not in sys.path:
+        sys.path.insert(0, _path)
+
+import yaml  # noqa: E402
+
+from metergraph_core.catalog_delta import (  # noqa: E402
+    PRICING_DELTA_KIND,
+    PRICING_DELTA_SCHEMA_VERSION,
+    CatalogDeltaError,
+    parse_catalog_delta,
+)
+from metergraph_core.extractors import page_tables  # noqa: E402
+from metergraph_core.loader import DEFAULT_CATALOG_PATH, load_catalog_document  # noqa: E402
+from metergraph_core.refresh import discovery_evidence  # noqa: E402
+from metergraph_core.sources import (  # noqa: E402
+    DEFAULT_REGISTRY_PATH,
+    PriceSource,
+    SourceRegistryError,
+    load_source_registry,
+)
+from refresh_prices import fetch_text, read_content  # noqa: E402
+
+REPORT_SCHEMA_VERSION = 1
+_URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
+_OPERATION_FIELDS = {"op", "key", "expect", "price", "effective_to"}
+
+
+class DiscoveryError(Exception):
+    pass
+
+
+def load_adapter(spec: str) -> Callable[..., Any]:
+    module_name, _, attribute = spec.partition(":")
+    try:
+        adapter = getattr(importlib.import_module(module_name), attribute or "propose")
+    except (ImportError, AttributeError) as exc:
+        raise DiscoveryError(f"cannot load adapter {spec!r}: {exc}") from exc
+    if not callable(adapter):
+        raise DiscoveryError(f"cannot load adapter {spec!r}: not callable")
+    return adapter
+
+
+def _delta(operations: list, observations: list[str], evidence: list[dict]) -> dict[str, Any]:
+    return {
+        "schema_version": PRICING_DELTA_SCHEMA_VERSION,
+        "kind": PRICING_DELTA_KIND,
+        "provenance": {
+            "generator": "metergraph discovery",
+            "requires_review": True,
+            "observations": observations,
+            "evidence": evidence,
+        },
+        "operations": operations,
+    }
+
+
+def run_adapter(adapter: Callable[..., Any], name: str, source: dict[str, Any], content: str, current_rows: list[dict]) -> dict[str, Any]:
+    """Call the adapter and keep only schema-valid operations on the
+    source's channel. Every rejected item is reported with its reason."""
+    result: dict[str, Any] = {"name": name, "operations": [], "rejected": [], "error": None}
+    try:
+        proposed = adapter(copy.deepcopy(source), content, copy.deepcopy(current_rows))
+    except Exception as exc:  # an adapter failure is evidence, not a crash
+        result["error"] = f"{type(exc).__name__}: {exc}"
+        return result
+    if not isinstance(proposed, list):
+        result["error"] = "the adapter must return a list"
+        return result
+    for index, item in enumerate(proposed):
+        if isinstance(item, Mapping):
+            unknown = sorted(set(item) - _OPERATION_FIELDS)
+            if unknown:
+                result["rejected"].append({"index": index, "error": f"unknown operation field {unknown[0]!r}"})
+                continue
+        try:
+            [operation] = parse_catalog_delta(_delta([item], [], [])).operations
+        except CatalogDeltaError as exc:
+            result["rejected"].append({"index": index, "error": str(exc)})
+            continue
+        channel = source.get("channel")
+        if channel is not None and operation.key.channel != channel:
+            result["rejected"].append(
+                {"index": index, "error": f"an adapter may only propose rows on the source's channel {channel}"}
+            )
+            continue
+        result["operations"].append(copy.deepcopy(dict(item)))
+    return result
+
+
+def _source_json(source: PriceSource) -> dict[str, Any]:
+    """What an adapter learns about a source: no policy and no credentials."""
+    return {
+        "id": source.id,
+        "provider": source.provider,
+        "channel": source.channel,
+        "url": source.url,
+        "parser": source.parser,
+        "source_shape": source.source_shape,
+        "clarity": source.clarity,
+        "dimensions": list(source.dimensions),
+    }
+
+
+def _current_rows(document: Mapping[str, Any], channel: str, day: date) -> list[dict[str, Any]]:
+    """The catalog rows in effect on ``day`` on ``channel``, each labelled
+    with its model."""
+    today = day.isoformat()
+    rows = []
+    for entry in document.get("models") or []:
+        for row in entry.get("prices") or []:
+            ends = row.get("effective_to")
+            if (
+                row.get("channel") == channel
+                and str(row.get("effective_from"))[:10] <= today
+                and (ends is None or today < str(ends)[:10])
+            ):
+                labelled = {"canonical_id": entry["canonical_id"]}
+                labelled.update(copy.deepcopy(row))
+                rows.append(labelled)
+    return rows
+
+
+def read_new_source(value: str) -> tuple[str, str]:
+    if _URL.match(value):
+        raise DiscoveryError("new-source content comes from a file or stdin, never a URL")
+    if value == "-":
+        return "stdin", sys.stdin.read()
+    path = Path(value)
+    return path.name, path.read_text(errors="ignore")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG_PATH)
+    parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY_PATH)
+    parser.add_argument("--sources", help="comma-separated registry source ids (default: every source that is not low-risk)")
+    parser.add_argument("--escalations", type=Path, help="a refresh_prices.py JSON report whose escalated sources to scan")
+    parser.add_argument("--new-source", help="new-source content: a file path, or - for stdin")
+    parser.add_argument("--content-dir", type=Path, help="read <source-id>.* files here instead of fetching")
+    parser.add_argument("--llm-adapter", help="optional module:callable implementing propose(source, content, current_rows)")
+    parser.add_argument("--observed-on", type=date.fromisoformat, default=datetime.now(timezone.utc).date())
+    parser.add_argument("--json", type=Path, help="also write the report here")
+    args = parser.parse_args(argv)
+
+    try:
+        report = discover(args)
+    except (DiscoveryError, OSError, ValueError, SourceRegistryError, yaml.YAMLError) as exc:
+        print(f"discover_prices: {exc}", file=sys.stderr)
+        return 1
+    text = json.dumps(report, indent=2) + "\n"
+    print(text, end="")
+    if args.json:
+        args.json.write_text(text)
+    return 0
+
+
+def discover(args: argparse.Namespace) -> dict[str, Any]:
+    new_source = read_new_source(args.new_source) if args.new_source else None
+    adapter = load_adapter(args.llm_adapter) if args.llm_adapter else None
+    document = yaml.safe_load(args.catalog.read_text())
+    load_catalog_document(document)
+    registry = load_source_registry(args.registry)
+    allowed = registry.allowed_urls()
+    day = args.observed_on
+
+    if args.sources is None:
+        requested = {s.id for s in registry.sources if not s.low_risk.eligible}
+    else:
+        requested = {registry.get(name.strip()).id for name in args.sources.split(",") if name.strip()}
+    escalations: dict[str, list[dict]] = {}
+    if args.escalations:
+        for escalation in json.loads(args.escalations.read_text()).get("escalations") or []:
+            source_id = registry.get(str(escalation.get("source_id"))).id
+            escalations.setdefault(source_id, []).append(escalation)
+
+    fetched: dict[str, str] = {}
+    proposals = []
+    for source in registry.sources:
+        if source.id not in requested and source.id not in escalations:
+            continue
+        reasons = [] if source.low_risk.eligible else ["not_low_risk"]
+        reasons += sorted({f"escalation:{e.get('reason')}" for e in escalations.get(source.id, [])})
+        proposal: dict[str, Any] = {
+            "source_id": source.id,
+            "requires_review": True,
+            "reasons": reasons or ["requested"],
+            "escalations": escalations.get(source.id, []),
+            "evidence": None,
+            "proposed_delta": None,
+            "adapter": None,
+            "error": None,
+        }
+        proposals.append(proposal)
+        if args.content_dir is not None:
+            content = read_content(args.content_dir, source.id)
+            if content is None:
+                proposal["error"] = f"no {source.id}.* file in {args.content_dir}"
+                continue
+        else:
+            if source.url not in fetched:
+                try:
+                    fetched[source.url] = fetch_text(source.url, allowed)
+                except (OSError, ValueError) as exc:
+                    proposal["error"] = f"fetch failed: {exc}"
+                    continue
+            content = fetched[source.url]
+        evidence = discovery_evidence(source, content, document, observed_on=day)
+        proposal["evidence"] = evidence
+        if evidence["operations"]:
+            delta = _delta(
+                evidence["operations"],
+                [f"{source.id}@{day.isoformat()}"],
+                [{"source_id": source.id, "url": source.url, "fingerprint": evidence["fingerprint"]}],
+            )
+            parse_catalog_delta(delta)
+            proposal["proposed_delta"] = delta
+        if adapter is not None:
+            proposal["adapter"] = run_adapter(
+                adapter, args.llm_adapter, _source_json(source), content, _current_rows(document, source.channel, day)
+            )
+
+    new_sources = []
+    if new_source is not None:
+        label, content = new_source
+        entry: dict[str, Any] = {
+            "requires_review": True,
+            "label": label,
+            "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            "evidence": {
+                "kind": "tables",
+                "tables": [{"headers": rows[0], "rows": rows[1:]} for rows in page_tables(content) if rows],
+            },
+            "adapter": None,
+        }
+        if adapter is not None:
+            entry["adapter"] = run_adapter(adapter, args.llm_adapter, {"id": None, "label": label, "channel": None}, content, [])
+        new_sources.append(entry)
+
+    return {
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "observed_on": day.isoformat(),
+        "proposals": proposals,
+        "new_sources": new_sources,
+    }
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -405,6 +405,40 @@ def test_discovery_evidence_lists_candidates_with_prior_values_and_reasons():
     assert evidence["excerpt"] is None
 
 
+def test_discovery_evidence_proposes_operations_only_for_changed_catalog_rows():
+    source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
+    # Beyond the low-risk bound, and the catalog lacks gpt-legacy.
+    document = _with_gpt_x(**dict(GPT_X, input_per_mtok=1.0))
+    del document["models"][2]
+    evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
+    assert evidence["operations"] == [
+        {
+            "op": "replace_price",
+            "key": {"canonical_id": "example/gpt-x", "channel": "openai-api", "region": "global", "effective_from": "2026-01-01"},
+            "expect": _row(**dict(GPT_X, input_per_mtok=1.0)),
+            "price": {
+                "channel": "openai-api",
+                "region": "global",
+                "effective_from": "2026-10-20",
+                "input_per_mtok": "2",
+                "cache_read_per_mtok": "0.2",
+                "cache_write_5m_per_mtok": "2.5",
+                "output_per_mtok": "8",
+                "source_url": OPENAI_URL,
+            },
+        }
+    ]
+
+
+def test_discovery_evidence_proposes_no_operation_for_a_row_starting_that_day():
+    source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
+    document = _with_gpt_x(**dict(GPT_X, input_per_mtok=1.0))
+    document["models"][0]["prices"][0]["effective_from"] = "2026-10-20"
+    evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
+    assert evidence["operations"] == []
+    assert [c["reason"] for c in evidence["candidates"]] == ["changed"]
+
+
 def test_discovery_evidence_for_gpu_licensing_carries_no_token_candidates():
     source = parse_source_registry(
         {
