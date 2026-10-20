@@ -2911,11 +2911,6 @@ models:
         alias: fireworks:accounts/fireworks/models/deepseek-v4p1-flash
         channel: fireworks-api
         rules: {input_includes_cache_read: true}
-      - provider: vercel
-        alias: deepseek/deepseek-v4-flash-vision-exp
-        channel: vercel-ai-gateway
-        rules:
-          input_includes_cache_read: true
     prices:
       - channel: deepseek-api
         region: global
@@ -2952,25 +2947,10 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-19"
-        effective_to: "2026-10-20"
-        # Store the peak rate; this rule applies Vercel's off-peak discount.
+        # Store Vercel's 2x peak rate; this rule restores its off-peak rate.
         input_per_mtok: 0.15
         output_per_mtok: 0.60
         cache_read_per_mtok: 0.003
-        rules:
-          input_includes_cache_read: true
-          varies_by_provider: true
-          off_peak_discount:
-            multiplier: 0.5
-            peak_hours_utc: [[1, 4], [6, 10]]
-            peak_weekdays_only: true
-        source_url: https://ai-gateway.vercel.sh/v1/models
-      - channel: vercel-ai-gateway
-        region: global
-        effective_from: "2026-10-20"
-        input_per_mtok: 0.2156
-        output_per_mtok: 0.6468
-        cache_read_per_mtok: 0.0068
         rules:
           input_includes_cache_read: true
           varies_by_provider: true

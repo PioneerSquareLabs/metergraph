@@ -749,6 +749,19 @@ def _gateway_additions(
             continue
         entry = matches[0]
         canonical_id = str(entry["canonical_id"])
+        raw_names = {canonical_id.strip().lower()}
+        raw_names.update(
+            str(current.get("alias") or "").strip().lower()
+            for current in entry.get("aliases") or []
+            if isinstance(current, Mapping)
+        )
+        derived_identity = not (
+            {
+                rate.model_key.strip().lower(),
+                _catalog_gateway_identity(rate.model_key),
+            }
+            & raw_names
+        )
         alias = _gateway_alias(source, rate)
         channel_aliases = [
             current
@@ -769,6 +782,32 @@ def _gateway_additions(
             and current.get("channel") == source.channel
             for current in entry.get("aliases") or []
         )
+        active_channel_prices = [
+            row
+            for row in entry.get("prices") or []
+            if isinstance(row, Mapping)
+            and row.get("channel") == source.channel
+            and str(row.get("region") or "global") == rate.region
+            and _in_effect(row, observed_on, dated=True)
+        ]
+        candidate_rates = _rates_json(rate.rates, source.dimensions)
+        if (
+            not has_alias
+            and derived_identity
+            and active_channel_prices
+            and not any(
+                _rates_json(row, candidate_rates) == candidate_rates
+                for row in active_channel_prices
+            )
+        ):
+            identity_exclusions.append(
+                {
+                    "model_key": rate.model_key,
+                    "reason": "channel_price_conflict",
+                    "candidates": [canonical_id],
+                }
+            )
+            continue
         if not has_alias:
             operations.append(
                 {
@@ -783,13 +822,7 @@ def _gateway_additions(
                     "alias": alias,
                 }
             )
-        has_current_price = any(
-            isinstance(row, Mapping)
-            and row.get("channel") == source.channel
-            and str(row.get("region") or "global") == rate.region
-            and _in_effect(row, observed_on, dated=True)
-            for row in entry.get("prices") or []
-        )
+        has_current_price = bool(active_channel_prices)
         if not has_current_price:
             operations.append(
                 {

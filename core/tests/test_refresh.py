@@ -829,7 +829,16 @@ def test_gateway_discovery_inherits_existing_channel_alias_rules():
                     "rules": {"input_includes_cache_read": True},
                 }
             ],
-            "prices": [_row(input_per_mtok=1, output_per_mtok=4)],
+            "prices": [
+                {
+                    "channel": "vercel-ai-gateway",
+                    "region": "global",
+                    "effective_from": "2026-01-01",
+                    "input_per_mtok": 1,
+                    "output_per_mtok": 4,
+                    "source_url": "https://example.com/models",
+                }
+            ],
         }
     )
 
@@ -857,6 +866,104 @@ def test_gateway_discovery_inherits_existing_channel_alias_rules():
         if operation["op"] == "add_alias"
     )
     assert alias["rules"] == {"input_includes_cache_read": True}
+
+
+def test_gateway_discovery_rejects_a_new_alias_with_a_different_channel_price():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        {
+            "canonical_id": "deepseek/deepseek-v4.1-flash",
+            "publisher": "deepseek",
+            "aliases": [
+                {
+                    "provider": "deepseek",
+                    "alias": "deepseek-v4-flash-vision-exp",
+                    "channel": "deepseek-api",
+                },
+                {
+                    "provider": "deepseek",
+                    "alias": "deepseek/deepseek-v4.1-flash",
+                    "channel": "vercel-ai-gateway",
+                },
+            ],
+            "prices": [
+                {
+                    "channel": "vercel-ai-gateway",
+                    "region": "global",
+                    "effective_from": "2026-01-01",
+                    "input_per_mtok": 1,
+                    "output_per_mtok": 4,
+                    "source_url": "https://example.com/models",
+                }
+            ],
+        }
+    )
+    page = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "deepseek/deepseek-v4-flash-vision-exp",
+                    "owned_by": "deepseek",
+                    "type": "language",
+                    "pricing": {"input": "0.000002", "output": "0.000004"},
+                }
+            ]
+        }
+    )
+
+    evidence = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )
+
+    assert evidence["operations"] == []
+    assert evidence["identity_exclusions"] == [
+        {
+            "model_key": "deepseek/deepseek-v4-flash-vision-exp",
+            "reason": "channel_price_conflict",
+            "candidates": ["deepseek/deepseek-v4.1-flash"],
+        }
+    ]
+
+
+def test_gateway_discovery_allows_a_direct_identity_price_change():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        _model(
+            "example/model-new",
+            "example/model-new",
+            {
+                "channel": "vercel-ai-gateway",
+                "region": "global",
+                "effective_from": "2026-01-01",
+                "input_per_mtok": 0.5,
+                "output_per_mtok": 2,
+                "source_url": "https://example.com/models",
+            },
+            channel="vercel-ai-gateway",
+            provider="example",
+        )
+    )
+    page = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "example/model-new",
+                    "owned_by": "example",
+                    "type": "language",
+                    "pricing": {"input": "0.000001", "output": "0.000004"},
+                }
+            ]
+        }
+    )
+
+    operations = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+
+    assert sorted(operation["op"] for operation in operations) == [
+        "add_alias",
+        "replace_price",
+    ]
 
 
 def test_gateway_discovery_reports_near_identity_instead_of_adding_a_model():

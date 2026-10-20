@@ -60,8 +60,8 @@ def test_current_catalog_prices_more_than_one_thousand_provider_model_pairs():
         == "priced"
     }
 
-    assert len(pairs) == 1119
-    assert sum(provider == "vercel" for provider, _ in pairs) == 187
+    assert len(pairs) == 1118
+    assert sum(provider == "vercel" for provider, _ in pairs) == 186
     assert sum(provider == "openrouter" for provider, _ in pairs) == 219
 
 
