@@ -613,6 +613,30 @@ def _gateway_evidence(
     }
 
 
+_VERCEL_PRICING_FIELDS = frozenset(
+    {
+        "input",
+        "output",
+        "input_cache_read",
+        "input_cache_write",
+        "varies_by_provider",
+        "overrides",
+        "input_tiers",
+        "output_tiers",
+        "input_cache_read_tiers",
+        "input_cache_write_tiers",
+        "peak_pricing",
+        "regional",
+        "service_tiers",
+        "fast",
+        "audio_input_token_cost",
+        "image_dimension_quality_pricing",
+        "maps_search",
+        "web_search",
+    }
+)
+
+
 def _vercel_gateway_extract(content: str) -> tuple[
     tuple[ExtractedRate, ...], bool, dict[str, Any], tuple[ExtractionExclusion, ...]
 ]:
@@ -638,6 +662,11 @@ def _vercel_gateway_extract(content: str) -> tuple[
         ):
             exclusions.append(
                 ExtractionExclusion(model_id, "non_positive_token_price")
+            )
+            continue
+        if set(pricing) - _VERCEL_PRICING_FIELDS:
+            exclusions.append(
+                ExtractionExclusion(model_id, "unknown_pricing_field")
             )
             continue
         if pricing.get("overrides"):
@@ -712,6 +741,19 @@ _OPENROUTER_UNSUPPORTED_CHARGES = (
     "web_search",
 )
 
+_OPENROUTER_PRICING_FIELDS = frozenset(
+    {
+        "prompt",
+        "completion",
+        "request",
+        "input_cache_read",
+        "input_cache_write",
+        "input_cache_write_1h",
+        "overrides",
+        *_OPENROUTER_UNSUPPORTED_CHARGES,
+    }
+)
+
 
 def _openrouter_extract(content: str) -> tuple[
     tuple[ExtractedRate, ...], bool, dict[str, Any], tuple[ExtractionExclusion, ...]
@@ -750,6 +792,11 @@ def _openrouter_extract(content: str) -> tuple[
                 ExtractionExclusion(model_id, "non_positive_token_price")
             )
             continue
+        if set(pricing) - _OPENROUTER_PRICING_FIELDS:
+            exclusions.append(
+                ExtractionExclusion(model_id, "unknown_pricing_field")
+            )
+            continue
         if pricing.get("overrides"):
             exclusions.append(ExtractionExclusion(model_id, "conditional_price"))
             continue
@@ -775,6 +822,12 @@ def _openrouter_extract(content: str) -> tuple[
                 MappingProxyType({key: value for key, value in columns.items() if value is not None}),
                 _meta(
                     model_id.split("/", 1)[0],
+                    # OpenRouter reports cache reads and writes inside the
+                    # prompt total as well as in prompt_tokens_details.
+                    alias_rules={
+                        "input_includes_cache_read": True,
+                        "input_includes_cache_write": True,
+                    },
                     price_rules={"varies_by_provider": True},
                 ),
             )

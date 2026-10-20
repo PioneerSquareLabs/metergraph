@@ -587,6 +587,10 @@ def test_gateway_discovery_proposes_a_complete_new_model():
                         "provider": "openrouter",
                         "alias": "example/model-new",
                         "channel": "openrouter-api",
+                        "rules": {
+                            "input_includes_cache_read": True,
+                            "input_includes_cache_write": True,
+                        },
                     }
                 ],
                 "prices": [
@@ -747,6 +751,106 @@ def test_gateway_discovery_reports_exclusion_counts_without_raw_rows():
 
     assert evidence["exclusions"] == {"free_route": 1}
     assert "model-new:free" not in json.dumps(evidence)
+
+
+def test_gateway_discovery_maps_reviewed_publisher_prefixes():
+    source = _gateway_source()
+    document = _document(
+        _model(
+            "zai/glm-5.1",
+            "glm-5.1",
+            _row(input_per_mtok=1, output_per_mtok=4),
+        )
+    )
+    page = _openrouter_page(_openrouter_model("z-ai/glm-5.1"))
+
+    operations = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+    assert [operation["op"] for operation in operations] == [
+        "add_alias",
+        "add_price",
+    ]
+    assert {operation["key"]["canonical_id"] for operation in operations} == {
+        "zai/glm-5.1"
+    }
+
+
+def test_gateway_discovery_reports_near_identity_instead_of_adding_a_model():
+    source = _gateway_source()
+    document = _document(
+        _model(
+            "mistral/mistral-medium-3.5",
+            "mistral-medium-3.5",
+            _row(input_per_mtok=1, output_per_mtok=4),
+        )
+    )
+    page = _openrouter_page(
+        _openrouter_model("mistralai/mistral-medium-3-5")
+    )
+
+    evidence = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )
+    assert evidence["operations"] == []
+    assert evidence["identity_exclusions"] == [
+        {
+            "model_key": "mistralai/mistral-medium-3-5",
+            "reason": "ambiguous_identity",
+            "candidates": ["mistral/mistral-medium-3.5"],
+        }
+    ]
+
+
+def test_gateway_discovery_blocks_operations_on_a_fingerprint_change():
+    source = _registry(
+        _source(
+            "gateway-models",
+            "openrouter-json",
+            "openrouter-api",
+            "openrouter",
+            low_risk=False,
+            fingerprint="sha256:" + "0" * 64,
+            url="https://example.com/openrouter/models",
+        )
+    ).get("gateway-models")
+
+    evidence = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model()),
+        _document(),
+        observed_on=OBSERVED_ON,
+    )
+    assert evidence["fingerprint_matches"] is False
+    assert evidence["operations"] == []
+    assert evidence["operations_blocked_reason"] == "fingerprint_mismatch"
+
+
+def test_gateway_discovery_accepts_a_zero_rate_on_one_paid_dimension():
+    source = _gateway_source()
+    page = _openrouter_page(
+        {
+            "id": "scaledown/input-only",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0.00000004", "completion": "0"},
+        }
+    )
+    initial = discovery_evidence(
+        source, page, _document(), observed_on=OBSERVED_ON
+    )
+    delta = {
+        "schema_version": 2,
+        "kind": "pricing_delta",
+        "provenance": {"observations": ["gateway-models@2026-10-20"]},
+        "operations": initial["operations"],
+    }
+    updated = apply_catalog_delta(_document(), delta)
+
+    repeated = discovery_evidence(
+        source, page, updated, observed_on=OBSERVED_ON
+    )
+    assert repeated["operations"] == []
+    assert repeated["candidates"] == []
 
 
 def test_discovery_evidence_for_gpu_licensing_carries_no_token_candidates():

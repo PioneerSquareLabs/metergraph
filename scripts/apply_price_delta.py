@@ -88,7 +88,10 @@ def render_additive_delta(catalog_text: str, delta_document: Mapping[str, Any]) 
     unsupported = [operation.op for operation in delta.operations if operation.op not in _ADDITIVE]
     if unsupported:
         raise ApplyDeltaError("only additive operations can be rendered")
-    expected = apply_catalog_delta(document, delta_document)
+    try:
+        expected = apply_catalog_delta(document, delta_document)
+    except (CatalogDeltaError, ValueError) as exc:
+        raise ApplyDeltaError(str(exc)) from exc
     lines = catalog_text.splitlines(True)
     for operation in delta.operations:
         if operation.op == "add_model":

@@ -141,6 +141,16 @@ def test_vercel_gateway_json_extracts_paid_language_rates_and_rules():
                         "web_search": "0.01",
                     },
                 },
+                {
+                    "id": "openai/unknown-pricing-example",
+                    "type": "language",
+                    "owned_by": "openai",
+                    "pricing": {
+                        "input": "0.000001",
+                        "output": "0.000004",
+                        "future_tier": [{"min": 1}],
+                    },
+                },
             ],
         }
     )
@@ -172,6 +182,7 @@ def test_vercel_gateway_json_extracts_paid_language_rates_and_rules():
         ("openai/image-example", "not_language"),
         ("openai/search-example", "unsupported_charge"),
         ("openai/tiered-example", "conditional_price"),
+        ("openai/unknown-pricing-example", "unknown_pricing_field"),
         ("reflection/free-example", "non_positive_token_price"),
     ]
 
@@ -233,6 +244,15 @@ def test_openrouter_json_keeps_only_static_complete_token_prices():
                         "audio_output": "0.001",
                     },
                 },
+                {
+                    "id": "example/model-unknown-pricing",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {
+                        "prompt": "0.000001",
+                        "completion": "0.000004",
+                        "future_surcharge": "0.001",
+                    },
+                },
             ]
         }
     )
@@ -255,7 +275,10 @@ def test_openrouter_json_keeps_only_static_complete_token_prices():
     [rate] = [row for row in result.rates if row.model_key == "example/model-a"]
     assert dict(rate.meta) == {
         "publisher": "example",
-        "alias_rules": {},
+        "alias_rules": {
+            "input_includes_cache_read": True,
+            "input_includes_cache_write": True,
+        },
         "price_rules": {"varies_by_provider": True},
     }
     assert [(item.model_key, item.reason) for item in result.exclusions] == [
@@ -264,6 +287,7 @@ def test_openrouter_json_keeps_only_static_complete_token_prices():
         ("example/model-extra-charge", "unsupported_charge"),
         ("example/model-free:free", "free_route"),
         ("example/model-image", "non_text_output"),
+        ("example/model-unknown-pricing", "unknown_pricing_field"),
     ]
 
 

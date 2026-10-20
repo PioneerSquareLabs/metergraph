@@ -30,6 +30,20 @@ def test_prices_yaml_parses():
     assert LOADED.pricing_verified_at.isoformat() == "2026-10-20"
 
 
+def test_openrouter_cache_reads_are_not_charged_as_fresh_input():
+    result = SNAPSHOT.cost(
+        provider="openrouter",
+        model="openai/gpt-4o-mini",
+        at=_at("2026-10-20"),
+        input_tokens=1_000,
+        output_tokens=0,
+        cache_read_tokens=1_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.00007500")
+
+
 def test_current_catalog_prices_more_than_one_thousand_provider_model_pairs():
     at = _at("2026-10-20")
     pairs = {
@@ -46,9 +60,9 @@ def test_current_catalog_prices_more_than_one_thousand_provider_model_pairs():
         == "priced"
     }
 
-    assert len(pairs) == 1125
+    assert len(pairs) == 1121
     assert sum(provider == "vercel" for provider, _ in pairs) == 187
-    assert sum(provider == "openrouter" for provider, _ in pairs) == 225
+    assert sum(provider == "openrouter" for provider, _ in pairs) == 221
 
 
 def test_resolve_price_by_deployment_identity_and_channel():

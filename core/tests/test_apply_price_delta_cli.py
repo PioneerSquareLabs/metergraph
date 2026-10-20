@@ -120,3 +120,59 @@ def test_render_additive_delta_rejects_history_changes():
         assert "only additive operations" in str(exc)
     else:
         raise AssertionError("history-changing delta was accepted")
+
+
+def _conflicting_delta():
+    alias = {
+        "provider": "openai",
+        "alias": "model-a",
+        "channel": "openai-api",
+    }
+    return {
+        "schema_version": 2,
+        "kind": "pricing_delta",
+        "provenance": {"observations": ["gateway@2026-10-20"]},
+        "operations": [
+            {
+                "op": "add_alias",
+                "key": dict(alias, canonical_id="example/model-a"),
+                "expect": None,
+                "alias": alias,
+            }
+        ],
+    }
+
+
+def test_render_additive_delta_reports_a_conflict():
+    try:
+        apply_price_delta.render_additive_delta(CATALOG, _conflicting_delta())
+    except apply_price_delta.ApplyDeltaError as exc:
+        assert "alias_exists" in str(exc)
+    else:
+        raise AssertionError("conflicting delta was accepted")
+
+
+def test_cli_reports_a_conflict_without_writing_or_a_traceback(
+    tmp_path, capsys
+):
+    catalog = tmp_path / "prices.yaml"
+    delta = tmp_path / "delta.yaml"
+    output = tmp_path / "candidate.yaml"
+    catalog.write_text(CATALOG)
+    delta.write_text(yaml.safe_dump(_conflicting_delta()))
+
+    status = apply_price_delta.main(
+        [
+            "--catalog",
+            str(catalog),
+            "--delta",
+            str(delta),
+            "--out",
+            str(output),
+            "--reviewed",
+        ]
+    )
+
+    assert status == 1
+    assert "alias_exists" in capsys.readouterr().err
+    assert not output.exists()

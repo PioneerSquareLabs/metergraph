@@ -631,6 +631,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-4o-mini
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openai-api
         region: global
@@ -673,6 +676,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-4o
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openai-api
         region: global
@@ -1829,6 +1835,9 @@ models:
       - provider: openrouter
         alias: google/gemma-4-26b-a4b-it
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       # Google serves Gemma free on the direct API and lists no paid tier for
       # it. This is a priced zero, not a missing price: a call resolves to
@@ -1863,6 +1872,9 @@ models:
       - provider: openrouter
         alias: google/gemma-3-27b-it
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: aws-bedrock
         region: us-west-2
@@ -1896,6 +1908,9 @@ models:
       - provider: openrouter
         alias: nvidia/nemotron-3-super-120b-a12b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -2088,6 +2103,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: mistralai/ministral-14b-2512
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: mistral-api
         region: global
@@ -2109,6 +2130,15 @@ models:
         output_per_mtok: 0.20
         cache_read_per_mtok: 0.02
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.2'
+        output_per_mtok: '0.2'
+        cache_read_per_mtok: '0.02'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: deepseek/v3.2
     publisher: deepseek
     aliases:
@@ -2151,6 +2181,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-v3.2
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: aws-bedrock
         region: us-west-2
@@ -2293,6 +2326,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-v4-pro
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: deepseek-api
         region: global
@@ -2753,6 +2789,9 @@ models:
       - provider: openrouter
         alias: google/gemma-4-31b-it
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       # Free on the direct API, as with every Gemma variant. See the note on
       # google/gemma-4-26b-a4b-it.
@@ -2792,6 +2831,9 @@ models:
       - provider: openrouter
         alias: meta/muse-glimmer-30b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -2854,6 +2896,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-v4.1-flash
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: deepseek-api
         region: global
@@ -2964,6 +3009,9 @@ models:
       - provider: openrouter
         alias: thinkingmachines/inkling
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -3003,6 +3051,12 @@ models:
       - {provider: litellm, alias: glm-5.2, channel: zai-api}
       - {provider: litellm, alias: glm-5p2, channel: zai-api}
       - {provider: zai, alias: zai/glm-5p2, channel: zai-api}
+      - provider: openrouter
+        alias: z-ai/glm-5.2
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -3019,6 +3073,15 @@ models:
         output_per_mtok: 4.4
         cache_read_per_mtok: 0.26
         source_url: https://docs.z.ai/guides/overview/pricing
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.62'
+        output_per_mtok: '2.42'
+        cache_read_per_mtok: '0.14'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: moonshotai/kimi-k3
     publisher: moonshotai
     aliases:
@@ -3040,6 +3103,9 @@ models:
       - provider: openrouter
         alias: moonshotai/kimi-k3
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -3094,6 +3160,9 @@ models:
       - provider: openrouter
         alias: moonshotai/kimi-k2.7-code
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -3158,6 +3227,9 @@ models:
       - provider: openrouter
         alias: moonshotai/kimi-k2.5
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: aws-bedrock
         region: us-west-2
@@ -3210,6 +3282,9 @@ models:
       - provider: openrouter
         alias: minimax/minimax-m3
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -3307,6 +3382,9 @@ models:
       - provider: openrouter
         alias: fireworks/ember-1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: fireworks-api
         region: global
@@ -3346,6 +3424,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-oss-120b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: fireworks-api
         region: global
@@ -3685,6 +3766,12 @@ models:
       - {provider: bedrock, alias: global.zai.glm-5.3, channel: aws-bedrock, price_region: global}
       - {provider: bedrock, alias: us.zai.glm-5.3, channel: aws-bedrock-geo, price_region: global}
       - {provider: bedrock, alias: zai.glm-5.3, channel: aws-bedrock, price_region: global}
+      - provider: openrouter
+        alias: z-ai/glm-5.3
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -3725,6 +3812,15 @@ models:
         cache_write_5m_per_mtok: 2.31
         source_url: https://aws.amazon.com/bedrock/pricing/
 
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.079'
+        output_per_mtok: '1.4'
+        cache_read_per_mtok: '0.078'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-5.3-flash
     publisher: zai
     aliases:
@@ -3740,6 +3836,12 @@ models:
         alias: fireworks:accounts/fireworks/models/glm-5p3-flash
         channel: fireworks-api
         rules: {input_includes_cache_read: true}
+      - provider: openrouter
+        alias: z-ai/glm-5.3-flash
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       # Vercel lists this well under half the Fireworks rate. Recorded as listed;
       # if it is promotional it will need an `effective_to` when it moves.
@@ -3766,6 +3868,15 @@ models:
         cache_read_per_mtok: 0.03
         source_url: https://fireworks.ai/models/fireworks/glm-5p3-flash
 
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.048'
+        output_per_mtok: '0.12'
+        cache_read_per_mtok: '0.006'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-5.3-fast
     publisher: zai
     aliases:
@@ -3805,6 +3916,9 @@ models:
       - provider: openrouter
         alias: moonshotai/kimi-k2.6
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -3870,6 +3984,12 @@ models:
       - {provider: litellm, alias: qwen3.7-max, channel: alibaba-api}
       - {provider: unknown, alias: qwen3.7-max, channel: alibaba-api}
       - {provider: vercel, alias: alibaba/qwen3.7-max, channel: vercel-ai-gateway, rules: {input_includes_cache_read: true, input_includes_cache_write: true}, effective_from: "2026-10-02", source_url: https://ai-gateway.vercel.sh/v1/models}
+      - provider: openrouter
+        alias: qwen/qwen3.7-max
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: alibaba-api
         region: global
@@ -3887,6 +4007,16 @@ models:
         cache_read_per_mtok: 0.5
         cache_write_5m_per_mtok: 3.125
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '1.475'
+        output_per_mtok: '4.425'
+        cache_read_per_mtok: '0.295'
+        cache_write_5m_per_mtok: '1.84375'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3.7-plus
     publisher: alibaba
     aliases:
@@ -3978,6 +4108,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3.8-max-prime
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -3987,6 +4123,15 @@ models:
         cache_read_per_mtok: 0.5
         cache_write_5m_per_mtok: 5.0
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '4'
+        output_per_mtok: '12'
+        cache_read_per_mtok: '0.5'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3.8-flash
     publisher: alibaba
     aliases:
@@ -4000,6 +4145,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3.8-flash
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -4009,6 +4160,15 @@ models:
         cache_read_per_mtok: 0.016
         cache_write_5m_per_mtok: 0.20
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.15'
+        output_per_mtok: '0.47'
+        cache_read_per_mtok: '0.016'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: inception/mercury-2.5
     publisher: inception
     aliases:
@@ -4024,6 +4184,9 @@ models:
       - provider: openrouter
         alias: inception/mercury-2.5
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -4102,6 +4265,9 @@ models:
       - provider: openrouter
         alias: amazon/nova-lite-v1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -4144,6 +4310,9 @@ models:
       - provider: openrouter
         alias: amazon/nova-micro-v1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -4191,6 +4360,9 @@ models:
       - provider: openrouter
         alias: amazon/nova-pro-v1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -4528,6 +4700,9 @@ models:
       - provider: openrouter
         alias: minimax/minimax-m2.7
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: minimax-api
         region: global
@@ -4600,6 +4775,12 @@ models:
       - {provider: unknown, alias: mistral-small-2603, channel: mistral-api}
       - {provider: unknown, alias: mistral-small-4, channel: mistral-api}
       - {provider: unknown, alias: mistral-small-latest, channel: mistral-api, effective_from: "2026-03-16", source_url: https://docs.mistral.ai/resources/changelogs}
+      - provider: openrouter
+        alias: mistralai/mistral-small-2603
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: mistral-api
         region: global
@@ -4608,6 +4789,15 @@ models:
         output_per_mtok: 0.6
         cache_read_per_mtok: 0.015
         source_url: https://docs.mistral.ai/inference/pricing
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.15'
+        output_per_mtok: '0.6'
+        cache_read_per_mtok: '0.015'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: openai/gpt-5
     publisher: openai
     aliases:
@@ -4915,6 +5105,12 @@ models:
       - {provider: unknown, alias: glm-5p1, channel: zai-api}
       - {provider: zai, alias: glm-5.1, channel: zai-api}
       - {provider: zai, alias: glm-5p1, channel: zai-api}
+      - provider: openrouter
+        alias: z-ai/glm-5.1
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -4931,6 +5127,15 @@ models:
         cache_read_per_mtok: 0.26
         source_url: https://docs.z.ai/guides/overview/pricing
 
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.966'
+        output_per_mtok: '3.036'
+        cache_read_per_mtok: '0.1794'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: meta/muse-spark-open
     publisher: meta
     aliases:
@@ -4941,6 +5146,9 @@ models:
       - provider: openrouter
         alias: meta/muse-spark-open
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -4969,6 +5177,9 @@ models:
       - provider: openrouter
         alias: nvidia/nemotron-3.5-super-vl
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -5109,6 +5320,9 @@ models:
       - provider: openrouter
         alias: elorian/glimpse
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -5142,6 +5356,9 @@ models:
       - provider: openrouter
         alias: inception/mercury-3
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       # No end date is published for this 50% launch price. Close the row when
       # Inception or Vercel announces the standard rate.
@@ -5274,6 +5491,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3-coder
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -5282,6 +5505,15 @@ models:
         output_per_mtok: '1.8'
         cache_read_per_mtok: '0.022'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.3'
+        output_per_mtok: '1'
+        cache_read_per_mtok: '0.1'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3-coder-30b-a3b
     publisher: alibaba
     aliases:
@@ -5307,6 +5539,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3-coder-next
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -5314,12 +5552,27 @@ models:
         input_per_mtok: '0.5'
         output_per_mtok: '1.2'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.12'
+        output_per_mtok: '0.8'
+        cache_read_per_mtok: '0.07'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3-next-80b-a3b-instruct
     publisher: alibaba
     aliases:
       - provider: vercel
         alias: alibaba/qwen3-next-80b-a3b-instruct
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3-next-80b-a3b-instruct
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -5332,12 +5585,27 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.1'
+        output_per_mtok: '1.1'
+        cache_read_per_mtok: '0.07'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3-next-80b-a3b-thinking
     publisher: alibaba
     aliases:
       - provider: vercel
         alias: alibaba/qwen3-next-80b-a3b-thinking
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3-next-80b-a3b-thinking
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -5348,6 +5616,14 @@ models:
         input_per_mtok: '0.15'
         output_per_mtok: '1.2'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.15'
+        output_per_mtok: '1.2'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3-vl-instruct
     publisher: alibaba
     aliases:
@@ -5392,6 +5668,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3.6-27b
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -5399,12 +5681,27 @@ models:
         input_per_mtok: '0.6'
         output_per_mtok: '3.6'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.25'
+        output_per_mtok: '2'
+        cache_read_per_mtok: '0.025'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3.8-2.4t-a95b
     publisher: alibaba
     aliases:
       - provider: vercel
         alias: alibaba/qwen3.8-2.4t-a95b
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3.8-2.4t-a95b
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -5418,12 +5715,27 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '2'
+        output_per_mtok: '6'
+        cache_read_per_mtok: '0.25'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3.8-27b
     publisher: alibaba
     aliases:
       - provider: vercel
         alias: alibaba/qwen3.8-27b
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3.8-27b
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -5438,12 +5750,27 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.04'
+        output_per_mtok: '1.35'
+        cache_read_per_mtok: '0.018'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3.8-max-0902
     publisher: alibaba
     aliases:
       - provider: vercel
         alias: alibaba/qwen3.8-max-0902
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3.8-max-0902
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -5456,12 +5783,27 @@ models:
         cache_read_per_mtok: '0.25'
         cache_write_5m_per_mtok: '2.5'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '2'
+        output_per_mtok: '6'
+        cache_read_per_mtok: '0.25'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: alibaba/qwen3.8-omni-flash
     publisher: alibaba
     aliases:
       - provider: vercel
         alias: alibaba/qwen3.8-omni-flash
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: qwen/qwen3.8-omni-flash
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -5473,6 +5815,15 @@ models:
         output_per_mtok: '0.47'
         cache_read_per_mtok: '0.016'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.15'
+        output_per_mtok: '0.47'
+        cache_read_per_mtok: '0.016'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: anthropic/claude-fable-5-batch
     publisher: anthropic
     aliases:
@@ -5701,6 +6052,9 @@ models:
       - provider: openrouter
         alias: arcee-ai/trinity-large-thinking
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -5763,6 +6117,9 @@ models:
       - provider: openrouter
         alias: cohere/command-a
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -5845,6 +6202,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-v4-flash-vision-exp
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -5995,6 +6355,9 @@ models:
       - provider: openrouter
         alias: inception/mercury-2
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6040,6 +6403,9 @@ models:
       - provider: openrouter
         alias: inclusionai/ling-3.0-flash
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6105,6 +6471,9 @@ models:
       - provider: openrouter
         alias: inclusionai/ling-3.0-flash-vl
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6134,6 +6503,9 @@ models:
       - provider: openrouter
         alias: inclusionai/ling-3.1-flash
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6163,6 +6535,9 @@ models:
       - provider: openrouter
         alias: inference-net/schematron-v2-small
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6192,6 +6567,9 @@ models:
       - provider: openrouter
         alias: inference-net/schematron-v2-turbo
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6372,6 +6750,9 @@ models:
       - provider: openrouter
         alias: minimax/minimax-m2
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6401,6 +6782,9 @@ models:
       - provider: openrouter
         alias: minimax/minimax-m2.1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6535,6 +6919,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: mistralai/mistral-nemo
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6542,6 +6932,14 @@ models:
         input_per_mtok: '0.029'
         output_per_mtok: '0.03'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.029'
+        output_per_mtok: '0.03'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: mistral/mistral-small
     publisher: mistral
     aliases:
@@ -6588,6 +6986,9 @@ models:
       - provider: openrouter
         alias: moonshotai/kimi-k2
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6632,6 +7033,9 @@ models:
       - provider: openrouter
         alias: morph/morph-v3-fast
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6659,6 +7063,9 @@ models:
       - provider: openrouter
         alias: morph/morph-v3-large
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6686,6 +7093,9 @@ models:
       - provider: openrouter
         alias: nvidia/nemotron-3-nano-30b-a3b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6714,6 +7124,9 @@ models:
       - provider: openrouter
         alias: nvidia/nemotron-3.5-lightning
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6777,6 +7190,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-3.5-turbo
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -6804,6 +7220,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-4-turbo
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7034,6 +7453,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-oss-20b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7080,6 +7502,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-oss-safeguard-20b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7144,6 +7569,9 @@ models:
       - provider: openrouter
         alias: poolside/laguna-s-2.1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7231,6 +7659,38 @@ models:
         output_per_mtok: '4'
         cache_read_per_mtok: '0.15'
         source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: scaledown/scaledown-extract-1
+    publisher: scaledown
+    aliases:
+      - provider: vercel
+        alias: scaledown/scaledown-extract-1
+        channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.05'
+        output_per_mtok: '0'
+        source_url: https://ai-gateway.vercel.sh/v1/models
+  - canonical_id: scaledown/scaledown-summarize-1
+    publisher: scaledown
+    aliases:
+      - provider: vercel
+        alias: scaledown/scaledown-summarize-1
+        channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+    prices:
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.05'
+        output_per_mtok: '0'
+        source_url: https://ai-gateway.vercel.sh/v1/models
   - canonical_id: stepfun/step-3.7-flash
     publisher: stepfun
     aliases:
@@ -7243,6 +7703,9 @@ models:
       - provider: openrouter
         alias: stepfun/step-3.7-flash
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7272,6 +7735,9 @@ models:
       - provider: openrouter
         alias: stepfun/step-5-preview
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7387,6 +7853,9 @@ models:
       - provider: openrouter
         alias: thinkingmachines/inkling-small
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7418,6 +7887,9 @@ models:
       - provider: openrouter
         alias: xiaomi/mimo-v2.5
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7449,6 +7921,9 @@ models:
       - provider: openrouter
         alias: xiaomi/mimo-v2.5-pro
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7478,6 +7953,9 @@ models:
       - provider: openrouter
         alias: xiaomi/mimo-v2.6-flash
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7509,6 +7987,9 @@ models:
       - provider: openrouter
         alias: xiaomi/mimo-v2.6-pro
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7540,6 +8021,9 @@ models:
       - provider: openrouter
         alias: xiaomi/mimo-v2.6-pro-ultraspeed
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7566,6 +8050,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-4.5
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7574,12 +8064,27 @@ models:
         output_per_mtok: '2.2'
         cache_read_per_mtok: '0.11'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.6'
+        output_per_mtok: '2.2'
+        cache_read_per_mtok: '0.11'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-4.5-air
     publisher: zai
     aliases:
       - provider: vercel
         alias: zai/glm-4.5-air
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-4.5-air
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -7591,12 +8096,27 @@ models:
         output_per_mtok: '1.1'
         cache_read_per_mtok: '0.03'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.13'
+        output_per_mtok: '0.85'
+        cache_read_per_mtok: '0.025'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-4.5v
     publisher: zai
     aliases:
       - provider: vercel
         alias: zai/glm-4.5v
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-4.5v
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -7608,12 +8128,27 @@ models:
         output_per_mtok: '1.8'
         cache_read_per_mtok: '0.11'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.6'
+        output_per_mtok: '1.8'
+        cache_read_per_mtok: '0.11'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-4.6
     publisher: zai
     aliases:
       - provider: vercel
         alias: zai/glm-4.6
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-4.6
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -7627,12 +8162,27 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.55'
+        output_per_mtok: '2.2'
+        cache_read_per_mtok: '0.11'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-4.7
     publisher: zai
     aliases:
       - provider: vercel
         alias: zai/glm-4.7
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-4.7
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -7645,12 +8195,27 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.54'
+        output_per_mtok: '1.98'
+        cache_read_per_mtok: '0.099'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-4.7-flash
     publisher: zai
     aliases:
       - provider: vercel
         alias: zai/glm-4.7-flash
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-4.7-flash
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -7661,6 +8226,14 @@ models:
         input_per_mtok: '0.07'
         output_per_mtok: '0.4'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.0605'
+        output_per_mtok: '0.4'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-4.7-flashx
     publisher: zai
     aliases:
@@ -7687,6 +8260,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-5
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: vercel-ai-gateway
         region: global
@@ -7694,12 +8273,27 @@ models:
         input_per_mtok: '1'
         output_per_mtok: '3.2'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '1'
+        output_per_mtok: '3.2'
+        cache_read_per_mtok: '0.2'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-5-turbo
     publisher: zai
     aliases:
       - provider: vercel
         alias: zai/glm-5-turbo
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-5-turbo
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -7711,12 +8305,27 @@ models:
         output_per_mtok: '4'
         cache_read_per_mtok: '0.24'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '1.2'
+        output_per_mtok: '4'
+        cache_read_per_mtok: '0.24'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-5.3-flashx
     publisher: zai
     aliases:
       - provider: vercel
         alias: zai/glm-5.3-flashx
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-5.3-flashx
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -7728,12 +8337,27 @@ models:
         output_per_mtok: '1.25'
         cache_read_per_mtok: '0.075'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.37'
+        output_per_mtok: '1.25'
+        cache_read_per_mtok: '0.09'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: zai/glm-5v-turbo
     publisher: zai
     aliases:
       - provider: vercel
         alias: zai/glm-5v-turbo
         channel: vercel-ai-gateway
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: z-ai/glm-5v-turbo
+        channel: openrouter-api
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
@@ -7745,12 +8369,24 @@ models:
         output_per_mtok: '4'
         cache_read_per_mtok: '0.24'
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '1.2'
+        output_per_mtok: '4'
+        cache_read_per_mtok: '0.24'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: aion-labs/aion-2.0
     publisher: aion-labs
     aliases:
       - provider: openrouter
         alias: aion-labs/aion-2.0
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7767,6 +8403,9 @@ models:
       - provider: openrouter
         alias: aion-labs/aion-3.0
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7783,6 +8422,9 @@ models:
       - provider: openrouter
         alias: aion-labs/aion-3.0-mini
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7799,6 +8441,9 @@ models:
       - provider: openrouter
         alias: aion-labs/aion-3.5
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7815,6 +8460,9 @@ models:
       - provider: openrouter
         alias: aion-labs/aion-3.5-mini
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7831,6 +8479,9 @@ models:
       - provider: openrouter
         alias: aion-labs/aion-rp-llama-3.1-8b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7846,6 +8497,9 @@ models:
       - provider: openrouter
         alias: amazon/nova-2-lite-v1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7861,6 +8515,9 @@ models:
       - provider: openrouter
         alias: amazon/nova-premier-v1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7877,6 +8534,9 @@ models:
       - provider: openrouter
         alias: anthracite-org/magnum-v4-72b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7892,6 +8552,9 @@ models:
       - provider: openrouter
         alias: bytedance-seed/seed-2-1-turbo
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7907,6 +8570,9 @@ models:
       - provider: openrouter
         alias: bytedance/ui-tars-1.5-7b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7923,6 +8589,9 @@ models:
       - provider: openrouter
         alias: cognitivecomputations/dolphin-mistral-24b-venice-edition
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7938,6 +8607,9 @@ models:
       - provider: openrouter
         alias: cohere/command-a-plus
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7954,6 +8626,9 @@ models:
       - provider: openrouter
         alias: cohere/command-r-08-2024
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7969,6 +8644,9 @@ models:
       - provider: openrouter
         alias: cohere/command-r-plus-08-2024
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7984,6 +8662,9 @@ models:
       - provider: openrouter
         alias: cohere/command-r7b-12-2024
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -7999,6 +8680,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-chat-v3-0324
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8015,6 +8699,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-chat-v3.1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8031,6 +8718,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-r1-0528
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8047,6 +8737,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-v3.1-terminus
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8062,6 +8755,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-v3.2-exp
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8077,6 +8773,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-v4-flash-0731
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8093,6 +8792,9 @@ models:
       - provider: openrouter
         alias: deepseek/deepseek-v4-pro-0813
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8109,6 +8811,9 @@ models:
       - provider: openrouter
         alias: google/gemma-2-27b-it
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8124,6 +8829,9 @@ models:
       - provider: openrouter
         alias: google/gemma-3-12b-it
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8139,6 +8847,9 @@ models:
       - provider: openrouter
         alias: google/gemma-3-4b-it
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8155,6 +8866,9 @@ models:
       - provider: openrouter
         alias: gryphe/mythomax-l2-13b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8170,6 +8884,9 @@ models:
       - provider: openrouter
         alias: ibm-granite/granite-4.0-h-micro
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8185,6 +8902,9 @@ models:
       - provider: openrouter
         alias: ibm-granite/granite-4.2-8b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8195,28 +8915,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: liquid/lfm-2.5-24b-a2b
-    publisher: liquid
-    aliases:
-      - provider: openrouter
-        alias: liquid/lfm-2.5-24b-a2b
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.7'
-        cache_read_per_mtok: '0.025'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: mancer/weaver
     publisher: mancer
     aliases:
       - provider: openrouter
         alias: mancer/weaver
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8232,6 +8939,9 @@ models:
       - provider: openrouter
         alias: meituan/longcat-2.0
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8248,6 +8958,9 @@ models:
       - provider: openrouter
         alias: meta-llama/llama-3.1-70b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8263,6 +8976,9 @@ models:
       - provider: openrouter
         alias: meta-llama/llama-3.1-8b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8279,6 +8995,9 @@ models:
       - provider: openrouter
         alias: meta-llama/llama-3.2-1b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8294,6 +9013,9 @@ models:
       - provider: openrouter
         alias: meta-llama/llama-3.2-3b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8309,6 +9031,9 @@ models:
       - provider: openrouter
         alias: meta-llama/llama-3.3-70b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8324,6 +9049,9 @@ models:
       - provider: openrouter
         alias: meta-llama/llama-4-maverick
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8340,6 +9068,9 @@ models:
       - provider: openrouter
         alias: meta-llama/llama-4-scout
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8355,6 +9086,9 @@ models:
       - provider: openrouter
         alias: meta-llama/llama-guard-4-12b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8370,6 +9104,9 @@ models:
       - provider: openrouter
         alias: microsoft/phi-4
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8385,6 +9122,9 @@ models:
       - provider: openrouter
         alias: minimax/minimax-01
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8400,6 +9140,9 @@ models:
       - provider: openrouter
         alias: minimax/minimax-m1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8415,6 +9158,9 @@ models:
       - provider: openrouter
         alias: minimax/minimax-m2-her
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8431,6 +9177,9 @@ models:
       - provider: openrouter
         alias: minimax/minimax-m2.5
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8441,12 +9190,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/codestral-2508
-    publisher: mistralai
+  - canonical_id: mistral/codestral-2508
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/codestral-2508
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8457,12 +9209,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/devstral-2512
-    publisher: mistralai
+  - canonical_id: mistral/devstral-2512
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/devstral-2512
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8473,28 +9228,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/ministral-14b-2512
-    publisher: mistralai
-    aliases:
-      - provider: openrouter
-        alias: mistralai/ministral-14b-2512
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.02'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/ministral-3b-2512
-    publisher: mistralai
+  - canonical_id: mistral/ministral-3b-2512
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/ministral-3b-2512
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8505,12 +9247,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/ministral-8b-2512
-    publisher: mistralai
+  - canonical_id: mistral/ministral-8b-2512
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/ministral-8b-2512
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8521,12 +9266,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-large
-    publisher: mistralai
+  - canonical_id: mistral/mistral-large
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-large
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8537,12 +9285,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-large-2407
-    publisher: mistralai
+  - canonical_id: mistral/mistral-large-2407
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-large-2407
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8553,12 +9304,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-large-2512
-    publisher: mistralai
+  - canonical_id: mistral/mistral-large-2512
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-large-2512
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8569,12 +9323,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-large-4-0
-    publisher: mistralai
+  - canonical_id: mistral/mistral-large-4-0
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-large-4-0
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8585,12 +9342,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-medium-3
-    publisher: mistralai
+  - canonical_id: mistral/mistral-medium-3
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-medium-3
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8601,27 +9361,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-medium-3-5
-    publisher: mistralai
-    aliases:
-      - provider: openrouter
-        alias: mistralai/mistral-medium-3-5
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.5'
-        output_per_mtok: '7.5'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-medium-3.1
-    publisher: mistralai
+  - canonical_id: mistral/mistral-medium-3.1
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-medium-3.1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8632,27 +9380,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-nemo
-    publisher: mistralai
-    aliases:
-      - provider: openrouter
-        alias: mistralai/mistral-nemo
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.029'
-        output_per_mtok: '0.03'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-saba
-    publisher: mistralai
+  - canonical_id: mistral/mistral-saba
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-saba
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8663,12 +9399,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-small-24b-instruct-2501
-    publisher: mistralai
+  - canonical_id: mistral/mistral-small-24b-instruct-2501
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-small-24b-instruct-2501
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8678,28 +9417,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-small-2603
-    publisher: mistralai
-    aliases:
-      - provider: openrouter
-        alias: mistralai/mistral-small-2603
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.015'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-small-3.1-24b-instruct
-    publisher: mistralai
+  - canonical_id: mistral/mistral-small-3.1-24b-instruct
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-small-3.1-24b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8709,12 +9435,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mistral-small-3.2-24b-instruct
-    publisher: mistralai
+  - canonical_id: mistral/mistral-small-3.2-24b-instruct
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mistral-small-3.2-24b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8724,12 +9453,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: mistralai/mixtral-8x22b-instruct
-    publisher: mistralai
+  - canonical_id: mistral/mixtral-8x22b-instruct
+    publisher: mistral
     aliases:
       - provider: openrouter
         alias: mistralai/mixtral-8x22b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8746,6 +9478,9 @@ models:
       - provider: openrouter
         alias: moondream/moondream3-preview
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8761,6 +9496,9 @@ models:
       - provider: openrouter
         alias: moondream/moondream3.1-9b-a2b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8776,6 +9514,9 @@ models:
       - provider: openrouter
         alias: moonshotai/kimi-k2-0905
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8791,6 +9532,9 @@ models:
       - provider: openrouter
         alias: moonshotai/kimi-k2-thinking
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8807,6 +9551,9 @@ models:
       - provider: openrouter
         alias: nex-agi/nex-n2.5-mini
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8823,6 +9570,9 @@ models:
       - provider: openrouter
         alias: nex-agi/nex-n2.5-pro
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8839,6 +9589,9 @@ models:
       - provider: openrouter
         alias: nousresearch/hermes-3-llama-3.1-405b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8854,6 +9607,9 @@ models:
       - provider: openrouter
         alias: nousresearch/hermes-3-llama-3.1-70b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8869,6 +9625,9 @@ models:
       - provider: openrouter
         alias: nousresearch/hermes-4-405b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8884,6 +9643,9 @@ models:
       - provider: openrouter
         alias: nvidia/nemotron-3-ultra-550b-a55b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8900,6 +9662,9 @@ models:
       - provider: openrouter
         alias: nvidia/nemotron-3.5-content-safety
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8915,6 +9680,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-3.5-turbo-0613
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8930,6 +9698,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-3.5-turbo-16k
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8945,6 +9716,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-3.5-turbo-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8960,6 +9734,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-4
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8975,6 +9752,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-4o-2024-05-13
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -8990,6 +9770,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-4o-2024-08-06
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9006,6 +9789,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-4o-2024-11-20
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9022,6 +9808,9 @@ models:
       - provider: openrouter
         alias: openai/gpt-4o-mini-2024-07-18
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9038,6 +9827,9 @@ models:
       - provider: openrouter
         alias: perceptron/perceptron-mk1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9053,6 +9845,9 @@ models:
       - provider: openrouter
         alias: perceptron/perceptron-mk1.5
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9068,6 +9863,9 @@ models:
       - provider: openrouter
         alias: poolside/laguna-xs-2.1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9084,6 +9882,9 @@ models:
       - provider: openrouter
         alias: prism-ml/ternary-bonsai-2-27b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9094,12 +9895,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen-2.5-72b-instruct
-    publisher: qwen
+  - canonical_id: alibaba/qwen-2.5-72b-instruct
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen-2.5-72b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9109,12 +9913,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen-2.5-7b-instruct
-    publisher: qwen
+  - canonical_id: alibaba/qwen-2.5-7b-instruct
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen-2.5-7b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9124,12 +9931,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen-2.5-coder-32b-instruct
-    publisher: qwen
+  - canonical_id: alibaba/qwen-2.5-coder-32b-instruct
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen-2.5-coder-32b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9139,12 +9949,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen2.5-vl-72b-instruct
-    publisher: qwen
+  - canonical_id: alibaba/qwen2.5-vl-72b-instruct
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen2.5-vl-72b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9155,27 +9968,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-14b
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3-14b
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.12'
-        output_per_mtok: '0.24'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-235b-a22b-2507
-    publisher: qwen
+  - canonical_id: alibaba/qwen3-235b-a22b-2507
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3-235b-a22b-2507
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9185,12 +9986,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-235b-a22b-thinking-2507
-    publisher: qwen
+  - canonical_id: alibaba/qwen3-235b-a22b-thinking-2507
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3-235b-a22b-thinking-2507
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9200,12 +10004,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-30b-a3b
-    publisher: qwen
+  - canonical_id: alibaba/qwen3-30b-a3b
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3-30b-a3b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9215,12 +10022,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-30b-a3b-instruct-2507
-    publisher: qwen
+  - canonical_id: alibaba/qwen3-30b-a3b-instruct-2507
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3-30b-a3b-instruct-2507
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9230,43 +10040,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-32b
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3-32b
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.08'
-        output_per_mtok: '0.28'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-coder
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3-coder
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1'
-        cache_read_per_mtok: '0.1'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-coder-30b-a3b-instruct
-    publisher: qwen
+  - canonical_id: alibaba/qwen3-coder-30b-a3b-instruct
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3-coder-30b-a3b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9276,59 +10058,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-coder-next
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3-coder-next
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.12'
-        output_per_mtok: '0.8'
-        cache_read_per_mtok: '0.07'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-next-80b-a3b-instruct
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3-next-80b-a3b-instruct
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '1.1'
-        cache_read_per_mtok: '0.07'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-next-80b-a3b-thinking
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3-next-80b-a3b-thinking
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '1.2'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-vl-235b-a22b-instruct
-    publisher: qwen
+  - canonical_id: alibaba/qwen3-vl-235b-a22b-instruct
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3-vl-235b-a22b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9339,12 +10077,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-vl-30b-a3b-instruct
-    publisher: qwen
+  - canonical_id: alibaba/qwen3-vl-30b-a3b-instruct
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3-vl-30b-a3b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9354,12 +10095,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-vl-30b-a3b-thinking
-    publisher: qwen
+  - canonical_id: alibaba/qwen3-vl-30b-a3b-thinking
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3-vl-30b-a3b-thinking
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9369,12 +10113,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3-vl-8b-instruct
-    publisher: qwen
+  - canonical_id: alibaba/qwen3-vl-8b-instruct
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3-vl-8b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9385,12 +10132,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.5-122b-a10b
-    publisher: qwen
+  - canonical_id: alibaba/qwen3.5-122b-a10b
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3.5-122b-a10b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9400,12 +10150,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.5-27b
-    publisher: qwen
+  - canonical_id: alibaba/qwen3.5-27b
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3.5-27b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9416,12 +10169,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.5-35b-a3b
-    publisher: qwen
+  - canonical_id: alibaba/qwen3.5-35b-a3b
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3.5-35b-a3b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9432,12 +10188,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.5-397b-a17b
-    publisher: qwen
+  - canonical_id: alibaba/qwen3.5-397b-a17b
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3.5-397b-a17b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9447,12 +10206,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.5-9b
-    publisher: qwen
+  - canonical_id: alibaba/qwen3.5-9b
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3.5-9b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9462,12 +10224,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.5-flash-02-23
-    publisher: qwen
+  - canonical_id: alibaba/qwen3.5-flash-02-23
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3.5-flash-02-23
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9477,28 +10242,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.6-27b
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3.6-27b
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '2'
-        cache_read_per_mtok: '0.025'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.6-35b-a3b
-    publisher: qwen
+  - canonical_id: alibaba/qwen3.6-35b-a3b
+    publisher: alibaba
     aliases:
       - provider: openrouter
         alias: qwen/qwen3.6-35b-a3b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9509,125 +10261,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.7-max
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3.7-max
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.475'
-        output_per_mtok: '4.425'
-        cache_read_per_mtok: '0.295'
-        cache_write_5m_per_mtok: '1.84375'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.8-2.4t-a95b
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3.8-2.4t-a95b
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.25'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.8-27b
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3.8-27b
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.04'
-        output_per_mtok: '1.35'
-        cache_read_per_mtok: '0.018'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.8-flash
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3.8-flash
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.47'
-        cache_read_per_mtok: '0.016'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.8-max-0902
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3.8-max-0902
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.25'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.8-max-prime
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3.8-max-prime
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '4'
-        output_per_mtok: '12'
-        cache_read_per_mtok: '0.5'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: qwen/qwen3.8-omni-flash
-    publisher: qwen
-    aliases:
-      - provider: openrouter
-        alias: qwen/qwen3.8-omni-flash
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.47'
-        cache_read_per_mtok: '0.016'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: reflection/beam-1.0-501b-a23b
     publisher: reflection
     aliases:
       - provider: openrouter
         alias: reflection/beam-1.0-501b-a23b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9644,6 +10286,9 @@ models:
       - provider: openrouter
         alias: rekaai/reka-edge
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9659,6 +10304,9 @@ models:
       - provider: openrouter
         alias: rekaai/reka-flash-3
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9674,6 +10322,9 @@ models:
       - provider: openrouter
         alias: relace/relace-apply-3
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9689,6 +10340,9 @@ models:
       - provider: openrouter
         alias: relace/relace-search
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9704,6 +10358,9 @@ models:
       - provider: openrouter
         alias: sao10k/l3-lunaris-8b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9719,6 +10376,9 @@ models:
       - provider: openrouter
         alias: sao10k/l3.1-euryale-70b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9728,12 +10388,51 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+  - canonical_id: scaledown/extract
+    publisher: scaledown
+    aliases:
+      - provider: openrouter
+        alias: scaledown/extract
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+    prices:
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.04'
+        output_per_mtok: '0'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
+  - canonical_id: scaledown/summarize
+    publisher: scaledown
+    aliases:
+      - provider: openrouter
+        alias: scaledown/summarize
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+    prices:
+      - channel: openrouter-api
+        region: global
+        effective_from: '2026-10-20'
+        input_per_mtok: '0.04'
+        output_per_mtok: '0'
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: stepfun/step-3.5-flash
     publisher: stepfun
     aliases:
       - provider: openrouter
         alias: stepfun/step-3.5-flash
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9749,6 +10448,9 @@ models:
       - provider: openrouter
         alias: tencent/hunyuan-a13b-instruct
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9764,6 +10466,9 @@ models:
       - provider: openrouter
         alias: tencent/hy-mt2-1.8b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9779,6 +10484,9 @@ models:
       - provider: openrouter
         alias: tencent/hy-mt2-30b-a3b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9794,6 +10502,9 @@ models:
       - provider: openrouter
         alias: tencent/hy-mt2-7b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9809,6 +10520,9 @@ models:
       - provider: openrouter
         alias: tencent/hy3-preview
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9825,6 +10539,9 @@ models:
       - provider: openrouter
         alias: thedrummer/cydonia-24b-v4.1
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9841,6 +10558,9 @@ models:
       - provider: openrouter
         alias: thedrummer/skyfall-36b-v2
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9857,6 +10577,9 @@ models:
       - provider: openrouter
         alias: thedrummer/unslopnemo-12b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9872,6 +10595,9 @@ models:
       - provider: openrouter
         alias: unbiased/pareto-26.10
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9888,6 +10614,9 @@ models:
       - provider: openrouter
         alias: unbiased/pareto-26.9
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9904,6 +10633,9 @@ models:
       - provider: openrouter
         alias: undi95/remm-slerp-l2-13b
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9919,6 +10651,9 @@ models:
       - provider: openrouter
         alias: upstage/solar-mini4
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9935,6 +10670,9 @@ models:
       - provider: openrouter
         alias: upstage/solar-pro-3
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9951,6 +10689,9 @@ models:
       - provider: openrouter
         alias: upstage/solar-pro4
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9967,6 +10708,9 @@ models:
       - provider: openrouter
         alias: writer/palmyra-x5
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -9976,76 +10720,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-4.5
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-4.5
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.2'
-        cache_read_per_mtok: '0.11'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-4.5-air
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-4.5-air
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.13'
-        output_per_mtok: '0.85'
-        cache_read_per_mtok: '0.025'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-4.5v
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-4.5v
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '1.8'
-        cache_read_per_mtok: '0.11'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-4.6
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-4.6
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.55'
-        output_per_mtok: '2.2'
-        cache_read_per_mtok: '0.11'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-4.6v
-    publisher: z-ai
+  - canonical_id: zai/glm-4.6v
+    publisher: zai
     aliases:
       - provider: openrouter
         alias: z-ai/glm-4.6v
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -10056,155 +10739,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-4.7
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-4.7
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.54'
-        output_per_mtok: '1.98'
-        cache_read_per_mtok: '0.099'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-4.7-flash
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-4.7-flash
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.0605'
-        output_per_mtok: '0.4'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-5
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-5
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '3.2'
-        cache_read_per_mtok: '0.2'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-5-turbo
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-5-turbo
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.2'
-        output_per_mtok: '4'
-        cache_read_per_mtok: '0.24'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-5.1
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-5.1
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.966'
-        output_per_mtok: '3.036'
-        cache_read_per_mtok: '0.1794'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-5.2
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-5.2
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.62'
-        output_per_mtok: '2.42'
-        cache_read_per_mtok: '0.14'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-5.3
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-5.3
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.079'
-        output_per_mtok: '1.4'
-        cache_read_per_mtok: '0.078'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-5.3-flash
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-5.3-flash
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.048'
-        output_per_mtok: '0.12'
-        cache_read_per_mtok: '0.006'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-5.3-flashx
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-5.3-flashx
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.37'
-        output_per_mtok: '1.25'
-        cache_read_per_mtok: '0.09'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-5.3-prime
-    publisher: z-ai
+  - canonical_id: zai/glm-5.3-prime
+    publisher: zai
     aliases:
       - provider: openrouter
         alias: z-ai/glm-5.3-prime
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -10215,28 +10758,15 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: z-ai/glm-5v-turbo
-    publisher: z-ai
-    aliases:
-      - provider: openrouter
-        alias: z-ai/glm-5v-turbo
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.2'
-        output_per_mtok: '4'
-        cache_read_per_mtok: '0.24'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: ~deepseek/deepseek-flash-latest
     publisher: ~deepseek
     aliases:
       - provider: openrouter
         alias: ~deepseek/deepseek-flash-latest
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -10253,6 +10783,9 @@ models:
       - provider: openrouter
         alias: ~deepseek/deepseek-pro-latest
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -10269,6 +10802,9 @@ models:
       - provider: openrouter
         alias: ~deepseek/deepseek-v4-flash-latest
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -10285,6 +10821,9 @@ models:
       - provider: openrouter
         alias: ~moonshotai/kimi-latest
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -10301,6 +10840,9 @@ models:
       - provider: openrouter
         alias: ~unbiased/pareto-latest
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -10317,6 +10859,9 @@ models:
       - provider: openrouter
         alias: ~z-ai/glm-flash-latest
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -10333,6 +10878,9 @@ models:
       - provider: openrouter
         alias: ~z-ai/glm-latest
         channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openrouter-api
         region: global
@@ -10340,68 +10888,6 @@ models:
         input_per_mtok: '0.079'
         output_per_mtok: '1.4'
         cache_read_per_mtok: '0.078'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: scaledown/scaledown-extract-1
-    publisher: scaledown
-    aliases:
-      - provider: vercel
-        alias: scaledown/scaledown-extract-1
-        channel: vercel-ai-gateway
-        rules:
-          input_includes_cache_read: true
-          input_includes_cache_write: true
-    prices:
-      - channel: vercel-ai-gateway
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0'
-        source_url: https://ai-gateway.vercel.sh/v1/models
-  - canonical_id: scaledown/scaledown-summarize-1
-    publisher: scaledown
-    aliases:
-      - provider: vercel
-        alias: scaledown/scaledown-summarize-1
-        channel: vercel-ai-gateway
-        rules:
-          input_includes_cache_read: true
-          input_includes_cache_write: true
-    prices:
-      - channel: vercel-ai-gateway
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0'
-        source_url: https://ai-gateway.vercel.sh/v1/models
-  - canonical_id: scaledown/extract
-    publisher: scaledown
-    aliases:
-      - provider: openrouter
-        alias: scaledown/extract
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.04'
-        output_per_mtok: '0'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: scaledown/summarize
-    publisher: scaledown
-    aliases:
-      - provider: openrouter
-        alias: scaledown/summarize
-        channel: openrouter-api
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.04'
-        output_per_mtok: '0'
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models

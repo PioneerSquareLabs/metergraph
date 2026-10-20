@@ -617,10 +617,32 @@ def _gateway_price(
     return price
 
 
+_GATEWAY_PUBLISHER_PREFIXES = {
+    "mistralai": "mistral",
+    "qwen": "alibaba",
+    "z-ai": "zai",
+}
+
+
+def _catalog_gateway_identity(model_key: str) -> str:
+    prefix, separator, suffix = model_key.strip().lower().partition("/")
+    if not separator:
+        return model_key.strip().lower()
+    return f"{_GATEWAY_PUBLISHER_PREFIXES.get(prefix, prefix)}/{suffix}"
+
+
+def _identity_shape(model_key: str) -> tuple[str, str]:
+    prefix, _, suffix = _catalog_gateway_identity(model_key).partition("/")
+    return prefix, "".join(character for character in suffix if character.isalnum())
+
+
 def _exact_models(
     document: Mapping[str, Any], model_key: str
 ) -> list[Mapping[str, Any]]:
-    wanted = model_key.strip().lower()
+    wanted = {
+        model_key.strip().lower(),
+        _catalog_gateway_identity(model_key),
+    }
     found: list[Mapping[str, Any]] = []
     for entry in document.get("models") or []:
         if not isinstance(entry, Mapping):
@@ -631,9 +653,21 @@ def _exact_models(
             for alias in entry.get("aliases") or []
             if isinstance(alias, Mapping)
         )
-        if wanted in names:
+        if wanted & names:
             found.append(entry)
     return found
+
+
+def _near_models(
+    document: Mapping[str, Any], model_key: str
+) -> list[Mapping[str, Any]]:
+    wanted = _identity_shape(model_key)
+    return [
+        entry
+        for entry in document.get("models") or []
+        if isinstance(entry, Mapping)
+        and _identity_shape(str(entry.get("canonical_id") or "")) == wanted
+    ]
 
 
 def _gateway_additions(
@@ -641,13 +675,30 @@ def _gateway_additions(
     extraction: Extraction,
     document: Mapping[str, Any],
     observed_on: date,
-) -> list[dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Reviewed additive operations for exact gateway model identities."""
     operations: list[dict[str, Any]] = []
+    identity_exclusions: list[dict[str, Any]] = []
     for rate in extraction.rates:
         matches = _exact_models(document, rate.model_key)
         if not matches:
-            canonical_id = rate.model_key
+            near = _near_models(document, rate.model_key)
+            if near:
+                identity_exclusions.append(
+                    {
+                        "model_key": rate.model_key,
+                        "reason": "ambiguous_identity",
+                        "candidates": sorted(
+                            str(entry["canonical_id"]) for entry in near
+                        ),
+                    }
+                )
+                continue
+            canonical_id = _catalog_gateway_identity(rate.model_key)
+            publisher = str(
+                rate.meta.get("publisher") or canonical_id.split("/", 1)[0]
+            ).strip().lower()
+            publisher = _GATEWAY_PUBLISHER_PREFIXES.get(publisher, publisher)
             operations.append(
                 {
                     "op": "add_model",
@@ -655,10 +706,7 @@ def _gateway_additions(
                     "expect": None,
                     "model": {
                         "canonical_id": canonical_id,
-                        "publisher": str(
-                            rate.meta.get("publisher")
-                            or canonical_id.split("/", 1)[0]
-                        ),
+                        "publisher": publisher,
                         "aliases": [_gateway_alias(source, rate)],
                         "prices": [_gateway_price(source, rate, observed_on)],
                     },
@@ -666,6 +714,15 @@ def _gateway_additions(
             )
             continue
         if len(matches) != 1:
+            identity_exclusions.append(
+                {
+                    "model_key": rate.model_key,
+                    "reason": "ambiguous_identity",
+                    "candidates": sorted(
+                        str(entry["canonical_id"]) for entry in matches
+                    ),
+                }
+            )
             continue
         entry = matches[0]
         canonical_id = str(entry["canonical_id"])
@@ -726,7 +783,8 @@ def _gateway_additions(
                     "price": _gateway_price(source, rate, observed_on),
                 }
             )
-    return operations
+    identity_exclusions.sort(key=lambda item: item["model_key"])
+    return operations, identity_exclusions
 
 
 def discovery_evidence(
@@ -745,6 +803,7 @@ def discovery_evidence(
     extraction = extract(source.parser, content)
     candidates: list[dict[str, Any]] = []
     operations: list[dict[str, Any]] = []
+    identity_exclusions: list[dict[str, Any]] = []
     if extraction.applicable:
         matches, unclaimed = _match(source, extraction, document, observed_on)
         for match in matches:
@@ -757,7 +816,15 @@ def discovery_evidence(
             missing = [d for d in prior if d not in candidate]
             # A catalog rate that is not a positive finite number is shown as
             # written and blocks any proposed operation.
-            invalid = [d for d in prior if _valid_rate(match.row[d]) is None]
+            invalid = [
+                dimension
+                for dimension in prior
+                if _valid_rate(match.row[dimension]) is None
+                and not (
+                    _carryable(match.row[dimension])
+                    and _rate(candidate.get(dimension)) == 0
+                )
+            ]
             # A replacement copies every other rate the row carries; one that
             # is not a valid delta value would break the delta or be dropped.
             invalid += [
@@ -797,7 +864,7 @@ def discovery_evidence(
             )
         candidates.sort(key=lambda c: (c["model_key"], c["region"]))
         if source.parser in {"vercel-gateway-json", "openrouter-json"}:
-            additions = _gateway_additions(
+            additions, identity_exclusions = _gateway_additions(
                 source, extraction, document, observed_on
             )
             additions_by_target = {
@@ -813,6 +880,13 @@ def discovery_evidence(
                 for target, operation in additions_by_target.items()
                 if target not in existing
             )
+    operations_blocked_reason = None
+    if (
+        source.fingerprint is not None
+        and extraction.fingerprint != source.fingerprint
+    ):
+        operations = []
+        operations_blocked_reason = "fingerprint_mismatch"
     exclusions = dict(
         sorted(Counter(item.reason for item in extraction.exclusions).items())
     )
@@ -829,10 +903,12 @@ def discovery_evidence(
         "applicable": extraction.applicable,
         "ambiguities": list(extraction.ambiguities),
         "exclusions": exclusions,
+        "identity_exclusions": identity_exclusions,
         "candidates": candidates,
         # Reviewable changes. Exact structured gateway identities may add
         # models or aliases; other unknown models stay evidence only.
         "operations": _canonical_value(operations),
+        "operations_blocked_reason": operations_blocked_reason,
         # Raw page content is never emitted: extractor evidence is always
         # reduced to normalized facts, with no page cell or sentence verbatim.
         "evidence": redact_evidence(extraction.evidence),
