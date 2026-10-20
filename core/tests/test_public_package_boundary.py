@@ -51,7 +51,7 @@ def test_the_source_registry_ships_as_package_data():
 PUBLIC_NAMES = [
     "CATALOG_DELTA_SCHEMA_VERSION", "CatalogDelta", "CatalogDeltaConflict", "CatalogDeltaError", "DeltaConflict",
     "Escalation", "ExtractedRate", "Extraction", "LowRiskPolicy",
-    "Observation", "PRICING_DELTA_SCHEMA_VERSION", "PriceRowKey", "PriceSource",
+    "Observation", "PriceRowKey", "PriceSource",
     "RefreshResult", "SOURCE_REGISTRY_SCHEMA_VERSION", "SourceRegistry",
     "SourceRegistryError", "apply_catalog_delta", "discovery_evidence", "extract",
     "load_catalog_document", "load_source_registry", "parse_catalog_delta",
@@ -64,6 +64,10 @@ PUBLIC_NAMES = [
 def test_the_new_public_api_is_exported(name):
     assert name in metergraph_core.__all__
     assert getattr(metergraph_core, name) is not None
+
+
+def test_obsolete_pricing_delta_schema_constant_is_not_public():
+    assert not hasattr(metergraph_core, "PRICING_DELTA_SCHEMA_VERSION")
 
 
 @pytest.mark.parametrize(

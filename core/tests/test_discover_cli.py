@@ -162,6 +162,31 @@ def test_catalog_additions_select_delta_schema_version_two():
     ) == operation
 
 
+def test_price_only_discovery_uses_catalog_delta_schema_version():
+    operation = {
+        "op": "add_price",
+        "key": {
+            "canonical_id": "example/model-a",
+            "channel": "openrouter-api",
+            "region": "global",
+            "effective_from": "2026-10-20",
+        },
+        "expect": None,
+        "price": {
+            "channel": "openrouter-api",
+            "region": "global",
+            "effective_from": "2026-10-20",
+            "input_per_mtok": "1",
+            "output_per_mtok": "4",
+            "source_url": "https://example.com/models",
+        },
+    }
+
+    delta = discover_prices._delta([operation], ["observation"], [])
+
+    assert delta["schema_version"] == 2
+
+
 def test_discovery_without_an_adapter_emits_deterministic_evidence(paths, capsys):
     argv = paths["base"] + ["--content-dir", str(paths["content"])]
     first = _run(argv, capsys)

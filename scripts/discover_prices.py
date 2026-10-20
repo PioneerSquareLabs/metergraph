@@ -53,7 +53,6 @@ import yaml  # noqa: E402
 from metergraph_core.catalog_delta import (  # noqa: E402
     CATALOG_DELTA_SCHEMA_VERSION,
     PRICING_DELTA_KIND,
-    PRICING_DELTA_SCHEMA_VERSION,
     CatalogDeltaError,
     DeltaOperation,
     parse_catalog_delta,
@@ -92,17 +91,8 @@ def load_adapter(spec: str) -> Callable[..., Any]:
 
 
 def _delta(operations: list, observations: list[str], evidence: list[dict]) -> dict[str, Any]:
-    version = (
-        CATALOG_DELTA_SCHEMA_VERSION
-        if any(
-            isinstance(operation, Mapping)
-            and operation.get("op") in {"add_model", "add_alias"}
-            for operation in operations
-        )
-        else PRICING_DELTA_SCHEMA_VERSION
-    )
     return {
-        "schema_version": version,
+        "schema_version": CATALOG_DELTA_SCHEMA_VERSION,
         "kind": PRICING_DELTA_KIND,
         "provenance": {
             "generator": "metergraph discovery",

@@ -118,7 +118,7 @@ def test_render_additive_delta_rejects_history_changes():
             "effective_to": "2026-10-20",
         }
     ]
-    delta["schema_version"] = 1
+    delta["schema_version"] = 2
 
     try:
         apply_price_delta.render_additive_delta(CATALOG, delta)

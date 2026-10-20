@@ -3,7 +3,7 @@
 A delta never serves prices. It names each target row by its identity
 ``(canonical_id, channel, region, effective_from)``, carries the row's
 expected current state as a precondition, and carries the new
-effective-dated value. Schema version 1 covers price rows on models the
+effective-dated value. The current schema supports price rows on models the
 catalog already has:
 
 - ``add_price`` appends a row; ``expect`` is null because no such row may
@@ -12,7 +12,7 @@ catalog already has:
   and appends the new row. History is never rewritten.
 - ``close_price`` closes the open row without a replacement.
 
-Schema version 2 also supports reviewed catalog expansion:
+It also supports reviewed catalog expansion:
 
 - ``add_model`` appends one complete model entry.
 - ``add_alias`` appends one alias to an existing model.
@@ -31,7 +31,6 @@ from typing import Any, Mapping
 
 from .loader import CatalogError, _canonical_json, load_catalog_document
 
-PRICING_DELTA_SCHEMA_VERSION = 1
 CATALOG_DELTA_SCHEMA_VERSION = 2
 PRICING_DELTA_KIND = "pricing_delta"
 PRICE_OPERATIONS = ("add_price", "replace_price", "close_price")
@@ -314,15 +313,11 @@ def _parse_alias(raw: Any, key: AliasKey, label: str) -> dict[str, Any]:
     return alias
 
 
-def _parse_operation(index: int, raw: Any, version: int) -> DeltaOperation:
+def _parse_operation(index: int, raw: Any) -> DeltaOperation:
     label = f"operation {index}"
     if not isinstance(raw, Mapping):
         raise CatalogDeltaError(f"{label}: must be a mapping")
     op = raw.get("op")
-    if op in CATALOG_OPERATIONS and version == PRICING_DELTA_SCHEMA_VERSION:
-        raise CatalogDeltaError(
-            f"{label}: schema_version 1 does not support {op}"
-        )
     if op not in OPERATIONS:
         raise CatalogDeltaError(f"{label}: unknown op {op!r}")
     if op == "add_model":
@@ -381,7 +376,7 @@ def parse_catalog_delta(delta_document: Mapping[str, Any]) -> CatalogDelta:
     if not isinstance(delta_document, Mapping):
         raise CatalogDeltaError("delta document must be a mapping")
     version = delta_document.get("schema_version")
-    if version not in (PRICING_DELTA_SCHEMA_VERSION, CATALOG_DELTA_SCHEMA_VERSION):
+    if version != CATALOG_DELTA_SCHEMA_VERSION:
         raise CatalogDeltaError(f"unsupported delta schema_version {version}")
     if delta_document.get("kind") != PRICING_DELTA_KIND:
         raise CatalogDeltaError(f"delta kind must be {PRICING_DELTA_KIND}")
@@ -398,7 +393,7 @@ def parse_catalog_delta(delta_document: Mapping[str, Any]) -> CatalogDelta:
     operations: list[DeltaOperation] = []
     seen: set[tuple[str, OperationKey]] = set()
     for index, raw in enumerate(raw_operations):
-        operation = _parse_operation(index, raw, version)
+        operation = _parse_operation(index, raw)
         family = "price" if operation.op in PRICE_OPERATIONS else operation.op
         target = (family, operation.key)
         if target in seen:

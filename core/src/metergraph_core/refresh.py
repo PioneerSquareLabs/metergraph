@@ -26,8 +26,8 @@ from decimal import Decimal
 from typing import Any, Iterable, Mapping
 
 from .catalog_delta import (
+    CATALOG_DELTA_SCHEMA_VERSION,
     PRICING_DELTA_KIND,
-    PRICING_DELTA_SCHEMA_VERSION,
     RATE_FIELDS,
     PriceRowKey,
     _instant,
@@ -561,7 +561,7 @@ def plan_low_risk_refresh(
         if observation.fingerprint is not None:
             evidence.append({"source_id": source.id, "url": source.url, "fingerprint": observation.fingerprint})
     delta = {
-        "schema_version": PRICING_DELTA_SCHEMA_VERSION,
+        "schema_version": CATALOG_DELTA_SCHEMA_VERSION,
         "kind": PRICING_DELTA_KIND,
         "provenance": {
             "generator": "metergraph-core low-risk refresh",

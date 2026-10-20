@@ -364,7 +364,7 @@ def _verify_isolated_install(wheel: Path) -> None:
             if price["channel"] == "openai-api" and price.get("effective_to") is None
         ]
         applied = apply_catalog_delta(loaded.document, {{
-            "schema_version": 1,
+            "schema_version": 2,
             "kind": "pricing_delta",
             "provenance": {{"observations": ["artifact-check"]}},
             "operations": [{{

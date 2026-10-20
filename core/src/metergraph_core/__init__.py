@@ -51,7 +51,6 @@ from .retrieval import (
 )
 from .catalog_delta import (
     CATALOG_DELTA_SCHEMA_VERSION,
-    PRICING_DELTA_SCHEMA_VERSION,
     CatalogDelta,
     CatalogDeltaConflict,
     CatalogDeltaError,
@@ -95,7 +94,6 @@ __all__ = [
     "Extraction",
     "LowRiskPolicy",
     "Observation",
-    "PRICING_DELTA_SCHEMA_VERSION",
     "PriceRowKey",
     "PriceSource",
     "RefreshResult",

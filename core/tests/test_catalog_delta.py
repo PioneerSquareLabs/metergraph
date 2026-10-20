@@ -8,7 +8,7 @@ import pytest
 
 from metergraph_core import CatalogError, load_catalog_document
 from metergraph_core.catalog_delta import (
-    PRICING_DELTA_SCHEMA_VERSION,
+    CATALOG_DELTA_SCHEMA_VERSION,
     CatalogDeltaConflict,
     CatalogDeltaError,
     PriceRowKey,
@@ -85,7 +85,7 @@ def _close(**overrides):
 
 def _delta(*operations, **overrides):
     delta = {
-        "schema_version": PRICING_DELTA_SCHEMA_VERSION,
+        "schema_version": CATALOG_DELTA_SCHEMA_VERSION,
         "kind": "pricing_delta",
         "provenance": {
             "observations": ["observation:openai-api-pricing:2026-10-20"],
@@ -151,10 +151,6 @@ def _add_alias(**overrides):
     return operation
 
 
-def _delta_v2(*operations, **overrides):
-    return _delta(*operations, schema_version=2, **overrides)
-
-
 # --- Parsing -----------------------------------------------------------------
 
 
@@ -171,13 +167,13 @@ def test_parse_reads_each_operation_with_its_row_key():
     ]
 
 
-def test_version_one_rejects_catalog_addition_operations():
-    with pytest.raises(CatalogDeltaError, match="schema_version 1 does not support add_model"):
-        parse_catalog_delta(_delta(_add_model()))
+def test_parser_rejects_obsolete_schema_version_one():
+    with pytest.raises(CatalogDeltaError, match="unsupported delta schema_version 1"):
+        parse_catalog_delta(_delta(schema_version=1))
 
 
-def test_version_two_parses_model_and_alias_keys():
-    parsed = parse_catalog_delta(_delta_v2(_add_model(), _add_alias()))
+def test_catalog_schema_parses_model_and_alias_keys():
+    parsed = parse_catalog_delta(_delta(_add_model(), _add_alias()))
 
     assert parsed.operations[0].key.canonical_id == "example/model-b"
     assert parsed.operations[0].model["publisher"] == "example"
@@ -193,14 +189,14 @@ def test_version_two_parses_model_and_alias_keys():
 def test_add_model_requires_a_complete_valid_model_entry():
     operation = _add_model(model={"canonical_id": "example/model-b"})
     with pytest.raises(CatalogDeltaError, match="operation 0: invalid model"):
-        parse_catalog_delta(_delta_v2(operation))
+        parse_catalog_delta(_delta(operation))
 
 
 def test_add_alias_identity_must_match_its_key():
     operation = _add_alias()
     operation["alias"] = dict(operation["alias"], alias="example/other")
     with pytest.raises(CatalogDeltaError, match="operation 0: alias alias must match key"):
-        parse_catalog_delta(_delta_v2(operation))
+        parse_catalog_delta(_delta(operation))
 
 
 def test_delta_errors_are_catalog_errors():
@@ -392,7 +388,7 @@ def test_add_price_appends_a_row_for_a_new_channel():
 
 
 def test_add_model_appends_a_complete_priceable_entry():
-    result = apply_catalog_delta(_document(), _delta_v2(_add_model()))
+    result = apply_catalog_delta(_document(), _delta(_add_model()))
 
     added = result["models"][-1]
     assert added == _add_model()["model"]
@@ -412,7 +408,7 @@ def test_add_alias_and_price_make_an_existing_model_priceable_on_a_new_channel()
         price=_new_price(channel="openrouter-api"),
     )
     result = apply_catalog_delta(
-        _document(), _delta_v2(_add_alias(), price)
+        _document(), _delta(_add_alias(), price)
     )
 
     loaded = load_catalog_document(result)
@@ -489,7 +485,7 @@ def test_an_unknown_model_is_a_conflict():
 def test_adding_an_existing_model_is_a_conflict():
     operation = _add_model(canonical_id="example/model-a")
     operation["model"]["canonical_id"] = "example/model-a"
-    assert _conflicts(_document(), _delta_v2(operation)) == [
+    assert _conflicts(_document(), _delta(operation)) == [
         (0, "model_exists")
     ]
 
@@ -497,7 +493,7 @@ def test_adding_an_existing_model_is_a_conflict():
 def test_adding_an_alias_to_an_unknown_model_is_a_conflict():
     assert _conflicts(
         _document(),
-        _delta_v2(_add_alias(canonical_id="example/missing")),
+        _delta(_add_alias(canonical_id="example/missing")),
     ) == [(0, "unknown_model")]
 
 
@@ -509,7 +505,7 @@ def test_adding_an_existing_alias_is_a_conflict():
             "channel": "vercel-ai-gateway",
         }
     )
-    assert _conflicts(_document(), _delta_v2(operation)) == [
+    assert _conflicts(_document(), _delta(operation)) == [
         (0, "alias_exists")
     ]
 
@@ -540,7 +536,7 @@ def test_adding_an_alias_owned_by_another_model_is_a_conflict():
         }
     )
     operation = _add_alias(alias={"alias": "example/shared"})
-    assert _conflicts(document, _delta_v2(operation)) == [
+    assert _conflicts(document, _delta(operation)) == [
         (0, "alias_conflict")
     ]
 
@@ -548,7 +544,7 @@ def test_adding_an_alias_owned_by_another_model_is_a_conflict():
 def test_catalog_addition_conflicts_are_atomic():
     document = _document()
     before = copy.deepcopy(document)
-    delta = _delta_v2(
+    delta = _delta(
         _add_model(),
         _add_alias(
             alias={

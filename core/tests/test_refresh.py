@@ -417,7 +417,7 @@ def test_a_catalog_with_a_duplicated_model_entry_is_rejected():
 
 def test_the_delta_references_its_observations_and_evidence():
     result = _plan(_with_gpt_x(**dict(GPT_X, output_per_mtok=9.0)))
-    assert result.delta["schema_version"] == 1
+    assert result.delta["schema_version"] == 2
     assert result.delta["kind"] == "pricing_delta"
     assert result.delta["provenance"]["observations"] == ["openai-api-pricing@2026-10-20"]
     assert result.delta["provenance"]["evidence"] == [

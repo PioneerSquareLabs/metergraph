@@ -217,7 +217,7 @@ A pricing delta proposes changes to a catalog's price rows. It is a change
 artifact to review and apply, never a catalog to serve.
 
 ```yaml
-schema_version: 1
+schema_version: 2
 kind: pricing_delta
 provenance:
   observations: [openai-api-pricing@2026-10-20]
@@ -350,7 +350,7 @@ encodes as strict JSON. Adapter failures and rejected items are reported with
 stable codes, never with the adapter's own text. Everything discovery emits
 requires review.
 
-For structured gateway feeds, discovery also proposes schema-v2 `add_model` and
+For structured gateway feeds, discovery also proposes `add_model` and
 `add_alias` operations when an exact model identity is safe to extend. Free,
 conditional, tiered, regional and unsupported-charge rows remain exclusions.
 After review, `scripts/apply_price_delta.py --reviewed` writes additive operations
