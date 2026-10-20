@@ -359,6 +359,19 @@ def test_azure_and_nvidia_use_registry_only_channels():
         assert source.low_risk.eligible is False
 
 
+def test_google_registers_vertex_ai_as_reviewed_discovery_only():
+    source = load_source_registry().get("google-vertex-ai-pricing")
+    assert (source.provider, source.channel, source.catalog_channel, source.url) == (
+        "google",
+        "google-vertex-ai",
+        True,
+        "https://cloud.google.com/vertex-ai/generative-ai/pricing",
+    )
+    assert source.low_risk.eligible is False
+    assert source.fingerprint is None
+    assert source.parser == "html-tables"
+
+
 def test_azure_registers_the_foundry_models_pricing_page():
     [azure] = [s for s in load_source_registry().sources if s.provider == "azure"]
     assert azure.url == "https://azure.microsoft.com/en-us/pricing/details/ai-foundry-models/aoai/"

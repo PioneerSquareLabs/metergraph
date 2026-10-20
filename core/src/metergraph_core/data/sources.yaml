@@ -153,6 +153,20 @@ sources:
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
 
+  # Gemini and partner models on Vertex AI. Prices vary by model, context
+  # length, tier and processing mode; reviewed discovery only.
+  - id: google-vertex-ai-pricing
+    provider: google
+    channel: google-vertex-ai
+    catalog_channel: true
+    url: https://cloud.google.com/vertex-ai/generative-ai/pricing
+    parser: html-tables
+    source_shape: token_option_dependent
+    clarity: option_dependent
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
+
   # One page prices both Bedrock channels: in-region on-demand rows and
   # geographic cross-region inference rows. Prices depend on the selected
   # region, provider tab and inference type.

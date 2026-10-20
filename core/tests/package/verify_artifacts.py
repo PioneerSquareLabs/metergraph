@@ -348,6 +348,8 @@ def _verify_isolated_install(wheel: Path) -> None:
         sources = load_source_registry()
         validate_source_registry(sources, loaded)
         assert len(sources.low_risk()) == 4, sources.low_risk()
+        assert len(sources.sources) == 14, len(sources.sources)
+        assert sources.get("google-vertex-ai-pricing").low_risk.eligible is False
         [model] = [
             entry for entry in loaded.document["models"]
             if entry["canonical_id"] == "openai/gpt-5.4-mini"
