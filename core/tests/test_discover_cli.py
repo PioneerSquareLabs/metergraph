@@ -19,7 +19,21 @@ sys.modules["discover_prices"] = discover_prices
 _spec.loader.exec_module(discover_prices)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sources"
-GENERIC = Path(__file__).parent / "fixtures" / "discovery"
+# Generic synthetic pages for the discovery parsers, standing for no
+# provider's layout: a token-price table beside a non-token table, and GPU
+# or license pricing stated in prose.
+TOKEN_TABLE_PAGE = (
+    "<table><tr><th>Model</th><th>Input (per 1M tokens)</th><th>Cached input (per 1M tokens)</th>"
+    "<th>Output (per 1M tokens)</th></tr>"
+    "<tr><td>Example Model Large</td><td>$2.00</td><td>$0.20</td><td>$8.00</td></tr>"
+    "<tr><td>Example Model Small</td><td>$0.40</td><td>Free</td><td>$1.60</td></tr></table>"
+    "<table><tr><th>Accelerator</th><th>Price per hour</th></tr>"
+    "<tr><td>Example Accelerator</td><td>$2.90</td></tr></table>"
+)
+GPU_LICENSE_PAGE = (
+    "<p>Licenses start at $1000 per GPU per year, or about $0.50 per GPU per hour in the cloud.</p>"
+    "<p>Developers can prototype at no cost.</p>"
+)
 OPENAI_URL = "https://example.com/openai-pricing"
 TABLES_URL = "https://example.com/tables-pricing"
 LICENSE_URL = "https://example.com/license-pricing"
@@ -31,7 +45,7 @@ def _fixture(source_id):
 
 
 def _generic(name):
-    return (GENERIC / f"{name}.html").read_text()
+    return {"token-table": TOKEN_TABLE_PAGE, "gpu-license-prose": GPU_LICENSE_PAGE}[name]
 
 
 def _openai():

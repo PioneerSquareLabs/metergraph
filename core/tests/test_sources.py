@@ -349,9 +349,23 @@ def test_nvidia_records_gpu_or_license_pricing_and_no_token_dimensions():
     assert set(nvidia.dimensions) == {"gpu_hour_usd", "license_per_gpu_year_usd"}
 
 
-GENERIC = Path(__file__).parent / "fixtures" / "discovery"
+# Generic synthetic pages for the discovery parsers, standing for no
+# provider's layout: a token-price table beside a non-token table, and GPU
+# or license pricing stated in prose.
+TOKEN_TABLE_PAGE = (
+    "<table><tr><th>Model</th><th>Input (per 1M tokens)</th><th>Cached input (per 1M tokens)</th>"
+    "<th>Output (per 1M tokens)</th></tr>"
+    "<tr><td>Example Model Large</td><td>$2.00</td><td>$0.20</td><td>$8.00</td></tr>"
+    "<tr><td>Example Model Small</td><td>$0.40</td><td>Free</td><td>$1.60</td></tr></table>"
+    "<table><tr><th>Accelerator</th><th>Price per hour</th></tr>"
+    "<tr><td>Example Accelerator</td><td>$2.90</td></tr></table>"
+)
+GPU_LICENSE_PAGE = (
+    "<p>Licenses start at $1000 per GPU per year, or about $0.50 per GPU per hour in the cloud.</p>"
+    "<p>Developers can prototype at no cost.</p>"
+)
 # The generic synthetic page each discovery parser is exercised on.
-GENERIC_PAGES = {"html-tables": "token-table.html", "gpu-license-prose": "gpu-license-prose.html"}
+GENERIC_PAGES = {"html-tables": TOKEN_TABLE_PAGE, "gpu-license-prose": GPU_LICENSE_PAGE}
 
 
 def test_only_low_risk_sources_have_source_specific_fixtures():
@@ -372,7 +386,7 @@ def test_every_non_low_risk_source_yields_normalized_discovery_evidence():
     for source in load_source_registry().sources:
         if source.low_risk.eligible:
             continue
-        page = (GENERIC / GENERIC_PAGES[source.parser]).read_text()
+        page = GENERIC_PAGES[source.parser]
         evidence = discovery_evidence(source, page, catalog.document, observed_on=date(2026, 10, 20))["evidence"]
         assert evidence["redacted"] is True, source.id
         if evidence["kind"] == "tables":

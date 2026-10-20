@@ -13,7 +13,21 @@ from metergraph_core.extractors import (
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sources"
-GENERIC = Path(__file__).parent / "fixtures" / "discovery"
+# Generic synthetic pages for the discovery parsers, standing for no
+# provider's layout: a token-price table beside a non-token table, and GPU
+# or license pricing stated in prose.
+TOKEN_TABLE_PAGE = (
+    "<table><tr><th>Model</th><th>Input (per 1M tokens)</th><th>Cached input (per 1M tokens)</th>"
+    "<th>Output (per 1M tokens)</th></tr>"
+    "<tr><td>Example Model Large</td><td>$2.00</td><td>$0.20</td><td>$8.00</td></tr>"
+    "<tr><td>Example Model Small</td><td>$0.40</td><td>Free</td><td>$1.60</td></tr></table>"
+    "<table><tr><th>Accelerator</th><th>Price per hour</th></tr>"
+    "<tr><td>Example Accelerator</td><td>$2.90</td></tr></table>"
+)
+GPU_LICENSE_PAGE = (
+    "<p>Licenses start at $1000 per GPU per year, or about $0.50 per GPU per hour in the cloud.</p>"
+    "<p>Developers can prototype at no cost.</p>"
+)
 D = Decimal
 
 
@@ -22,7 +36,7 @@ def _fixture(source_id):
 
 
 def _generic(name):
-    return (GENERIC / f"{name}.html").read_text()
+    return {"token-table": TOKEN_TABLE_PAGE, "gpu-license-prose": GPU_LICENSE_PAGE}[name]
 
 
 def _rates(extraction):
@@ -252,9 +266,7 @@ def test_the_license_parser_records_license_pricing_and_never_token_rates():
 
 
 def test_the_license_parser_ignores_token_wording():
-    content = _generic("gpu-license-prose").replace(
-        "</body>", "<p>Hosted trials cost $0.10 per 1M tokens.</p></body>"
-    )
+    content = _generic("gpu-license-prose") + "<p>Hosted trials cost $0.10 per 1M tokens.</p>"
     extraction = extract("gpu-license-prose", content)
     assert extraction.rates == ()
     assert set(extraction.evidence["candidates"]) == {"license_per_gpu_year_usd", "gpu_hour_usd"}

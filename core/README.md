@@ -346,9 +346,9 @@ stable codes, never with the adapter's own text. Everything discovery emits
 requires review.
 
 Both read `<source-id>.*` files from `--content-dir` instead of fetching. The
-tests use synthetic fixtures: one per low-risk source in
-`tests/fixtures/sources/`, reproducing only the structure its parser reads, and
-two generic pages in `tests/fixtures/discovery/` for every other source.
+tests use one synthetic fixture per low-risk source in
+`tests/fixtures/sources/`, reproducing only the structure its parser reads;
+the generic discovery parsers are tested on small inline synthetic pages.
 
 ## Provider review and contributions
 
