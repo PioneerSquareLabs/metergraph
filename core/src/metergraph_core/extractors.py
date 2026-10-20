@@ -494,6 +494,48 @@ def _nvidia_features(content: str) -> Any:
     }
 
 
+def _slug(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def redact_evidence(evidence: Mapping[str, Any]) -> dict[str, Any]:
+    """Evidence reduced to normalized facts, for a source whose raw content
+    may not be kept: table rows become a slug label and their parsed dollar
+    amounts, and license statements become their numeric candidates. No
+    page cell or sentence survives verbatim."""
+    kind = evidence.get("kind")
+    if kind == "tables":
+        return {
+            "kind": "tables",
+            "redacted": True,
+            "tables": [
+                {
+                    "columns": len(table.get("headers") or []),
+                    "rows": [
+                        {
+                            "label": _slug(row[0]) if row else "",
+                            "amounts": [
+                                str(amount)
+                                for cell in row[1:]
+                                if (amount := dollars(cell)) is not None
+                            ],
+                        }
+                        for row in table.get("rows") or []
+                    ],
+                }
+                for table in evidence.get("tables") or []
+            ],
+        }
+    if kind == "gpu_or_license_statements":
+        return {
+            "kind": kind,
+            "redacted": True,
+            "statement_count": len(evidence.get("statements") or []),
+            "candidates": dict(evidence.get("candidates") or {}),
+        }
+    return {"kind": kind, "redacted": True}
+
+
 # --- Registry of parsers --------------------------------------------------------
 
 

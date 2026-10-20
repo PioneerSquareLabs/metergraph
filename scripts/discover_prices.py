@@ -55,7 +55,7 @@ from metergraph_core.catalog_delta import (  # noqa: E402
     CatalogDeltaError,
     parse_catalog_delta,
 )
-from metergraph_core.extractors import page_tables  # noqa: E402
+from metergraph_core.extractors import page_tables, redact_evidence  # noqa: E402
 from metergraph_core.loader import DEFAULT_CATALOG_PATH, load_catalog_document  # noqa: E402
 from metergraph_core.refresh import discovery_evidence  # noqa: E402
 from metergraph_core.sources import (  # noqa: E402
@@ -272,10 +272,14 @@ def discover(args: argparse.Namespace) -> dict[str, Any]:
             "requires_review": True,
             "label": label,
             "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
-            "evidence": {
-                "kind": "tables",
-                "tables": [{"headers": rows[0], "rows": rows[1:]} for rows in page_tables(content) if rows],
-            },
+            # No reviewed retention policy covers a new source, so report only
+            # normalized facts from it.
+            "evidence": redact_evidence(
+                {
+                    "kind": "tables",
+                    "tables": [{"headers": rows[0], "rows": rows[1:]} for rows in page_tables(content) if rows],
+                }
+            ),
             "adapter": None,
         }
         if adapter is not None:

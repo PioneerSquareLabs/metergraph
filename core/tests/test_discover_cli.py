@@ -194,7 +194,14 @@ def test_a_new_source_is_read_from_a_file(paths, capsys):
     [new_source] = output["new_sources"]
     assert new_source["requires_review"] is True
     assert new_source["label"] == "new-provider.html"
-    assert new_source["evidence"]["tables"] == [{"headers": ["Model", "Input"], "rows": [["New X", "$1"]]}]
+    # A new source has no reviewed retention policy, so only normalized facts
+    # are reported, never its cells.
+    assert new_source["evidence"] == {
+        "kind": "tables",
+        "redacted": True,
+        "tables": [{"columns": 2, "rows": [{"label": "new-x", "amounts": ["1"]}]}],
+    }
+    assert "New X" not in json.dumps(output)
     assert len(new_source["sha256"]) == 64
 
 
@@ -203,7 +210,18 @@ def test_a_new_source_is_read_from_stdin(paths, capsys, monkeypatch):
     output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "", "--new-source", "-"], capsys)
     [new_source] = output["new_sources"]
     assert new_source["label"] == "stdin"
-    assert new_source["evidence"]["tables"] == [{"headers": ["Plan"], "rows": []}]
+    assert new_source["evidence"]["tables"] == [{"columns": 1, "rows": []}]
+
+
+def test_the_report_repeats_no_page_cells_the_registry_forbids_keeping(paths, capsys):
+    output = _run(paths["base"] + ["--content-dir", str(paths["content"])], capsys)
+    text = json.dumps(output)
+    for cell in ("Example model 70B", "$ / 1M input tokens", "Example Provider models", "These licenses start at"):
+        assert cell not in text
+    assert _proposal(output, "fireworks-api-pricing")["evidence"]["evidence"]["tables"][0]["rows"][0] == {
+        "label": "example-model-70b",
+        "amounts": ["0.90", "0.45", "0.90"],
+    }
 
 
 @pytest.mark.parametrize("value", ["https://example.com/new-pricing", "http://example.com/x", "file:///tmp/page.html"])

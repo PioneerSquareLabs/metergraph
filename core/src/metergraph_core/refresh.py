@@ -32,7 +32,15 @@ from .catalog_delta import (
     PriceRowKey,
     row_key,
 )
-from .extractors import ExtractedRate, Extraction, extract, page_match, page_text, regional_key
+from .extractors import (
+    ExtractedRate,
+    Extraction,
+    extract,
+    page_match,
+    page_text,
+    redact_evidence,
+    regional_key,
+)
 from .loader import load_catalog_document
 from .sources import PriceSource, SourceRegistry
 
@@ -475,7 +483,13 @@ def discovery_evidence(
         # Reviewable replace_price operations for changed catalog rows; new
         # models and regions stay evidence only.
         "operations": operations,
-        "evidence": copy.deepcopy(extraction.evidence),
+        # Raw page cells and statements appear only where the registry
+        # allows storing raw content; otherwise only normalized facts.
+        "evidence": (
+            dict(copy.deepcopy(extraction.evidence), redacted=False)
+            if source.evidence.store_raw
+            else redact_evidence(extraction.evidence)
+        ),
         "retention": {
             "store_raw": source.evidence.store_raw,
             "redistribute_raw": source.evidence.redistribute_raw,

@@ -467,6 +467,107 @@ def test_discovery_evidence_quotes_only_the_permitted_excerpt():
     assert evidence["excerpt"] == "Prices chang"
 
 
+# --- Evidence retention ------------------------------------------------------------
+
+DISCOVERY_ONLY = {
+    "fireworks-api-pricing": ("fireworks", "fireworks-api", "token_table", ["input_per_mtok", "output_per_mtok"]),
+    "zai-api-pricing": ("zai", "zai-api", "token_table", ["input_per_mtok", "output_per_mtok"]),
+    "aws-bedrock-pricing": ("aws-bedrock", "aws-bedrock", "token_option_dependent", ["input_per_mtok", "output_per_mtok"]),
+    "aws-bedrock-geo-pricing": ("aws-bedrock", "aws-bedrock-geo", "token_option_dependent", ["input_per_mtok", "output_per_mtok"]),
+    "azure-foundry-pricing": ("azure-foundry", "azure-foundry", "token_option_dependent", ["input_per_mtok", "output_per_mtok"]),
+    "nvidia-nim-pricing": ("nvidia", "nvidia-ai-enterprise", "gpu_hour_or_license", ["gpu_hour_usd", "license_per_gpu_year_usd"]),
+}
+
+
+def _discovery_source(source_id, *, store_raw=False, excerpt_chars=0):
+    parser, channel, shape, dimensions = DISCOVERY_ONLY[source_id]
+    entry = _source(source_id, parser, channel, parser, low_risk=False, dimensions=dimensions)
+    entry.update(source_shape=shape, catalog_channel=False)
+    entry["evidence"] = {
+        "store_raw": store_raw,
+        "redistribute_raw": False,
+        "excerpt_chars": excerpt_chars,
+        "reason": "Synthetic test source.",
+    }
+    return _registry(entry).get(source_id)
+
+
+def _verbatim_cells(content):
+    """Page text a forbidden report must not repeat: each table cell and
+    paragraph that reads as words rather than a bare amount."""
+    import re
+
+    cells = re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>|<p>(.*?)</p>", content, flags=re.S)
+    texts = [a or b for a, b in cells]
+    return [t for t in texts if re.search(r"[A-Za-z]{2}", t) and (" " in t or re.search(r"[A-Z]", t))]
+
+
+@pytest.mark.parametrize("source_id", list(DISCOVERY_ONLY))
+def test_forbidden_raw_content_never_appears_in_discovery_evidence(source_id):
+    import json
+
+    content = _fixture(source_id)
+    evidence = discovery_evidence(_discovery_source(source_id), content, _document(), observed_on=OBSERVED_ON)
+    text = json.dumps(evidence)
+    cells = _verbatim_cells(content)
+    assert cells
+    assert [cell for cell in cells if cell in text] == []
+    assert evidence["evidence"]["redacted"] is True
+    assert evidence["fingerprint"] == structural_fingerprint(DISCOVERY_ONLY[source_id][0], content)
+
+
+def test_redacted_table_evidence_keeps_normalized_labels_and_amounts():
+    evidence = discovery_evidence(_discovery_source("fireworks-api-pricing"), _fixture("fireworks-api-pricing"), _document(), observed_on=OBSERVED_ON)
+    assert evidence["evidence"] == {
+        "kind": "tables",
+        "redacted": True,
+        "tables": [
+            {
+                "columns": 4,
+                "rows": [
+                    {"label": "example-model-70b", "amounts": ["0.90", "0.45", "0.90"]},
+                    {"label": "example-model-8b", "amounts": ["0.20", "0.10", "0.20"]},
+                ],
+            },
+            {"columns": 2, "rows": [{"label": "example-gpu", "amounts": ["2.90"]}]},
+        ],
+    }
+
+
+def test_redacted_license_evidence_keeps_candidates_and_drops_statements():
+    evidence = discovery_evidence(_discovery_source("nvidia-nim-pricing"), _fixture("nvidia-nim-pricing"), _document(), observed_on=OBSERVED_ON)
+    assert evidence["evidence"] == {
+        "kind": "gpu_or_license_statements",
+        "redacted": True,
+        "statement_count": 1,
+        "candidates": {"license_per_gpu_year_usd": "1000", "gpu_hour_usd": "0.50"},
+    }
+
+
+def test_raw_evidence_is_kept_where_the_registry_allows_storing_it():
+    evidence = discovery_evidence(
+        _discovery_source("nvidia-nim-pricing", store_raw=True),
+        _fixture("nvidia-nim-pricing"),
+        _document(),
+        observed_on=OBSERVED_ON,
+    )
+    assert evidence["evidence"]["redacted"] is False
+    assert evidence["evidence"]["statements"] == [
+        "These licenses start at $1000 per GPU per year, or about $0.50 per GPU per hour in the cloud."
+    ]
+
+
+def test_a_permitted_excerpt_does_not_unredact_the_evidence():
+    evidence = discovery_evidence(
+        _discovery_source("zai-api-pricing", excerpt_chars=10),
+        _fixture("zai-api-pricing"),
+        _document(),
+        observed_on=OBSERVED_ON,
+    )
+    assert evidence["excerpt"] == "Text Model"
+    assert evidence["evidence"]["redacted"] is True
+
+
 # --- Dimensions that disappear and regional ambiguity -------------------------
 
 # The gpt-x row without its cache-write column. Dropping the column changes the
