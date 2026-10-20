@@ -279,13 +279,16 @@ for source in load_source_registry().sources:
         print(source.id, source.url, source.parser, source.dimensions, source.low_risk)
 ```
 
-Seeding a source does not make it low-risk. OpenAI, Anthropic, Google,
-DeepSeek, Mistral, xAI and Perplexity start low-risk because their official
-parsers are proven; each may change existing rates on existing rows by up to 50
-percent. A low-risk source with no recorded fingerprint escalates every change
-until one is reviewed and recorded. Fireworks, Z.AI, AWS Bedrock (both the
-in-region and geographic channels), Azure Foundry and NVIDIA start non-low-risk;
-their extractors record evidence for review and never produce price rows.
+Seeding a source does not make it low-risk. Low-risk means a proven official
+parser whose live structural fingerprint has been reviewed and recorded.
+OpenAI, Anthropic, Google and xAI start low-risk; each may change existing rates
+on existing rows by up to 50 percent. DeepSeek, Mistral and Perplexity keep
+their official parsers but start non-low-risk, because their live pages do not
+currently parse cleanly to the catalog; they are promoted through a reviewed
+registry change once their parsers and fingerprints are reviewed. Fireworks,
+Z.AI, AWS Bedrock (both the in-region and geographic channels), Azure Foundry
+and NVIDIA start non-low-risk; their extractors record evidence for review and
+never produce price rows.
 NVIDIA's NIM production pricing is per GPU or license, so it is recorded with
 GPU-hour and license dimensions and never as token pricing.
 

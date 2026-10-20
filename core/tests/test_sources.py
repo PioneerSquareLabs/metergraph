@@ -308,10 +308,7 @@ LOW_RISK_IDS = {
     "openai-api-pricing",
     "anthropic-api-pricing",
     "google-api-pricing",
-    "deepseek-api-pricing",
-    "mistral-api-pricing",
     "xai-api-pricing",
-    "perplexity-api-pricing",
 }
 
 
@@ -336,12 +333,24 @@ def test_bundled_registry_covers_every_seeded_provider():
     }
 
 
-def test_only_the_seven_proven_official_parsers_start_low_risk():
+def test_only_the_four_reviewed_official_parsers_start_low_risk():
     low_risk = load_source_registry().low_risk()
     assert {source.id for source in low_risk} == LOW_RISK_IDS
-    assert {source.parser for source in low_risk} == {
-        "openai", "anthropic", "google", "deepseek", "mistral", "xai", "perplexity"
-    }
+    assert {source.parser for source in low_risk} == {"openai", "anthropic", "google", "xai"}
+
+
+def test_every_low_risk_source_has_a_recorded_fingerprint():
+    for source in load_source_registry().low_risk():
+        assert source.fingerprint is not None, source.id
+
+
+def test_sources_whose_live_parse_is_unreviewed_start_without_low_risk_status():
+    registry = load_source_registry()
+    for source_id in ("deepseek-api-pricing", "mistral-api-pricing", "perplexity-api-pricing"):
+        source = registry.get(source_id)
+        assert source.low_risk.eligible is False
+        assert source.fingerprint is None
+        assert source.catalog_channel is True
 
 
 def test_initial_low_risk_bound_is_a_fifty_percent_relative_change():
@@ -372,6 +381,11 @@ def test_azure_and_nvidia_use_registry_only_channels():
         [source] = [s for s in registry.sources if s.provider == provider]
         assert source.catalog_channel is False
         assert source.low_risk.eligible is False
+
+
+def test_azure_registers_the_foundry_models_pricing_page():
+    [azure] = [s for s in load_source_registry().sources if s.provider == "azure"]
+    assert azure.url == "https://azure.microsoft.com/en-us/pricing/details/ai-foundry-models/aoai/"
 
 
 def test_fireworks_and_zai_start_without_low_risk_status():

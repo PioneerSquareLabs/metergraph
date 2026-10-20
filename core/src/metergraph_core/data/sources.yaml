@@ -83,13 +83,10 @@ sources:
     # The page lists peak and off-peak rates; the catalog stores the peak rate
     # with an off-peak rule, and the parser reads the peak rows.
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
-    # Pending: the live page lists the models, but its peak rows no longer
-    # parse, so refreshes escalate until the parser is updated.
+    # Not low-risk yet: the live page lists the models, but its peak rows no
+    # longer parse. Promote once the parser and fingerprint are reviewed.
     fingerprint: null
-    low_risk:
-      eligible: true
-      max_relative_change: "0.5"
-      dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
     evidence: *unreviewed_terms
 
   - id: mistral-api-pricing
@@ -101,13 +98,10 @@ sources:
     source_shape: token_model_card
     clarity: structured
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
-    # Pending: the live active (sale) price differs from the catalog row by
-    # the full 50 percent bound, so it needs review before automated refreshes.
+    # Not low-risk yet: the live active (sale) price differs from the catalog
+    # row by half, so the page's reading needs review before promotion.
     fingerprint: null
-    low_risk:
-      eligible: true
-      max_relative_change: "0.5"
-      dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
     evidence: *unreviewed_terms
 
   - id: xai-api-pricing
@@ -135,16 +129,13 @@ sources:
     source_shape: token_embedded_data
     clarity: structured
     dimensions: [input_per_mtok, output_per_mtok]
-    # Pending: the live page no longer yields the pricing object the parser
-    # reads, so refreshes escalate until the parser is updated.
+    # Not low-risk yet: the live page no longer yields the pricing object the
+    # parser reads. Promote once the parser and fingerprint are reviewed.
     fingerprint: null
-    low_risk:
-      eligible: true
-      max_relative_change: "0.5"
-      dimensions: [input_per_mtok, output_per_mtok]
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
     evidence: *unreviewed_terms
 
-  # The sources below start non-low-risk. Their discovery-only extractors
+  # The sources below start non-low-risk with discovery-only extractors that
   # record evidence for review and never produce applicable price rows.
 
   - id: fireworks-api-pricing
@@ -208,7 +199,7 @@ sources:
     provider: azure
     channel: azure-foundry
     catalog_channel: false
-    url: https://azure.microsoft.com/en-us/pricing/details/azure-openai/
+    url: https://azure.microsoft.com/en-us/pricing/details/ai-foundry-models/aoai/
     parser: azure-foundry
     source_shape: token_option_dependent
     clarity: option_dependent
