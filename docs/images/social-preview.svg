@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+  <rect width="1280" height="640" fill="#e8edf3"/>
+  <rect x="64" y="64" width="1152" height="512" rx="24" fill="#fbfcfe"/>
+  <g font-family="'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif" fill="#0b1220">
+    <text x="128" y="230" font-size="96" letter-spacing="-2.7">meter<tspan fill="#10b981">graph</tspan><tspan fill="#f59e0b" font-size="52" dy="-38">&#10033;</tspan></text>
+    <text x="128" y="330" font-size="44" letter-spacing="-0.8">Optimize agentic AI for cost and quality.</text>
+    <text x="128" y="400" font-size="30" fill="#0b1220" fill-opacity="0.62">Understand LLM spend by function, agent, and workflow.</text>
+  </g>
+  <g font-family="'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace" font-size="22" fill="#0b1220" fill-opacity="0.55" letter-spacing="1.5">
+    <text x="128" y="500">OPEN SOURCE  ·  SELF-HOSTED  ·  github.com/metergraph/metergraph</text>
+  </g>
+</svg>

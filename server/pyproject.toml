@@ -1,10 +1,24 @@
 [project]
 name = "metergraph-server"
 version = "0.1.0"
-description = "Self-hostable Metergraph server: content-blind LLM cost tracking by function"
+description = "Self-hosted Metergraph server: content-blind LLM cost attribution by function, agent, and workflow"
 readme = "README.md"
 license = "Apache-2.0"
+authors = [{ name = "Metergraph" }]
 requires-python = ">=3.10"
+keywords = ["llm", "cost", "observability", "telemetry", "self-hosted", "finops"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: FastAPI",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Monitoring",
+]
 dependencies = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
@@ -15,6 +29,13 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "httpx>=0.27", "metergraph>=0.4,<1"]
+
+[project.urls]
+Homepage = "https://github.com/metergraph/metergraph"
+Documentation = "https://github.com/metergraph/metergraph/blob/main/docs/self-hosting.md"
+Source = "https://github.com/metergraph/metergraph/tree/main/server"
+Issues = "https://github.com/metergraph/metergraph/issues"
+"Release notes" = "https://github.com/metergraph/metergraph/releases"
 
 [build-system]
 requires = ["setuptools>=68"]

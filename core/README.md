@@ -1,7 +1,8 @@
 # metergraph-core
 
 Reusable model registry, price catalog, and deterministic billing engine for
-MeterGraph.
+[Metergraph](https://github.com/metergraph/metergraph), which attributes LLM
+cost to the function, agent, and workflow that made each call.
 
 `metergraph-core` owns two separate public datasets. `models.yaml` records
 canonical model identity, customer-facing names, executable provider routes,

@@ -152,7 +152,7 @@ LITELLM_URL = (
 )
 MODELSDEV_URL = "https://models.dev/api.json"
 PORTKEY_URL = "https://api.portkey.ai/model-configs/pricing/{provider}/{model}"
-USER_AGENT = "metergraph-check-prices/1 (+https://github.com/PioneerSquareLabs/metergraph)"
+USER_AGENT = "metergraph-check-prices/1 (+https://github.com/metergraph/metergraph)"
 
 
 # --- Catalog -----------------------------------------------------------------
