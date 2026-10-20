@@ -278,6 +278,22 @@ def test_missing_content_for_a_low_risk_source_is_observed_and_escalated():
     assert result.observations[0].result == "missing"
 
 
+def test_every_source_in_the_given_registry_is_observed_even_without_content():
+    # The registry passed in is the selected scope, low-risk or not.
+    registry = _registry(_openai_source(), _openai_source(low_risk=False) | {"id": "other-pricing", "url": "https://example.com/other"})
+    result = _plan(registry=registry)
+    assert [(o.source_id, o.result) for o in result.observations] == [
+        ("openai-api-pricing", "unchanged"),
+        ("other-pricing", "missing"),
+    ]
+    assert [(e.source_id, e.reason) for e in result.escalations] == [("other-pricing", "content_missing")]
+
+
+def test_content_for_a_source_outside_the_registry_is_rejected():
+    with pytest.raises(ValueError, match="unknown source 'stray-pricing'"):
+        _plan(contents={"openai-api-pricing": _fixture("openai-api-pricing"), "stray-pricing": "<p></p>"})
+
+
 def test_a_non_positive_rate_escalates():
     content = _fixture("openai-api-pricing").replace("[0,2],[0,0.2],[0,2.5],[0,8]", "[0,0],[0,0.2],[0,2.5],[0,8]")
     result = _plan(contents={"openai-api-pricing": content})

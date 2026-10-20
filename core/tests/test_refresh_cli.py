@@ -153,6 +153,41 @@ def test_cli_limits_the_run_to_named_sources(setup, capsys):
     assert [o["source_id"] for o in output["observations"]] == ["anthropic-api-pricing"]
 
 
+def _not_low_risk(entry):
+    return dict(entry, low_risk={"eligible": False, "max_relative_change": None, "dimensions": []})
+
+
+def test_an_explicitly_selected_source_without_a_content_file_is_reported(setup, capsys):
+    write, _, content, _ = setup
+    sources = [
+        _source("openai-api-pricing", "openai", "openai-api", OPENAI_URL),
+        _not_low_risk(dict(_source("anthropic-api-pricing", "anthropic", "anthropic-api", ANTHROPIC_URL), id="extra-pricing")),
+    ]
+    status, output = _run(write(sources=sources) + ["--content-dir", str(content), "--sources", "extra-pricing"], capsys)
+    assert status == 2
+    assert [(o["source_id"], o["result"]) for o in output["observations"]] == [("extra-pricing", "missing")]
+    [escalation] = output["escalations"]
+    assert escalation["reason"] == "content_missing"
+    assert escalation["detail"] == f"no extra-pricing.* file in {content}"
+
+
+def test_an_explicitly_selected_source_whose_fetch_fails_is_reported(setup, capsys, monkeypatch):
+    write, _, _, _ = setup
+    sources = [
+        _source("openai-api-pricing", "openai", "openai-api", OPENAI_URL),
+        _not_low_risk(_source("anthropic-api-pricing", "anthropic", "anthropic-api", ANTHROPIC_URL)),
+    ]
+
+    def failing_fetch(url, allowed):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(refresh_prices, "fetch_text", failing_fetch)
+    status, output = _run(write(sources=sources) + ["--sources", "anthropic-api-pricing"], capsys)
+    assert status == 2
+    assert [(o["source_id"], o["result"]) for o in output["observations"]] == [("anthropic-api-pricing", "missing")]
+    assert output["escalations"][0]["detail"] == "fetch failed: connection refused"
+
+
 def test_cli_rejects_an_unregistered_source_with_exit_one(setup, capsys):
     write, _, content, _ = setup
     status = refresh_prices.main(write() + ["--content-dir", str(content), "--sources", "unknown-pricing"])

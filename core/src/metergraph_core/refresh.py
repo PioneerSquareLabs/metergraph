@@ -405,13 +405,19 @@ def plan_low_risk_refresh(
     observed_on: date,
 ) -> RefreshResult:
     """Plan a low-risk refresh of ``document`` from ``contents`` (source id
-    -> fetched text). Every low-risk source in ``registry`` gets an
-    observation; a supplied source that is not low-risk is escalated. The
-    document is validated first and never modified."""
+    -> fetched text). ``registry`` is the selected scope (narrow it to the
+    sources a run covers): every source in it gets an observation, a source
+    without content escalates as content_missing, and a source that is not
+    low-risk escalates as not_low_risk. Content for a source outside the
+    registry is rejected. The document is validated first and never
+    modified."""
     load_catalog_document(document)
-    sources = [s for s in registry.sources if s.low_risk.eligible or s.id in contents]
     for source_id in contents:
         registry.get(source_id)
+    # The registry passed in is the selected scope: every source in it is
+    # observed, so a source whose content could not be had is reported as
+    # missing rather than silently skipped.
+    sources = list(registry.sources)
     observations: list[Observation] = []
     operations: list[dict] = []
     escalations: list[Escalation] = []
