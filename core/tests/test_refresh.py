@@ -467,6 +467,49 @@ def test_discovery_evidence_quotes_only_the_permitted_excerpt():
     assert evidence["excerpt"] == "Prices chang"
 
 
+# --- Rows with a scheduled end -------------------------------------------------------
+
+
+def _scheduled(**rates):
+    """gpt-x's current row ends on 2027-01-01, where a scheduled row begins."""
+    document = _with_gpt_x(**rates)
+    document["models"][0]["prices"][0]["effective_to"] = "2027-01-01"
+    document["models"][0]["prices"].append(
+        _row(**dict(GPT_X, output_per_mtok=12.0), effective_from="2027-01-01")
+    )
+    return document
+
+
+def test_a_change_to_a_row_with_a_scheduled_end_escalates():
+    result = _plan(_scheduled(**dict(GPT_X, output_per_mtok=9.0)))
+    assert result.delta["operations"] == []
+    [escalation] = result.escalations
+    assert (escalation.reason, escalation.key.canonical_id) == ("scheduled_window", "example/gpt-x")
+    assert escalation.detail == "the current row already ends 2027-01-01"
+
+
+def test_an_unchanged_row_with_a_scheduled_end_is_fine():
+    result = _plan(_scheduled(**GPT_X))
+    assert result.escalations == ()
+    assert result.observations[0].result == "unchanged"
+
+
+def test_no_low_risk_operation_conflicts_when_applied():
+    document = _scheduled(**dict(GPT_X, output_per_mtok=9.0))
+    document["models"][1]["prices"][0]["output_per_mtok"] = 2.0
+    result = _plan(document)
+    applied = apply_catalog_delta(document, result.delta)
+    assert [op["key"]["canonical_id"] for op in result.delta["operations"]] == ["example/gpt-x-mini"]
+    assert load_catalog_document(applied).version == "2026-10-19"
+
+
+def test_discovery_proposes_no_operation_for_a_row_with_a_scheduled_end():
+    source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
+    evidence = discovery_evidence(source, _fixture("openai-api-pricing"), _scheduled(**dict(GPT_X, output_per_mtok=9.0)), observed_on=OBSERVED_ON)
+    assert [(c["model_key"], c["reason"]) for c in evidence["candidates"]] == [("gpt-x", "changed")]
+    assert evidence["operations"] == []
+
+
 # --- Effective dates in other forms --------------------------------------------------
 
 

@@ -31,6 +31,7 @@ from .catalog_delta import (
     RATE_FIELDS,
     PriceRowKey,
     _instant,
+    _iso_date,
     row_key,
 )
 from .extractors import (
@@ -279,6 +280,10 @@ def _compare_row(source: PriceSource, match: _RowMatch, ambiguous: Iterable[str]
                 changed[dimension] = observed
     if escalations or not changed:
         return None, escalations
+    if row.get("effective_to") is not None:
+        # A replacement would need to fit a window that already ends; that
+        # schedule is a reviewer's decision, not an automated one.
+        return None, [escalate("scheduled_window", detail=f"the current row already ends {_iso_date(row['effective_to'])}")]
     unrepresented = [f for f in RATE_FIELDS if row.get(f) is not None and f not in source.dimensions]
     if unrepresented:
         return None, [escalate("unrepresented_dimension", dimension=unrepresented[0], detail="the source cannot update this rate with the others")]
@@ -460,6 +465,7 @@ def discovery_evidence(
                 ambiguous = regional_key(match.rate.model_key, match.rate.region) in extraction.ambiguities
                 if (
                     complete
+                    and match.row.get("effective_to") is None
                     and not ambiguous
                     and not match.duplicate_model
                     and _day(match.row["effective_from"]) < observed_on

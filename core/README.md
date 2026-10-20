@@ -313,7 +313,8 @@ report: a pricing delta for the changes that pass, one observation per source
 (including sources with no change), and every escalation. New models, new
 regions, new dimensions, rows a page no longer lists, ambiguous parses, format
 changes, non-positive or missing rates, duplicated model entries, changes beyond
-the bound, and backdated or same-day effective dates escalate. A change takes
+the bound, changes to a row that already has a scheduled end, and backdated or
+same-day effective dates escalate. A change takes
 effect on the UTC observation date. It exits 0 with no change, 2 with a delta or
 an escalation, and 1 on error.
 
