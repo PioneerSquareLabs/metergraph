@@ -197,6 +197,11 @@ def _parse_price(raw: Any, key: PriceRowKey, label: str, *, same_date: bool) -> 
     if "rules" in raw and not isinstance(raw["rules"], Mapping):
         raise CatalogDeltaError(f"{label}: price rules must be a mapping")
     price = copy.deepcopy(dict(raw))
+    # Store the values that were validated, so the row lands exactly where
+    # its key says and cites its source without stray whitespace.
+    price["channel"] = key.channel
+    price["region"] = key.region
+    price["source_url"] = _text(raw["source_url"])
     price["effective_from"] = effective_from
     return price
 

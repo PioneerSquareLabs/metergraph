@@ -230,15 +230,19 @@ class _RowMatch:
 def _names(entry: Mapping[str, Any], channel: str, day: date) -> list[str]:
     """Model ids a page might use for ``entry`` on ``channel``, most
     specific first."""
+    on_channel = [a for a in entry.get("aliases") or [] if a.get("channel") == channel]
     names = [
         str(alias["alias"])
-        for alias in entry.get("aliases") or []
-        if alias.get("channel") == channel
-        and str(alias.get("provider") or "").lower() not in _ALIAS_ONLY_PROVIDERS
+        for alias in on_channel
+        if str(alias.get("provider") or "").lower() not in _ALIAS_ONLY_PROVIDERS
         and _in_effect(alias, day, dated=False)
     ]
     tail = str(entry["canonical_id"]).split("/", 1)[-1]
-    if tail not in names:
+    # The canonical tail is a fallback spelling, except where the channel
+    # defines that same name as an alias that is not in effect on ``day``.
+    defined = {str(a.get("alias") or "").lower() for a in on_channel}
+    active = {str(a.get("alias") or "").lower() for a in on_channel if _in_effect(a, day, dated=False)}
+    if tail not in names and (tail.lower() not in defined or tail.lower() in active):
         names.append(tail)
     return names
 

@@ -66,7 +66,7 @@ from metergraph_core.sources import (  # noqa: E402
     SourceRegistryError,
     load_source_registry,
 )
-from refresh_prices import content_file, fetch_text, refuse_overwrites  # noqa: E402
+from refresh_prices import content_file, fetch_text, refuse_overwrites, write_error  # noqa: E402
 
 REPORT_SCHEMA_VERSION = 1
 _URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
@@ -207,10 +207,16 @@ def main(argv: list[str] | None = None) -> int:
     except (DiscoveryError, OSError, ValueError, SourceRegistryError, yaml.YAMLError) as exc:
         print(f"discover_prices: {exc}", file=sys.stderr)
         return 1
-    text = json.dumps(report, indent=2) + "\n"
+    # The file is written before the report reaches stdout, so a failed write
+    # exits 1 with an error naming the path and the reason, and no report.
+    try:
+        text = json.dumps(report, indent=2) + "\n"
+        if args.json:
+            args.json.write_text(text)
+    except OSError as exc:
+        print(f"discover_prices: {write_error(exc)}", file=sys.stderr)
+        return 1
     print(text, end="")
-    if args.json:
-        args.json.write_text(text)
     return 0
 
 

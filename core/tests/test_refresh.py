@@ -759,6 +759,39 @@ def test_an_alias_starting_later_on_the_observation_date_does_not_match_yet():
     ]
 
 
+def _tail_alias_document(alias, alias_from, alias_to):
+    """gpt-x whose only openai-api alias is its own canonical tail, dated."""
+    document = _document()
+    window = {"effective_from": alias_from, "source_url": "https://example.com/aliases"}
+    if alias_to:
+        window["effective_to"] = alias_to
+    document["models"][0]["aliases"] = [dict({"provider": "openai", "alias": alias, "channel": "openai-api"}, **window)]
+    return document
+
+
+@pytest.mark.parametrize(
+    ("alias", "alias_from", "alias_to"),
+    [("gpt-x", "2026-11-01", None), ("gpt-x", "2026-01-01", "2026-10-01"), ("GPT-X", "2026-01-01", "2026-10-01")],
+    ids=["not-yet-effective", "expired", "expired-other-case"],
+)
+def test_an_inactive_alias_is_not_revived_by_the_canonical_tail(alias, alias_from, alias_to):
+    result = _plan(_tail_alias_document(alias, alias_from, alias_to))
+    assert _reasons(result) == [
+        ("openai-api-pricing", "model_not_listed", "example/gpt-x"),
+        ("openai-api-pricing", "unknown_model", "gpt-x"),
+    ]
+
+
+def test_the_canonical_tail_still_matches_without_an_alias_on_the_channel():
+    document = _document()
+    document["models"][0]["aliases"] = [
+        {"provider": "openai", "alias": "gpt-x", "channel": "vercel-ai-gateway"}
+    ]
+    result = _plan(document)
+    assert result.escalations == ()
+    assert result.observations[0].rows_compared == 3
+
+
 def test_current_rows_use_the_observation_instant():
     from metergraph_core.refresh import current_rows
 

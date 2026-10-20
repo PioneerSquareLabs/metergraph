@@ -629,6 +629,28 @@ def test_adding_beside_an_offset_row_on_its_local_date_keeps_ids_unique():
     assert len(ids) == len(set(ids))
 
 
+def test_a_replacement_stores_the_canonical_channel_region_and_source_url():
+    padded = _new_price(channel=" openai-api ", region="global\t", source_url="  https://example.com/pricing  ")
+    result = apply_catalog_delta(_document(), _delta(_replace(price=padded)))
+    new_row = result["models"][0]["prices"][-2]
+    assert (new_row["channel"], new_row["region"], new_row["source_url"]) == (
+        "openai-api", "global", "https://example.com/pricing"
+    )
+    loaded = load_catalog_document(result)
+    found = loaded.lookup_price(
+        model="model-a", provider="openai", region="global",
+        at=datetime(2026, 10, 21, tzinfo=timezone.utc),
+    )
+    assert str(found.price.input_per_mtok) == "1.25"
+
+
+def test_an_added_row_stores_the_canonical_channel_and_region():
+    operation = _add(price=_new_price(channel="vercel-ai-gateway ", region=" global"))
+    result = apply_catalog_delta(_document(), _delta(operation))
+    [row] = [r for r in result["models"][0]["prices"] if r["channel"].strip() == "vercel-ai-gateway"]
+    assert (row["channel"], row["region"]) == ("vercel-ai-gateway", "global")
+
+
 def test_a_replacement_with_an_offset_after_the_row_applies():
     operation = _replace(price=_new_price(effective_from="2026-10-20T00:00:00+00:00"))
     result = apply_catalog_delta(_document(), _delta(operation))

@@ -502,6 +502,16 @@ def test_an_adapter_failing_at_import_is_an_error_without_its_message(paths, cap
     assert "quoted prompt text" not in err
 
 
+def test_an_unwritable_report_path_exits_one_without_a_report(paths, capsys):
+    report = paths["tmp"] / "missing-directory" / "discovery.json"
+    status = discover_prices.main(paths["base"] + ["--content-dir", str(paths["content"]), "--json", str(report)])
+    captured = capsys.readouterr()
+    assert status == 1
+    assert captured.out == ""
+    assert f"discover_prices: cannot write {report}" in captured.err
+    assert "Example Model" not in captured.err
+
+
 def test_an_unloadable_adapter_is_an_error(paths, capsys):
     assert discover_prices.main(paths["base"] + ["--content-dir", str(paths["content"]), "--llm-adapter", "no_such_module:propose"]) == 1
     assert "cannot load adapter" in capsys.readouterr().err

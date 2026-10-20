@@ -150,6 +150,11 @@ def gather(
     return contents, errors, read
 
 
+def write_error(exc: OSError) -> str:
+    """A failed write as the path and the operating system's reason only."""
+    return f"cannot write {exc.filename or 'output'}: {exc.strerror or type(exc).__name__}"
+
+
 def evidence_paths(evidence_dir: Path, registry: SourceRegistry, contents: dict[str, str]) -> list[Path]:
     """The evidence files write_evidence would write."""
     return [evidence_dir / f"{source.id}.json" for source in registry.sources if source.id in contents]
@@ -199,12 +204,18 @@ def main(argv: list[str] | None = None) -> int:
     for escalation in report["escalations"]:
         if escalation["reason"] == "content_missing" and escalation["source_id"] in errors:
             escalation["detail"] = errors[escalation["source_id"]]
-    text = json.dumps(report, indent=2) + "\n"
+    # Files are written before the report reaches stdout, so a failed write
+    # exits 1 with an error naming the path and the reason, and no report.
+    try:
+        text = json.dumps(report, indent=2) + "\n"
+        if args.evidence_dir:
+            write_evidence(args.evidence_dir, registry, contents, document, args.observed_on)
+        if args.json:
+            args.json.write_text(text)
+    except OSError as exc:
+        print(f"refresh_prices: {write_error(exc)}", file=sys.stderr)
+        return 1
     print(text, end="")
-    if args.json:
-        args.json.write_text(text)
-    if args.evidence_dir:
-        write_evidence(args.evidence_dir, registry, contents, document, args.observed_on)
     return 2 if result.delta["operations"] or result.escalations else 0
 
 

@@ -416,6 +416,32 @@ def test_a_new_report_path_beside_the_inputs_is_written(setup, capsys, tmp_path)
     assert json.loads(report.read_text()) == output
 
 
+# --- Output failures ---------------------------------------------------------------
+
+
+def test_an_unwritable_report_path_exits_one_without_a_report(setup, capsys, tmp_path):
+    write, _, content, _ = setup
+    report = tmp_path / "missing-directory" / "report.json"
+    status = refresh_prices.main(write() + ["--content-dir", str(content), "--json", str(report)])
+    captured = capsys.readouterr()
+    assert status == 1
+    assert captured.out == ""
+    assert f"refresh_prices: cannot write {report}" in captured.err
+    assert "Claude Example" not in captured.err
+
+
+def test_an_unwritable_evidence_directory_exits_one_without_a_report(setup, capsys, tmp_path):
+    write, _, content, _ = setup
+    not_a_directory = tmp_path / "evidence"
+    not_a_directory.write_text("occupied")
+    status = refresh_prices.main(write() + ["--content-dir", str(content), "--evidence-dir", str(not_a_directory)])
+    captured = capsys.readouterr()
+    assert status == 1
+    assert captured.out == ""
+    assert "refresh_prices: cannot write" in captured.err
+    assert not_a_directory.read_text() == "occupied"
+
+
 def test_cli_never_writes_the_catalog(setup, capsys):
     write, catalog, content, _ = setup
     argv = write(_catalog(gpt_x_output=9.0))
