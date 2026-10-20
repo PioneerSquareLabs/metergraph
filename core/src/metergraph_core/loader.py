@@ -24,6 +24,7 @@ from .catalog import (
     _cost_result,
     _decimal,
     _effective_windows_overlap,
+    _iso_text,
     normalize_provider,
 )
 from .billing import Dispute
@@ -214,12 +215,8 @@ class LoadedCatalog:
 def _date(value: Any, *, field: str, model: str) -> datetime:
     if value is None:
         raise CatalogError(f"{model}: missing {field}")
-    text = str(value).strip()
-    # Python 3.10's parser rejects a trailing Z; read it as UTC everywhere.
-    if text[-1:] in ("Z", "z"):
-        text = text[:-1] + "+00:00"
     try:
-        parsed = datetime.fromisoformat(text)
+        parsed = datetime.fromisoformat(_iso_text(value))
     except ValueError as exc:
         raise CatalogError(f"{model}: invalid {field} {value!r}") from exc
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)

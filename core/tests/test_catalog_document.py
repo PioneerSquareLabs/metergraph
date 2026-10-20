@@ -366,13 +366,21 @@ def test_duplicate_model_entries_are_rejected():
         load_catalog_document(document)
 
 
-def test_duplicate_model_entries_are_rejected_from_a_file_too(tmp_path):
-    document = _small_document()
-    document["models"].append({"canonical_id": "example/model-a"})
-    path = tmp_path / "prices.yaml"
-    path.write_text(yaml.safe_dump(document))
-    with pytest.raises(CatalogError, match="duplicate model entry 'example/model-a'"):
-        load_catalog(path)
+def test_a_lookup_time_with_a_z_suffix_parses_on_every_supported_python(monkeypatch):
+    from metergraph_core import catalog as catalog_module
+
+    loaded = load_catalog_document(_small_document())
+    monkeypatch.setattr(catalog_module, "datetime", _Python310Datetime)
+    found = loaded.lookup_price(model="model-a", provider="openai", at="2026-10-20T10:00:00Z")
+    assert found.status == "priced"
+    assert found.effective_at == datetime(2026, 10, 20, 10, tzinfo=timezone.utc)
+
+
+def test_a_registry_window_day_with_a_z_suffix_parses_on_every_supported_python(monkeypatch):
+    from metergraph_core import models as models_module
+
+    monkeypatch.setattr(models_module, "datetime", _Python310Datetime)
+    assert models_module._window_day("2026-09-10T04:00:00Z") == date(2026, 9, 10)
 
 
 def test_both_loaders_build_through_one_construction_path(tmp_path, monkeypatch):

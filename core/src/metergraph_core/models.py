@@ -10,6 +10,7 @@ from typing import Any, Iterable, Mapping
 
 import yaml
 
+from .catalog import _iso_text
 from .loader import LoadedCatalog
 
 
@@ -202,7 +203,7 @@ def _window_day(value: Any) -> date:
         return value.date()
     if isinstance(value, date):
         return value
-    return datetime.fromisoformat(str(value)).date()
+    return datetime.fromisoformat(_iso_text(value)).date()
 
 
 def _optional_date(value: Any, field: str) -> date | None:
