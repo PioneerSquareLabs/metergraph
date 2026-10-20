@@ -24,7 +24,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping
 
-from .loader import CatalogError
+from .loader import CatalogError, _canonical_json, load_catalog_document
 
 PRICING_DELTA_SCHEMA_VERSION = 1
 PRICING_DELTA_KIND = "pricing_delta"
@@ -254,3 +254,107 @@ def parse_catalog_delta(delta_document: Mapping[str, Any]) -> CatalogDelta:
         operations=tuple(operations),
         provenance=copy.deepcopy(dict(provenance)),
     )
+
+
+def row_key(canonical_id: str, row: Mapping[str, Any]) -> PriceRowKey | None:
+    """The identity of a catalog price row, or None when it has no readable
+    channel or effective date."""
+    channel = _text(row.get("channel"))
+    effective_from = _iso_date(row.get("effective_from"))
+    if channel is None or effective_from is None:
+        return None
+    return PriceRowKey(
+        canonical_id=canonical_id,
+        channel=channel,
+        region=_text(row.get("region")) or "global",
+        effective_from=effective_from,
+    )
+
+
+def _locate(
+    document: Mapping[str, Any], operation: DeltaOperation
+) -> tuple[int | None, list[int], str | None]:
+    """The target model's index and the indexes of its rows with the
+    operation's key, or the reason the target cannot be located."""
+    key = operation.key
+    models = [
+        index
+        for index, entry in enumerate(document.get("models") or [])
+        if isinstance(entry, Mapping) and entry.get("canonical_id") == key.canonical_id
+    ]
+    if not models:
+        return None, [], "unknown_model"
+    if len(models) > 1:
+        return None, [], "duplicate_model"
+    entry = document["models"][models[0]]
+    rows = [
+        index
+        for index, row in enumerate(entry.get("prices") or [])
+        if isinstance(row, Mapping) and row_key(key.canonical_id, row) == key
+    ]
+    if len(rows) > 1:
+        return models[0], rows, "duplicate_row"
+    return models[0], rows, None
+
+
+def _precondition(document: Mapping[str, Any], operation: DeltaOperation) -> str | None:
+    """Why ``operation`` does not apply to ``document``, or None when it does."""
+    model_index, rows, reason = _locate(document, operation)
+    if reason is not None:
+        return reason
+    if operation.op == "add_price":
+        return "row_exists" if rows else None
+    if not rows:
+        return "row_missing"
+    row = document["models"][model_index]["prices"][rows[0]]
+    if row.get("effective_to") is not None:
+        return "row_not_open"
+    if _canonical_json(row) != _canonical_json(operation.expect):
+        return "expect_mismatch"
+    if operation.op == "replace_price" and datetime.fromisoformat(
+        operation.price["effective_from"]
+    ) <= datetime.fromisoformat(operation.key.effective_from):
+        return "not_after_current"
+    return None
+
+
+def apply_catalog_delta(
+    document: Mapping[str, Any], delta_document: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Return a new catalog document with ``delta_document`` applied.
+
+    Every operation's precondition is checked against ``document`` first; if
+    any fails, :class:`CatalogDeltaConflict` lists all of them and nothing is
+    returned. A replaced or closed row gets an ``effective_to``; new rows are
+    appended; no other row changes. Neither input is mutated. The top-level
+    ``version`` and ``pricing_verified_at`` are preserved: publishing a new
+    catalog version is not this function's job. The complete result is
+    validated with :func:`load_catalog_document`.
+    """
+    delta = parse_catalog_delta(delta_document)
+    if not isinstance(document, Mapping):
+        raise CatalogDeltaError("catalog document must be a mapping")
+    conflicts = tuple(
+        DeltaConflict(operation.index, operation.op, operation.key, reason)
+        for operation in delta.operations
+        if (reason := _precondition(document, operation)) is not None
+    )
+    if conflicts:
+        raise CatalogDeltaConflict(conflicts)
+
+    result = copy.deepcopy(dict(document))
+    for operation in delta.operations:
+        model_index, rows, _ = _locate(result, operation)
+        prices = result["models"][model_index].setdefault("prices", [])
+        if operation.op == "add_price":
+            prices.append(copy.deepcopy(dict(operation.price)))
+        elif operation.op == "replace_price":
+            prices[rows[0]]["effective_to"] = operation.price["effective_from"]
+            prices.insert(rows[0] + 1, copy.deepcopy(dict(operation.price)))
+        else:
+            prices[rows[0]]["effective_to"] = operation.effective_to
+    try:
+        load_catalog_document(result)
+    except CatalogError as exc:
+        raise CatalogDeltaError(f"delta result is not a valid catalog: {exc}") from exc
+    return result

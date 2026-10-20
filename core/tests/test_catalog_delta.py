@@ -2,14 +2,17 @@
 document."""
 
 import copy
+from datetime import datetime, timezone
 
 import pytest
 
-from metergraph_core import CatalogError
+from metergraph_core import CatalogError, load_catalog_document
 from metergraph_core.catalog_delta import (
     PRICING_DELTA_SCHEMA_VERSION,
+    CatalogDeltaConflict,
     CatalogDeltaError,
     PriceRowKey,
+    apply_catalog_delta,
     parse_catalog_delta,
 )
 
@@ -229,3 +232,245 @@ def test_parse_does_not_mutate_the_delta():
     before = copy.deepcopy(delta)
     parse_catalog_delta(delta)
     assert delta == before
+
+
+# --- Application -------------------------------------------------------------
+
+
+def _document():
+    return {
+        "version": "2026-10-19",
+        "currency": "USD",
+        "pricing_verified_at": "2026-10-19",
+        "models": [
+            {
+                "canonical_id": "example/model-a",
+                "publisher": "example",
+                "aliases": [
+                    {"provider": "openai", "alias": "model-a", "channel": "openai-api"},
+                    {"provider": "vercel", "alias": "example/model-a", "channel": "vercel-ai-gateway"},
+                ],
+                "prices": [
+                    {
+                        "channel": "openai-api",
+                        "region": "global",
+                        "effective_from": "2025-06-01",
+                        "effective_to": "2026-01-01",
+                        "input_per_mtok": 2.0,
+                        "output_per_mtok": 8.0,
+                        "source_url": "https://example.com/pricing-old",
+                    },
+                    dict(CURRENT_ROW),
+                    dict(CURRENT_ROW, region="us", input_per_mtok=1.1, output_per_mtok=4.4),
+                ],
+            }
+        ],
+    }
+
+
+def _rows(document, **match):
+    [model] = document["models"]
+    return [
+        row
+        for row in model["prices"]
+        if all(row.get(field) == value for field, value in match.items())
+    ]
+
+
+def test_replace_price_closes_the_current_row_and_appends_the_new_row():
+    result = apply_catalog_delta(_document(), _delta(_replace()))
+    rows = _rows(result, channel="openai-api", region="global")
+    assert rows == [
+        _document()["models"][0]["prices"][0],
+        dict(CURRENT_ROW, effective_to="2026-10-20"),
+        _new_price(),
+    ]
+
+
+def test_replace_price_keeps_unrelated_rows_unchanged():
+    result = apply_catalog_delta(_document(), _delta(_replace()))
+    assert _rows(result, region="us") == _rows(_document(), region="us")
+    assert result["models"][0]["aliases"] == _document()["models"][0]["aliases"]
+
+
+def test_add_price_appends_a_row_for_a_new_channel():
+    result = apply_catalog_delta(_document(), _delta(_add()))
+    assert _rows(result, channel="vercel-ai-gateway") == [
+        _new_price(channel="vercel-ai-gateway")
+    ]
+    assert len(result["models"][0]["prices"]) == 4
+
+
+def test_close_price_sets_only_effective_to():
+    result = apply_catalog_delta(_document(), _delta(_close()))
+    assert _rows(result, channel="openai-api", region="global")[1] == dict(
+        CURRENT_ROW, effective_to="2026-10-20"
+    )
+    assert len(result["models"][0]["prices"]) == 3
+
+
+def test_apply_preserves_version_and_pricing_verified_at():
+    result = apply_catalog_delta(_document(), _delta(_replace()))
+    assert result["version"] == "2026-10-19"
+    assert result["pricing_verified_at"] == "2026-10-19"
+
+
+def test_apply_never_mutates_the_document_or_the_delta():
+    document = _document()
+    delta = _delta(_replace(), _add())
+    document_before = copy.deepcopy(document)
+    delta_before = copy.deepcopy(delta)
+    result = apply_catalog_delta(document, delta)
+    assert document == document_before
+    assert delta == delta_before
+    result["models"][0]["prices"][-1]["input_per_mtok"] = "9"
+    assert delta == delta_before
+
+
+def test_applied_result_prices_the_new_rate_from_its_effective_date():
+    loaded = load_catalog_document(apply_catalog_delta(_document(), _delta(_replace())))
+
+    def input_rate(day):
+        found = loaded.lookup_price(
+            model="model-a",
+            provider="openai",
+            region="global",
+            at=datetime(2026, 10, day, tzinfo=timezone.utc),
+        )
+        return str(found.price.input_per_mtok)
+
+    assert input_rate(19) == "1.0"
+    assert input_rate(20) == "1.25"
+
+
+def _conflicts(document, delta):
+    with pytest.raises(CatalogDeltaConflict) as raised:
+        apply_catalog_delta(document, delta)
+    return [(c.index, c.reason) for c in raised.value.conflicts]
+
+
+def _new_model_key():
+    return _key(
+        canonical_id="example/new-model",
+        channel="vercel-ai-gateway",
+        effective_from="2026-10-20",
+    )
+
+
+def test_an_unknown_model_is_a_conflict():
+    assert _conflicts(_document(), _delta(_add(key=_new_model_key()))) == [
+        (0, "unknown_model")
+    ]
+
+
+def test_a_missing_row_is_a_conflict():
+    key = _key(effective_from="2026-02-01")
+    expect = dict(CURRENT_ROW, effective_from="2026-02-01")
+    assert _conflicts(_document(), _delta(_replace(key=key, expect=expect))) == [
+        (0, "row_missing")
+    ]
+
+
+def test_adding_an_existing_row_is_a_conflict():
+    operation = _add(key=_key(), price=_new_price(effective_from="2026-01-01"))
+    assert _conflicts(_document(), _delta(operation)) == [(0, "row_exists")]
+
+
+def test_an_expect_that_differs_from_the_row_is_a_conflict():
+    stale = dict(CURRENT_ROW, input_per_mtok=1.05)
+    assert _conflicts(_document(), _delta(_replace(expect=stale))) == [
+        (0, "expect_mismatch")
+    ]
+
+
+def test_an_expect_missing_a_field_is_a_conflict():
+    partial = dict(CURRENT_ROW)
+    del partial["source_url"]
+    assert _conflicts(_document(), _delta(_close(expect=partial))) == [
+        (0, "expect_mismatch")
+    ]
+
+
+def test_replacing_a_closed_row_is_a_conflict():
+    closed = _document()["models"][0]["prices"][0]
+    key = _key(effective_from="2025-06-01")
+    assert _conflicts(_document(), _delta(_replace(key=key, expect=closed))) == [
+        (0, "row_not_open")
+    ]
+
+
+@pytest.mark.parametrize("effective_from", ["2026-01-01", "2025-12-31"])
+def test_a_replacement_not_after_the_current_row_is_a_conflict(effective_from):
+    operation = _replace(price=_new_price(effective_from=effective_from))
+    assert _conflicts(_document(), _delta(operation)) == [(0, "not_after_current")]
+
+
+def test_a_duplicated_model_entry_is_a_conflict():
+    document = _document()
+    document["models"].append(copy.deepcopy(document["models"][0]))
+    assert _conflicts(document, _delta(_replace())) == [(0, "duplicate_model")]
+
+
+def test_a_duplicated_price_row_is_a_conflict():
+    document = _document()
+    document["models"][0]["prices"].append(dict(CURRENT_ROW))
+    assert _conflicts(document, _delta(_replace())) == [(0, "duplicate_row")]
+
+
+def test_every_conflict_is_collected_and_nothing_is_applied():
+    document = _document()
+    before = copy.deepcopy(document)
+    delta = _delta(
+        _replace(expect=dict(CURRENT_ROW, input_per_mtok=3)),
+        _add(),
+        _add(key=_new_model_key()),
+        _close(key=_key(region="us"), expect=dict(CURRENT_ROW, region="us")),
+    )
+    assert _conflicts(document, delta) == [
+        (0, "expect_mismatch"),
+        (2, "unknown_model"),
+        (3, "expect_mismatch"),
+    ]
+    assert document == before
+
+
+def test_the_conflict_message_names_each_failing_change():
+    with pytest.raises(
+        CatalogDeltaConflict,
+        match=(
+            r"operation 0 replace_price example/model-a "
+            r"openai-api/global@2026-01-01: expect_mismatch"
+        ),
+    ):
+        apply_catalog_delta(_document(), _delta(_replace(expect={})))
+
+
+def test_a_result_that_is_not_a_valid_catalog_is_rejected():
+    # The new row overlaps the open global row, which the loader rejects.
+    operation = _add(
+        key=_key(effective_from="2026-06-01"),
+        price=_new_price(effective_from="2026-06-01"),
+    )
+    with pytest.raises(
+        CatalogDeltaError,
+        match="delta result is not a valid catalog: .*overlapping openai-api/global",
+    ):
+        apply_catalog_delta(_document(), _delta(operation))
+
+
+def test_applying_the_same_delta_twice_conflicts():
+    delta = _delta(_replace())
+    once = apply_catalog_delta(_document(), delta)
+    assert _conflicts(once, delta) == [(0, "row_not_open")]
+
+
+def test_a_malformed_delta_is_rejected_before_application():
+    with pytest.raises(CatalogDeltaError, match="unsupported delta schema_version"):
+        apply_catalog_delta(_document(), _delta(_replace(), schema_version=3))
+
+
+def test_an_empty_delta_returns_an_equal_copy():
+    document = _document()
+    result = apply_catalog_delta(document, _delta())
+    assert result == document
+    assert result is not document
