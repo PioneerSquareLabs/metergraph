@@ -50,6 +50,7 @@ from .retrieval import (
     RetrievalPrice,
 )
 from .catalog_delta import (
+    CATALOG_DELTA_SCHEMA_VERSION,
     PRICING_DELTA_SCHEMA_VERSION,
     CatalogDelta,
     CatalogDeltaConflict,
@@ -85,6 +86,7 @@ from .sources import (
 
 __all__ = [
     "CatalogDelta",
+    "CATALOG_DELTA_SCHEMA_VERSION",
     "CatalogDeltaConflict",
     "CatalogDeltaError",
     "DeltaConflict",

@@ -19,6 +19,26 @@
 # low-risk refresh escalates instead of proposing changes.
 schema_version: 1
 sources:
+  - id: vercel-ai-gateway-models
+    provider: vercel
+    channel: vercel-ai-gateway
+    catalog_channel: true
+    url: https://ai-gateway.vercel.sh/v1/models
+    parser: vercel-gateway-json
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok]
+    fingerprint: sha256:60532548a4b00dbcb00a290461e38315aab72625a4cab710072983a967981146
+    low_risk: {eligible: false, dimensions: []}
+
+  - id: openrouter-models
+    provider: openrouter
+    channel: openrouter-api
+    catalog_channel: true
+    url: https://openrouter.ai/api/v1/models
+    parser: openrouter-json
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, cache_write_1h_per_mtok, request_fee_per_1k_usd]
+    fingerprint: sha256:df7f51d4bc017ef1f8db206f4835f222d8f9438d7722794b6fb5cf0678fe2436
+    low_risk: {eligible: false, dimensions: []}
+
   - id: openai-api-pricing
     provider: openai
     channel: openai-api

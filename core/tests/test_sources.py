@@ -270,7 +270,32 @@ def test_bundled_registry_covers_every_seeded_provider():
         "aws",
         "azure",
         "nvidia",
+        "vercel",
+        "openrouter",
     }
+
+
+def test_gateway_model_feeds_are_registered_for_reviewed_discovery():
+    registry = load_source_registry()
+    expected = {
+        "vercel-ai-gateway-models": (
+            "vercel",
+            "vercel-ai-gateway",
+            "https://ai-gateway.vercel.sh/v1/models",
+            "vercel-gateway-json",
+        ),
+        "openrouter-models": (
+            "openrouter",
+            "openrouter-api",
+            "https://openrouter.ai/api/v1/models",
+            "openrouter-json",
+        ),
+    }
+    for source_id, identity in expected.items():
+        source = registry.get(source_id)
+        assert (source.provider, source.channel, source.url, source.parser) == identity
+        assert source.catalog_channel is True
+        assert source.low_risk.eligible is False
 
 
 def test_only_the_three_reviewed_official_parsers_start_low_risk():
@@ -395,9 +420,10 @@ def test_only_low_risk_and_demoted_official_sources_have_source_specific_fixture
 
 
 def test_every_other_non_low_risk_source_uses_a_generic_discovery_parser():
+    structured = {"vercel-gateway-json", "openrouter-json"}
     for source in load_source_registry().sources:
         if not source.low_risk.eligible and source.id not in DEMOTED_OFFICIAL_PARSER_IDS:
-            assert source.parser in GENERIC_PAGES, source.id
+            assert source.parser in GENERIC_PAGES or source.parser in structured, source.id
 
 
 def test_every_generic_discovery_source_yields_normalized_discovery_evidence():
@@ -405,7 +431,11 @@ def test_every_generic_discovery_source_yields_normalized_discovery_evidence():
 
     catalog = load_catalog()
     for source in load_source_registry().sources:
-        if source.low_risk.eligible or source.id in DEMOTED_OFFICIAL_PARSER_IDS:
+        if (
+            source.low_risk.eligible
+            or source.id in DEMOTED_OFFICIAL_PARSER_IDS
+            or source.parser not in GENERIC_PAGES
+        ):
             continue
         page = GENERIC_PAGES[source.parser]
         evidence = discovery_evidence(source, page, catalog.document, observed_on=date(2026, 10, 20))["evidence"]

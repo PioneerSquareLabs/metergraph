@@ -5,7 +5,7 @@ The script scans registry sources that are not low-risk (or those named with
 (``--escalations``), and new-source content supplied from a file or stdin
 (``--new-source``). For each it emits deterministic evidence -- candidate
 values, prior catalog values, the reason review is needed, and normalized
-facts from the page -- plus a proposed delta for changed catalog rows. Raw
+facts from the page -- plus a proposed delta for supported catalog changes. Raw
 page content is never emitted or stored.
 
 Registered sources are fetched only from their registered URLs, or read as
@@ -51,6 +51,7 @@ for _path in (str(REPOSITORY_ROOT / "core" / "src"), str(Path(__file__).resolve(
 import yaml  # noqa: E402
 
 from metergraph_core.catalog_delta import (  # noqa: E402
+    CATALOG_DELTA_SCHEMA_VERSION,
     PRICING_DELTA_KIND,
     PRICING_DELTA_SCHEMA_VERSION,
     CatalogDeltaError,
@@ -70,7 +71,9 @@ from refresh_prices import content_file, fetch_text, refuse_overwrites, write_er
 
 REPORT_SCHEMA_VERSION = 1
 _URL = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://")
-_OPERATION_FIELDS = {"op", "key", "expect", "price", "effective_to"}
+_OPERATION_FIELDS = {
+    "op", "key", "expect", "price", "effective_to", "model", "alias"
+}
 
 
 class DiscoveryError(Exception):
@@ -89,8 +92,17 @@ def load_adapter(spec: str) -> Callable[..., Any]:
 
 
 def _delta(operations: list, observations: list[str], evidence: list[dict]) -> dict[str, Any]:
+    version = (
+        CATALOG_DELTA_SCHEMA_VERSION
+        if any(
+            isinstance(operation, Mapping)
+            and operation.get("op") in {"add_model", "add_alias"}
+            for operation in operations
+        )
+        else PRICING_DELTA_SCHEMA_VERSION
+    )
     return {
-        "schema_version": PRICING_DELTA_SCHEMA_VERSION,
+        "schema_version": version,
         "kind": PRICING_DELTA_KIND,
         "provenance": {
             "generator": "metergraph discovery",
@@ -105,20 +117,35 @@ def _delta(operations: list, observations: list[str], evidence: list[dict]) -> d
 def _operation_json(operation: DeltaOperation) -> dict[str, Any]:
     """A validated operation in its parsed, JSON-native form: canonical dates
     and no fields beyond the schema's."""
-    data: dict[str, Any] = {
-        "op": operation.op,
-        "key": {
+    if operation.op == "add_model":
+        key = {"canonical_id": operation.key.canonical_id}
+    elif operation.op == "add_alias":
+        key = {
+            "canonical_id": operation.key.canonical_id,
+            "provider": operation.key.provider,
+            "alias": operation.key.alias,
+            "channel": operation.key.channel,
+        }
+    else:
+        key = {
             "canonical_id": operation.key.canonical_id,
             "channel": operation.key.channel,
             "region": operation.key.region,
             "effective_from": operation.key.effective_from,
-        },
+        }
+    data: dict[str, Any] = {
+        "op": operation.op,
+        "key": key,
         "expect": _canonical_value(operation.expect),
     }
     if operation.price is not None:
         data["price"] = _canonical_value(operation.price)
     if operation.effective_to is not None:
         data["effective_to"] = operation.effective_to
+    if operation.model is not None:
+        data["model"] = _canonical_value(operation.model)
+    if operation.alias is not None:
+        data["alias"] = _canonical_value(operation.alias)
     return data
 
 
@@ -146,7 +173,16 @@ def run_adapter(adapter: Callable[..., Any], name: str, source: dict[str, Any], 
             result["rejected"].append({"index": index, "error": "invalid_operation"})
             continue
         channel = source.get("channel")
-        if channel is not None and operation.key.channel != channel:
+        operation_channel = getattr(operation.key, "channel", None)
+        if operation.op == "add_model":
+            channels = {
+                row.get("channel")
+                for field in ("aliases", "prices")
+                for row in operation.model.get(field) or []
+                if isinstance(row, Mapping)
+            }
+            operation_channel = channel if channels == {channel} else None
+        if channel is not None and operation_channel != channel:
             result["rejected"].append({"index": index, "error": "wrong_channel"})
             continue
         # The schema allows any mapping in expect and rules; only an

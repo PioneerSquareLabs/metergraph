@@ -107,9 +107,11 @@ Every stored call gets a `cost_status`:
    `python scripts/refresh_prices.py` turns low-risk sources into a proposed
    pricing delta plus per-source observations and escalations, and
    `python scripts/discover_prices.py` gathers evidence and proposals for
-   everything else. Neither applies a delta or edits this file; a change still
-   lands through a reviewed pull request. See `core/README.md` for the
-   registry, the delta format, and the provider contribution path.
+   everything else. After reviewing an additive proposal,
+   `python scripts/apply_price_delta.py --reviewed` can render it to a new
+   catalog path without rewriting comments. A change still lands through a
+   reviewed pull request. See `core/README.md` for the registry, the delta
+   format, and the provider contribution path.
 5. Open a PR; CI validates structure, dates, and window overlaps.
 6. A catalog change updates the declared catalog `version` and ships as a patch release of `metergraph-core`; the software version and catalog version stay separate because code and price data have different lifecycles.
 7. Self-hosters: mount an updated file with `MG_PRICES_PATH=/path/to/prices.yaml` — no rebuild needed.

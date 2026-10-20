@@ -587,6 +587,148 @@ def _rates_json(rates: Mapping[str, Any], dimensions: Iterable[str]) -> dict[str
     }
 
 
+def _gateway_alias(source: PriceSource, rate: ExtractedRate) -> dict[str, Any]:
+    alias = {
+        "provider": source.provider,
+        "alias": rate.model_key,
+        "channel": source.channel,
+    }
+    rules = dict(rate.meta.get("alias_rules") or {})
+    if rules:
+        alias["rules"] = rules
+    return alias
+
+
+def _gateway_price(
+    source: PriceSource, rate: ExtractedRate, observed_on: date
+) -> dict[str, Any]:
+    price: dict[str, Any] = {
+        "channel": source.channel,
+        "region": rate.region,
+        "effective_from": observed_on.isoformat(),
+    }
+    for field in RATE_FIELDS:
+        if field in rate.rates:
+            price[field] = _money(rate.rates[field])
+    rules = dict(rate.meta.get("price_rules") or {})
+    if rules:
+        price["rules"] = rules
+    price["source_url"] = source.url
+    return price
+
+
+def _exact_models(
+    document: Mapping[str, Any], model_key: str
+) -> list[Mapping[str, Any]]:
+    wanted = model_key.strip().lower()
+    found: list[Mapping[str, Any]] = []
+    for entry in document.get("models") or []:
+        if not isinstance(entry, Mapping):
+            continue
+        names = {str(entry.get("canonical_id") or "").strip().lower()}
+        names.update(
+            str(alias.get("alias") or "").strip().lower()
+            for alias in entry.get("aliases") or []
+            if isinstance(alias, Mapping)
+        )
+        if wanted in names:
+            found.append(entry)
+    return found
+
+
+def _gateway_additions(
+    source: PriceSource,
+    extraction: Extraction,
+    document: Mapping[str, Any],
+    observed_on: date,
+) -> list[dict[str, Any]]:
+    """Reviewed additive operations for exact gateway model identities."""
+    operations: list[dict[str, Any]] = []
+    for rate in extraction.rates:
+        matches = _exact_models(document, rate.model_key)
+        if not matches:
+            canonical_id = rate.model_key
+            operations.append(
+                {
+                    "op": "add_model",
+                    "key": {"canonical_id": canonical_id},
+                    "expect": None,
+                    "model": {
+                        "canonical_id": canonical_id,
+                        "publisher": str(
+                            rate.meta.get("publisher")
+                            or canonical_id.split("/", 1)[0]
+                        ),
+                        "aliases": [_gateway_alias(source, rate)],
+                        "prices": [_gateway_price(source, rate, observed_on)],
+                    },
+                }
+            )
+            continue
+        if len(matches) != 1:
+            continue
+        entry = matches[0]
+        canonical_id = str(entry["canonical_id"])
+        alias = _gateway_alias(source, rate)
+        channel_aliases = [
+            current
+            for current in entry.get("aliases") or []
+            if isinstance(current, Mapping)
+            and str(current.get("alias") or "").strip().lower()
+            == rate.model_key.lower()
+            and current.get("channel") == source.channel
+        ]
+        if channel_aliases:
+            alias.pop("rules", None)
+            if channel_aliases[0].get("rules"):
+                alias["rules"] = copy.deepcopy(channel_aliases[0]["rules"])
+        has_alias = any(
+            isinstance(current, Mapping)
+            and str(current.get("provider") or "").strip().lower()
+            == source.provider.lower()
+            and str(current.get("alias") or "").strip().lower()
+            == rate.model_key.lower()
+            and current.get("channel") == source.channel
+            for current in entry.get("aliases") or []
+        )
+        if not has_alias:
+            operations.append(
+                {
+                    "op": "add_alias",
+                    "key": {
+                        "canonical_id": canonical_id,
+                        "provider": source.provider,
+                        "alias": rate.model_key,
+                        "channel": source.channel,
+                    },
+                    "expect": None,
+                    "alias": alias,
+                }
+            )
+        has_current_price = any(
+            isinstance(row, Mapping)
+            and row.get("channel") == source.channel
+            and str(row.get("region") or "global") == rate.region
+            and _in_effect(row, observed_on, dated=True)
+            for row in entry.get("prices") or []
+        )
+        if not has_current_price:
+            operations.append(
+                {
+                    "op": "add_price",
+                    "key": {
+                        "canonical_id": canonical_id,
+                        "channel": source.channel,
+                        "region": rate.region,
+                        "effective_from": observed_on.isoformat(),
+                    },
+                    "expect": None,
+                    "price": _gateway_price(source, rate, observed_on),
+                }
+            )
+    return operations
+
+
 def discovery_evidence(
     source: PriceSource,
     content: str,
@@ -654,6 +796,26 @@ def discovery_evidence(
                 {"model_key": rate.model_key, "region": rate.region, "canonical_id": None, "reason": reason, "prior": None, "candidate": _rates_json(rate.rates, source.dimensions), "missing_dimensions": [], "invalid_dimensions": []}
             )
         candidates.sort(key=lambda c: (c["model_key"], c["region"]))
+        if source.parser in {"vercel-gateway-json", "openrouter-json"}:
+            additions = _gateway_additions(
+                source, extraction, document, observed_on
+            )
+            additions_by_target = {
+                (operation["op"], _canonical_json(operation["key"])): operation
+                for operation in additions
+            }
+            existing = {
+                (operation["op"], _canonical_json(operation["key"]))
+                for operation in operations
+            }
+            operations.extend(
+                operation
+                for target, operation in additions_by_target.items()
+                if target not in existing
+            )
+    exclusions = dict(
+        sorted(Counter(item.reason for item in extraction.exclusions).items())
+    )
     return {
         "source_id": source.id,
         "provider": source.provider,
@@ -666,9 +828,10 @@ def discovery_evidence(
         "fingerprint_matches": extraction.fingerprint == source.fingerprint,
         "applicable": extraction.applicable,
         "ambiguities": list(extraction.ambiguities),
+        "exclusions": exclusions,
         "candidates": candidates,
-        # Reviewable replace_price operations for changed catalog rows; new
-        # models and regions stay evidence only. Dates are reported as text.
+        # Reviewable changes. Exact structured gateway identities may add
+        # models or aliases; other unknown models stay evidence only.
         "operations": _canonical_value(operations),
         # Raw page content is never emitted: extractor evidence is always
         # reduced to normalized facts, with no page cell or sentence verbatim.

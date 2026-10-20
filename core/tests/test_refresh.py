@@ -2,6 +2,7 @@
 content. Nothing here fetches or applies a delta."""
 
 import copy
+import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -536,6 +537,216 @@ def test_discovery_evidence_proposes_no_operation_for_a_row_starting_that_day():
     evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
     assert evidence["operations"] == []
     assert [c["reason"] for c in evidence["candidates"]] == ["changed"]
+
+
+def _gateway_source(provider="openrouter", parser="openrouter-json"):
+    return _registry(
+        _source(
+            "gateway-models",
+            parser,
+            f"{provider}-api" if provider == "openrouter" else "vercel-ai-gateway",
+            provider,
+            low_risk=False,
+            fingerprint=None,
+            url=f"https://example.com/{provider}/models",
+        )
+    ).get("gateway-models")
+
+
+def _openrouter_page(*models):
+    return json.dumps({"data": list(models)})
+
+
+def _openrouter_model(model_id="example/model-new"):
+    return {
+        "id": model_id,
+        "architecture": {"output_modalities": ["text"]},
+        "pricing": {"prompt": "0.000001", "completion": "0.000004"},
+    }
+
+
+def test_gateway_discovery_proposes_a_complete_new_model():
+    source = _gateway_source()
+    evidence = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model()),
+        _document(),
+        observed_on=OBSERVED_ON,
+    )
+
+    assert evidence["operations"] == [
+        {
+            "op": "add_model",
+            "key": {"canonical_id": "example/model-new"},
+            "expect": None,
+            "model": {
+                "canonical_id": "example/model-new",
+                "publisher": "example",
+                "aliases": [
+                    {
+                        "provider": "openrouter",
+                        "alias": "example/model-new",
+                        "channel": "openrouter-api",
+                    }
+                ],
+                "prices": [
+                    {
+                        "channel": "openrouter-api",
+                        "region": "global",
+                        "effective_from": "2026-10-20",
+                        "input_per_mtok": "1",
+                        "output_per_mtok": "4",
+                        "rules": {"varies_by_provider": True},
+                        "source_url": "https://example.com/openrouter/models",
+                    }
+                ],
+            },
+        }
+    ]
+
+
+def test_gateway_discovery_adds_an_exact_alias_and_channel_price():
+    source = _gateway_source()
+    document = _document(
+        _model(
+            "example/model-new",
+            "model-new",
+            _row(input_per_mtok=2, output_per_mtok=8),
+        )
+    )
+
+    operations = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model()),
+        document,
+        observed_on=OBSERVED_ON,
+    )["operations"]
+    assert [operation["op"] for operation in operations] == ["add_alias", "add_price"]
+
+    delta = {
+        "schema_version": 2,
+        "kind": "pricing_delta",
+        "provenance": {"observations": ["gateway-models@2026-10-20"]},
+        "operations": operations,
+    }
+    updated = apply_catalog_delta(document, delta)
+    repeated = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model()),
+        updated,
+        observed_on=OBSERVED_ON,
+    )
+    assert repeated["operations"] == []
+
+
+def test_gateway_alias_reuses_existing_channel_rules():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        {
+            "canonical_id": "example/model-new",
+            "publisher": "example",
+            "aliases": [
+                {
+                    "provider": "example",
+                    "alias": "example/model-new",
+                    "channel": "vercel-ai-gateway",
+                    "rules": {"input_includes_cache_read": False},
+                }
+            ],
+            "prices": [
+                {
+                    "channel": "vercel-ai-gateway",
+                    "region": "global",
+                    "effective_from": "2026-01-01",
+                    "input_per_mtok": 1,
+                    "output_per_mtok": 4,
+                    "source_url": "https://example.com/models",
+                }
+            ],
+        }
+    )
+    page = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "example/model-new",
+                    "owned_by": "example",
+                    "type": "language",
+                    "pricing": {"input": "0.000001", "output": "0.000004"},
+                }
+            ]
+        }
+    )
+
+    [operation] = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+    assert operation["op"] == "add_alias"
+    assert operation["alias"]["rules"] == {"input_includes_cache_read": False}
+    apply_catalog_delta(
+        document,
+        {
+            "schema_version": 2,
+            "kind": "pricing_delta",
+            "provenance": {"observations": ["gateway@2026-10-20"]},
+            "operations": [operation],
+        },
+    )
+
+
+def test_gateway_discovery_replaces_a_changed_exact_route():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        _model(
+            "example/model-new",
+            "example/model-new",
+            {
+                "channel": "vercel-ai-gateway",
+                "region": "global",
+                "effective_from": "2026-01-01",
+                "input_per_mtok": 0.5,
+                "output_per_mtok": 2,
+                "source_url": "https://example.com/models",
+            },
+            channel="vercel-ai-gateway",
+            provider="vercel",
+        )
+    )
+    page = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "example/model-new",
+                    "owned_by": "example",
+                    "type": "language",
+                    "pricing": {"input": "0.000001", "output": "0.000004"},
+                }
+            ]
+        }
+    )
+
+    [operation] = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+    assert operation["op"] == "replace_price"
+    assert operation["price"]["input_per_mtok"] == "1"
+    assert operation["price"]["output_per_mtok"] == "4"
+
+
+def test_gateway_discovery_reports_exclusion_counts_without_raw_rows():
+    source = _gateway_source()
+    evidence = discovery_evidence(
+        source,
+        _openrouter_page(
+            _openrouter_model("example/model-new:free"),
+            _openrouter_model("example/model-new"),
+        ),
+        _document(),
+        observed_on=OBSERVED_ON,
+    )
+
+    assert evidence["exclusions"] == {"free_route": 1}
+    assert "model-new:free" not in json.dumps(evidence)
 
 
 def test_discovery_evidence_for_gpu_licensing_carries_no_token_candidates():
