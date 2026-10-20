@@ -208,6 +208,11 @@ def test_openrouter_json_keeps_only_static_complete_token_prices():
                     "pricing": {"prompt": "0", "completion": "0"},
                 },
                 {
+                    "id": "~example/model-latest",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {"prompt": "0.000001", "completion": "0.000004"},
+                },
+                {
                     "id": "scaledown/input-only",
                     "architecture": {"output_modalities": ["text"]},
                     "pricing": {"prompt": "0.00000004", "completion": "0"},
@@ -288,6 +293,7 @@ def test_openrouter_json_keeps_only_static_complete_token_prices():
         ("example/model-free:free", "free_route"),
         ("example/model-image", "non_text_output"),
         ("example/model-unknown-pricing", "unknown_pricing_field"),
+        ("~example/model-latest", "floating_route"),
     ]
 
 

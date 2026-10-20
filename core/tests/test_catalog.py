@@ -60,9 +60,9 @@ def test_current_catalog_prices_more_than_one_thousand_provider_model_pairs():
         == "priced"
     }
 
-    assert len(pairs) == 1118
+    assert len(pairs) == 1111
     assert sum(provider == "vercel" for provider, _ in pairs) == 186
-    assert sum(provider == "openrouter" for provider, _ in pairs) == 219
+    assert sum(provider == "openrouter" for provider, _ in pairs) == 212
 
 
 def test_resolve_price_by_deployment_identity_and_channel():

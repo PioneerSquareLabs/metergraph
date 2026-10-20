@@ -774,6 +774,9 @@ def _openrouter_extract(content: str) -> tuple[
         if model_id.endswith(":free"):
             exclusions.append(ExtractionExclusion(model_id, "free_route"))
             continue
+        if model_id.startswith("~"):
+            exclusions.append(ExtractionExclusion(model_id, "floating_route"))
+            continue
         if model_id.startswith("openrouter/"):
             exclusions.append(ExtractionExclusion(model_id, "router"))
             continue
