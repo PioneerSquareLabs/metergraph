@@ -634,6 +634,12 @@ models:
         rules:
           input_includes_cache_read: true
           input_includes_cache_write: true
+      - provider: openrouter
+        alias: openai/gpt-4o-mini-2024-07-18
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
     prices:
       - channel: openai-api
         region: global
@@ -656,10 +662,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.075'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
+        cache_read_per_mtok: 0.075
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -675,6 +681,18 @@ models:
       - {provider: vercel, alias: openai/gpt-4o, channel: vercel-ai-gateway, rules: {input_includes_cache_read: true}, effective_from: "2026-10-02", source_url: https://ai-gateway.vercel.sh/v1/models}
       - provider: openrouter
         alias: openai/gpt-4o
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: openai/gpt-4o-2024-08-06
+        channel: openrouter-api
+        rules:
+          input_includes_cache_read: true
+          input_includes_cache_write: true
+      - provider: openrouter
+        alias: openai/gpt-4o-2024-11-20
         channel: openrouter-api
         rules:
           input_includes_cache_read: true
@@ -701,10 +719,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '10'
-        cache_read_per_mtok: '1.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 10
+        cache_read_per_mtok: 1.25
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -1858,10 +1876,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.0765'
-        output_per_mtok: '0.255'
-        cache_read_per_mtok: '0.0425'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.0765
+        output_per_mtok: 0.255
+        cache_read_per_mtok: 0.0425
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -1885,10 +1903,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.08'
-        output_per_mtok: '0.35'
-        cache_read_per_mtok: '0.04'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.08
+        output_per_mtok: 0.35
+        cache_read_per_mtok: 0.04
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -1921,9 +1939,9 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.08'
-        output_per_mtok: '0.45'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.08
+        output_per_mtok: 0.45
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -2132,10 +2150,10 @@ models:
         source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.02'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.02
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -2200,10 +2218,10 @@ models:
         source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.28'
-        output_per_mtok: '0.42'
-        cache_read_per_mtok: '0.028'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.28
+        output_per_mtok: 0.42
+        cache_read_per_mtok: 0.028
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -2387,10 +2405,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.371664'
-        output_per_mtok: '0.743328'
-        cache_read_per_mtok: '0.030972'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.371664
+        output_per_mtok: 0.743328
+        cache_read_per_mtok: 0.030972
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -2810,9 +2828,9 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '0.4'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 0.4
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -2845,10 +2863,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.04'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.04
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -2893,12 +2911,11 @@ models:
         alias: fireworks:accounts/fireworks/models/deepseek-v4p1-flash
         channel: fireworks-api
         rules: {input_includes_cache_read: true}
-      - provider: openrouter
-        alias: deepseek/deepseek-v4.1-flash
-        channel: openrouter-api
+      - provider: vercel
+        alias: deepseek/deepseek-v4-flash-vision-exp
+        channel: vercel-ai-gateway
         rules:
           input_includes_cache_read: true
-          input_includes_cache_write: true
     prices:
       - channel: deepseek-api
         region: global
@@ -2935,10 +2952,25 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-19"
-        # Store Vercel's 2x peak rate; this rule restores its off-peak rate.
+        effective_to: "2026-10-20"
+        # Store the peak rate; this rule applies Vercel's off-peak discount.
         input_per_mtok: 0.15
         output_per_mtok: 0.60
         cache_read_per_mtok: 0.003
+        rules:
+          input_includes_cache_read: true
+          varies_by_provider: true
+          off_peak_discount:
+            multiplier: 0.5
+            peak_hours_utc: [[1, 4], [6, 10]]
+            peak_weekdays_only: true
+        source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2156
+        output_per_mtok: 0.6468
+        cache_read_per_mtok: 0.0068
         rules:
           input_includes_cache_read: true
           varies_by_provider: true
@@ -2956,15 +2988,6 @@ models:
         cache_read_per_mtok: 0.006
         source_url: https://fireworks.ai/models/deepseek-ai/deepseek-v4p1-flash
 
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.02832'
-        output_per_mtok: '0.12'
-        cache_read_per_mtok: '0.000566'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
   - canonical_id: meta/muse-spark-1.3
     publisher: meta
     aliases:
@@ -3030,10 +3053,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '4.05'
-        cache_read_per_mtok: '0.17'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 4.05
+        cache_read_per_mtok: 0.17
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3075,10 +3098,10 @@ models:
         source_url: https://docs.z.ai/guides/overview/pricing
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.62'
-        output_per_mtok: '2.42'
-        cache_read_per_mtok: '0.14'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.62
+        output_per_mtok: 2.42
+        cache_read_per_mtok: 0.14
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3139,10 +3162,10 @@ models:
         source_url: https://fireworks.ai/models/fireworks/kimi-k3
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.239'
-        output_per_mtok: '11.936'
-        cache_read_per_mtok: '0.21'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.239
+        output_per_mtok: 11.936
+        cache_read_per_mtok: 0.21
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3180,10 +3203,10 @@ models:
         source_url: https://platform.kimi.ai/docs/pricing/chat
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6712'
-        output_per_mtok: '3.35'
-        cache_read_per_mtok: '0.18'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6712
+        output_per_mtok: 3.35
+        cache_read_per_mtok: 0.18
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3249,10 +3272,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '2.5'
-        cache_read_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 2.5
+        cache_read_per_mtok: 0.15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3314,10 +3337,10 @@ models:
   # Verified availability keeps the row open past a declared retirement.
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.06'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.06
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3396,17 +3419,17 @@ models:
 
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '3'
-        output_per_mtok: '15'
-        cache_read_per_mtok: '0.3'
+        effective_from: "2026-10-20"
+        input_per_mtok: 3
+        output_per_mtok: 15
+        cache_read_per_mtok: 0.3
         source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '3'
-        output_per_mtok: '15'
-        cache_read_per_mtok: '0.3'
+        effective_from: "2026-10-20"
+        input_per_mtok: 3
+        output_per_mtok: 15
+        cache_read_per_mtok: 0.3
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3438,10 +3461,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.075'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
+        cache_read_per_mtok: 0.075
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3814,10 +3837,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.079'
-        output_per_mtok: '1.4'
-        cache_read_per_mtok: '0.078'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.079
+        output_per_mtok: 1.4
+        cache_read_per_mtok: 0.078
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3870,10 +3893,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.048'
-        output_per_mtok: '0.12'
-        cache_read_per_mtok: '0.006'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.048
+        output_per_mtok: 0.12
+        cache_read_per_mtok: 0.006
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -3950,10 +3973,10 @@ models:
   # known limitation to revisit if that traffic ever becomes material.
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.65'
-        output_per_mtok: '3.41'
-        cache_read_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.65
+        output_per_mtok: 3.41
+        cache_read_per_mtok: 0.15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -4009,11 +4032,11 @@ models:
         source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.475'
-        output_per_mtok: '4.425'
-        cache_read_per_mtok: '0.295'
-        cache_write_5m_per_mtok: '1.84375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.475
+        output_per_mtok: 4.425
+        cache_read_per_mtok: 0.295
+        cache_write_5m_per_mtok: 1.84375
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -4125,10 +4148,10 @@ models:
         source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '4'
-        output_per_mtok: '12'
-        cache_read_per_mtok: '0.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 4
+        output_per_mtok: 12
+        cache_read_per_mtok: 0.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -4162,10 +4185,10 @@ models:
         source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.47'
-        cache_read_per_mtok: '0.016'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.47
+        cache_read_per_mtok: 0.016
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -4197,10 +4220,10 @@ models:
         source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.04'
-        output_per_mtok: '0.15'
-        cache_read_per_mtok: '0.004'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.04
+        output_per_mtok: 0.15
+        cache_read_per_mtok: 0.004
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -4284,9 +4307,9 @@ models:
         source_url: https://aws.amazon.com/bedrock/pricing/
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.06'
-        output_per_mtok: '0.24'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.06
+        output_per_mtok: 0.24
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -4329,9 +4352,9 @@ models:
         source_url: https://aws.amazon.com/bedrock/pricing/
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.035'
-        output_per_mtok: '0.14'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.035
+        output_per_mtok: 0.14
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -4379,9 +4402,9 @@ models:
         source_url: https://aws.amazon.com/bedrock/pricing/
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.8'
-        output_per_mtok: '3.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.8
+        output_per_mtok: 3.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -4722,10 +4745,10 @@ models:
         source_url: https://ai-gateway.vercel.sh/v1/models
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.06'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.06
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -4791,10 +4814,10 @@ models:
         source_url: https://docs.mistral.ai/inference/pricing
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
+        cache_read_per_mtok: 0.015
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5129,10 +5152,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.966'
-        output_per_mtok: '3.036'
-        cache_read_per_mtok: '0.1794'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.966
+        output_per_mtok: 3.036
+        cache_read_per_mtok: 0.1794
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5160,10 +5183,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.25'
-        output_per_mtok: '4.25'
-        cache_read_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.25
+        output_per_mtok: 4.25
+        cache_read_per_mtok: 0.15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5195,10 +5218,10 @@ models:
   # model registry and offer groups.
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.5'
-        cache_read_per_mtok: '0.02'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.5
+        cache_read_per_mtok: 0.02
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5334,10 +5357,10 @@ models:
 
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '3'
-        cache_read_per_mtok: '0.06'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 3
+        cache_read_per_mtok: 0.06
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5374,10 +5397,10 @@ models:
   # Vercel permits retention and prompt training.
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.35'
-        cache_read_per_mtok: '0.01'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.35
+        cache_read_per_mtok: 0.01
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5414,6 +5437,7 @@ models:
         output_per_mtok: 0.60
         cache_read_per_mtok: 0.015
         source_url: https://vercel.com/changelog/minimax-m3-1-flash-now-available-on-ai-gateway-for-free
+
   - canonical_id: alibaba/qwen-3-14b
     publisher: alibaba
     aliases:
@@ -5426,10 +5450,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.12'
-        output_per_mtok: '0.24'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.12
+        output_per_mtok: 0.24
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: alibaba/qwen-3-235b
     publisher: alibaba
     aliases:
@@ -5442,12 +5467,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.22'
-        output_per_mtok: '0.88'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.22
+        output_per_mtok: 0.88
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: alibaba/qwen-3-30b
     publisher: alibaba
     aliases:
@@ -5460,10 +5486,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.12'
-        output_per_mtok: '0.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.12
+        output_per_mtok: 0.5
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: alibaba/qwen-3-32b
     publisher: alibaba
     aliases:
@@ -5476,12 +5503,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: alibaba/qwen3-coder
     publisher: alibaba
     aliases:
@@ -5500,17 +5528,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.22'
-        output_per_mtok: '1.8'
-        cache_read_per_mtok: '0.022'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.22
+        output_per_mtok: 1.8
+        cache_read_per_mtok: 0.022
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1'
-        cache_read_per_mtok: '0.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1
+        cache_read_per_mtok: 0.1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5526,10 +5555,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: alibaba/qwen3-coder-next
     publisher: alibaba
     aliases:
@@ -5548,16 +5578,17 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '1.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 1.2
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.12'
-        output_per_mtok: '0.8'
-        cache_read_per_mtok: '0.07'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.12
+        output_per_mtok: 0.8
+        cache_read_per_mtok: 0.07
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5579,18 +5610,19 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '1.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 1.2
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '1.1'
-        cache_read_per_mtok: '0.07'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 1.1
+        cache_read_per_mtok: 0.07
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5612,15 +5644,16 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '1.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 1.2
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '1.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 1.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5636,11 +5669,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '0.88'
-        cache_read_per_mtok: '0.11'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 0.88
+        cache_read_per_mtok: 0.11
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: alibaba/qwen3.5-flash
     publisher: alibaba
     aliases:
@@ -5653,12 +5687,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.4'
-        cache_read_per_mtok: '0.01'
-        cache_write_5m_per_mtok: '0.125'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.4
+        cache_read_per_mtok: 0.01
+        cache_write_5m_per_mtok: 0.125
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: alibaba/qwen3.6-27b
     publisher: alibaba
     aliases:
@@ -5677,16 +5712,17 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '3.6'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 3.6
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '2'
-        cache_read_per_mtok: '0.025'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.25
+        output_per_mtok: 2
+        cache_read_per_mtok: 0.025
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5708,19 +5744,20 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.25
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.25
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5742,20 +5779,21 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '3'
-        cache_read_per_mtok: '0.1'
-        cache_write_5m_per_mtok: '0.625'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 3
+        cache_read_per_mtok: 0.1
+        cache_write_5m_per_mtok: 0.625
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.04'
-        output_per_mtok: '1.35'
-        cache_read_per_mtok: '0.018'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.04
+        output_per_mtok: 1.35
+        cache_read_per_mtok: 0.018
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5777,18 +5815,19 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.25'
-        cache_write_5m_per_mtok: '2.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 2.5
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.25
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5810,17 +5849,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.47'
-        cache_read_per_mtok: '0.016'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.47
+        cache_read_per_mtok: 0.016
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.47'
-        cache_read_per_mtok: '0.016'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.47
+        cache_read_per_mtok: 0.016
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -5836,12 +5876,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '5'
-        output_per_mtok: '25'
-        cache_read_per_mtok: '0.5'
-        cache_write_5m_per_mtok: '6.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 5
+        output_per_mtok: 25
+        cache_read_per_mtok: 0.5
+        cache_write_5m_per_mtok: 6.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-fable-5.1-batch
     publisher: anthropic
     aliases:
@@ -5854,12 +5895,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '5'
-        output_per_mtok: '25'
-        cache_read_per_mtok: '0.125'
-        cache_write_5m_per_mtok: '6.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 5
+        output_per_mtok: 25
+        cache_read_per_mtok: 0.125
+        cache_write_5m_per_mtok: 6.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-haiku-4.5-batch
     publisher: anthropic
     aliases:
@@ -5872,12 +5914,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '2.5'
-        cache_read_per_mtok: '0.05'
-        cache_write_5m_per_mtok: '0.625'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 2.5
+        cache_read_per_mtok: 0.05
+        cache_write_5m_per_mtok: 0.625
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-opus-4.5-batch
     publisher: anthropic
     aliases:
@@ -5890,12 +5933,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '12.5'
-        cache_read_per_mtok: '0.25'
-        cache_write_5m_per_mtok: '3.125'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 12.5
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 3.125
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-opus-4.6-batch
     publisher: anthropic
     aliases:
@@ -5908,12 +5952,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '12.5'
-        cache_read_per_mtok: '0.25'
-        cache_write_5m_per_mtok: '3.125'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 12.5
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 3.125
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-opus-4.7-batch
     publisher: anthropic
     aliases:
@@ -5926,12 +5971,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '12.5'
-        cache_read_per_mtok: '0.25'
-        cache_write_5m_per_mtok: '3.125'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 12.5
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 3.125
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-opus-4.8-batch
     publisher: anthropic
     aliases:
@@ -5944,12 +5990,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '12.5'
-        cache_read_per_mtok: '0.25'
-        cache_write_5m_per_mtok: '3.125'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 12.5
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 3.125
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-opus-5-batch
     publisher: anthropic
     aliases:
@@ -5962,12 +6009,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '12.5'
-        cache_read_per_mtok: '0.25'
-        cache_write_5m_per_mtok: '3.125'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 12.5
+        cache_read_per_mtok: 0.25
+        cache_write_5m_per_mtok: 3.125
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-opus-5.5-batch
     publisher: anthropic
     aliases:
@@ -5980,12 +6028,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '10'
-        cache_read_per_mtok: '0.1'
-        cache_write_5m_per_mtok: '2.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2
+        output_per_mtok: 10
+        cache_read_per_mtok: 0.1
+        cache_write_5m_per_mtok: 2.5
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-sonnet-4.6-batch
     publisher: anthropic
     aliases:
@@ -5998,12 +6047,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.5'
-        output_per_mtok: '7.5'
-        cache_read_per_mtok: '0.15'
-        cache_write_5m_per_mtok: '1.875'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.5
+        output_per_mtok: 7.5
+        cache_read_per_mtok: 0.15
+        cache_write_5m_per_mtok: 1.875
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-sonnet-5-batch
     publisher: anthropic
     aliases:
@@ -6016,12 +6066,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '5'
-        cache_read_per_mtok: '0.1'
-        cache_write_5m_per_mtok: '1.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 5
+        cache_read_per_mtok: 0.1
+        cache_write_5m_per_mtok: 1.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: anthropic/claude-sonnet-5.5-batch
     publisher: anthropic
     aliases:
@@ -6034,12 +6085,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '5'
-        cache_read_per_mtok: '0.05'
-        cache_write_5m_per_mtok: '1.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 5
+        cache_read_per_mtok: 0.05
+        cache_write_5m_per_mtok: 1.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: arcee-ai/trinity-large-thinking
     publisher: arcee-ai
     aliases:
@@ -6058,16 +6110,17 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '0.8'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.25
+        output_per_mtok: 0.8
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '0.8'
-        cache_read_per_mtok: '0.06'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.25
+        output_per_mtok: 0.8
+        cache_read_per_mtok: 0.06
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6083,11 +6136,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '2.5'
-        cache_read_per_mtok: '0.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 2.5
+        cache_read_per_mtok: 0.1
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: callstack/apex
     publisher: callstack
     aliases:
@@ -6100,11 +6154,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '3'
-        cache_read_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 3
+        cache_read_per_mtok: 0.2
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: cohere/command-a
     publisher: cohere
     aliases:
@@ -6123,15 +6178,16 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '10'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 10
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '10'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 10
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6147,12 +6203,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.35'
-        output_per_mtok: '5.4'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.35
+        output_per_mtok: 5.4
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: deepseek/deepseek-v3.1
     publisher: deepseek
     aliases:
@@ -6165,13 +6222,14 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '0.95'
-        cache_read_per_mtok: '0.13'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.25
+        output_per_mtok: 0.95
+        cache_read_per_mtok: 0.13
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: deepseek/deepseek-v3.2-thinking
     publisher: deepseek
     aliases:
@@ -6184,46 +6242,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.62'
-        output_per_mtok: '1.85'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.62
+        output_per_mtok: 1.85
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
-  - canonical_id: deepseek/deepseek-v4-flash-vision-exp
-    publisher: deepseek
-    aliases:
-      - provider: vercel
-        alias: deepseek/deepseek-v4-flash-vision-exp
-        channel: vercel-ai-gateway
-        rules:
-          input_includes_cache_read: true
-          input_includes_cache_write: true
-      - provider: openrouter
-        alias: deepseek/deepseek-v4-flash-vision-exp
-        channel: openrouter-api
-        rules:
-          input_includes_cache_read: true
-          input_includes_cache_write: true
-    prices:
-      - channel: vercel-ai-gateway
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2156'
-        output_per_mtok: '0.6468'
-        cache_read_per_mtok: '0.0068'
-        rules:
-          varies_by_provider: true
-        source_url: https://ai-gateway.vercel.sh/v1/models
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2156'
-        output_per_mtok: '0.6468'
-        cache_read_per_mtok: '0.00686'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: google/gemini-2.5-flash-batch
     publisher: google
     aliases:
@@ -6236,11 +6261,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '1.25'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 1.25
+        cache_read_per_mtok: 0.03
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: google/gemini-2.5-flash-lite-batch
     publisher: google
     aliases:
@@ -6253,11 +6279,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.01'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.01
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: google/gemini-3.1-flash-lite-batch
     publisher: google
     aliases:
@@ -6270,11 +6297,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.125'
-        output_per_mtok: '0.75'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.125
+        output_per_mtok: 0.75
+        cache_read_per_mtok: 0.015
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: google/gemini-3.5-flash-batch
     publisher: google
     aliases:
@@ -6287,11 +6315,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.75'
-        output_per_mtok: '4.5'
-        cache_read_per_mtok: '0.075'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.75
+        output_per_mtok: 4.5
+        cache_read_per_mtok: 0.075
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: google/gemini-3.5-flash-lite-batch
     publisher: google
     aliases:
@@ -6304,11 +6333,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '1.25'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 1.25
+        cache_read_per_mtok: 0.015
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: google/gemini-3.6-flash-batch
     publisher: google
     aliases:
@@ -6321,11 +6351,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.375'
-        output_per_mtok: '1.875'
-        cache_read_per_mtok: '0.0375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.375
+        output_per_mtok: 1.875
+        cache_read_per_mtok: 0.0375
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: google/gemini-3.7-flash-batch
     publisher: google
     aliases:
@@ -6338,11 +6369,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.375'
-        output_per_mtok: '1.875'
-        cache_read_per_mtok: '0.0375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.375
+        output_per_mtok: 1.875
+        cache_read_per_mtok: 0.0375
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: inception/mercury-2
     publisher: inception
     aliases:
@@ -6361,17 +6393,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '0.75'
-        cache_read_per_mtok: '0.025'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.25
+        output_per_mtok: 0.75
+        cache_read_per_mtok: 0.025
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '0.75'
-        cache_read_per_mtok: '0.025'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.25
+        output_per_mtok: 0.75
+        cache_read_per_mtok: 0.025
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6387,10 +6420,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.25
+        output_per_mtok: 1
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: inclusionai/ling-3.0-flash
     publisher: inclusionai
     aliases:
@@ -6409,17 +6443,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.021'
-        output_per_mtok: '0.063'
-        cache_read_per_mtok: '0.0042'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.021
+        output_per_mtok: 0.063
+        cache_read_per_mtok: 0.0042
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.021'
-        output_per_mtok: '0.063'
-        cache_read_per_mtok: '0.0042'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.021
+        output_per_mtok: 0.063
+        cache_read_per_mtok: 0.0042
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6435,13 +6470,14 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.075'
-        output_per_mtok: '0.22'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.075
+        output_per_mtok: 0.22
+        cache_read_per_mtok: 0.015
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: inclusionai/ling-3.0-flash-sante
     publisher: inclusionai
     aliases:
@@ -6454,11 +6490,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.075'
-        output_per_mtok: '0.22'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.075
+        output_per_mtok: 0.22
+        cache_read_per_mtok: 0.015
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: inclusionai/ling-3.0-flash-vl
     publisher: inclusionai
     aliases:
@@ -6477,17 +6514,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.075'
-        output_per_mtok: '0.22'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.075
+        output_per_mtok: 0.22
+        cache_read_per_mtok: 0.015
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.06'
-        output_per_mtok: '0.18'
-        cache_read_per_mtok: '0.012'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.06
+        output_per_mtok: 0.18
+        cache_read_per_mtok: 0.012
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6509,17 +6547,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '0.9'
-        cache_read_per_mtok: '0.06'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 0.9
+        cache_read_per_mtok: 0.06
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.075'
-        output_per_mtok: '0.225'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.075
+        output_per_mtok: 0.225
+        cache_read_per_mtok: 0.015
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6541,17 +6580,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.23'
-        cache_read_per_mtok: '0.05'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.23
+        cache_read_per_mtok: 0.05
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.23'
-        cache_read_per_mtok: '0.05'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.23
+        cache_read_per_mtok: 0.05
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6573,17 +6613,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.03'
-        output_per_mtok: '0.15'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.03
+        output_per_mtok: 0.15
+        cache_read_per_mtok: 0.03
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.03'
-        output_per_mtok: '0.15'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.03
+        output_per_mtok: 0.15
+        cache_read_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6599,10 +6640,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.5'
-        output_per_mtok: '3.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.5
+        output_per_mtok: 3.5
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: meituan/longcat-2.5-preview
     publisher: meituan
     aliases:
@@ -6615,11 +6657,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.006'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.006
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: meta/llama-3.1-70b
     publisher: meta
     aliases:
@@ -6632,10 +6675,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.72'
-        output_per_mtok: '0.72'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.72
+        output_per_mtok: 0.72
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: meta/llama-3.1-8b
     publisher: meta
     aliases:
@@ -6648,12 +6692,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.22'
-        output_per_mtok: '0.22'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.22
+        output_per_mtok: 0.22
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: meta/llama-3.3-70b
     publisher: meta
     aliases:
@@ -6666,10 +6711,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.72'
-        output_per_mtok: '0.72'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.72
+        output_per_mtok: 0.72
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: meta/llama-4-maverick
     publisher: meta
     aliases:
@@ -6682,10 +6728,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.24'
-        output_per_mtok: '0.97'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.24
+        output_per_mtok: 0.97
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: meta/llama-4-scout
     publisher: meta
     aliases:
@@ -6698,12 +6745,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.17'
-        output_per_mtok: '0.66'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.17
+        output_per_mtok: 0.66
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: meta/muse-spark-1.2-contributor
     publisher: meta
     aliases:
@@ -6716,11 +6764,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.002'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.002
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: meta/muse-spark-1.3-contributor
     publisher: meta
     aliases:
@@ -6733,11 +6782,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.002'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.002
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: minimax/minimax-m2
     publisher: minimax
     aliases:
@@ -6756,17 +6806,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.03'
-        cache_write_5m_per_mtok: '0.375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.03
+        cache_write_5m_per_mtok: 0.375
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.255'
-        output_per_mtok: '1.02'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.255
+        output_per_mtok: 1.02
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6788,20 +6839,21 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.03'
-        cache_write_5m_per_mtok: '0.375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.03
+        cache_write_5m_per_mtok: 0.375
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6817,12 +6869,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '2.4'
-        cache_read_per_mtok: '0.03'
-        cache_write_5m_per_mtok: '0.375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 2.4
+        cache_read_per_mtok: 0.03
+        cache_write_5m_per_mtok: 0.375
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: minimax/minimax-m2.5-highspeed
     publisher: minimax
     aliases:
@@ -6835,12 +6888,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.4'
-        cache_read_per_mtok: '0.03'
-        cache_write_5m_per_mtok: '0.375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 2.4
+        cache_read_per_mtok: 0.03
+        cache_write_5m_per_mtok: 0.375
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: minimax/minimax-m2.7-highspeed
     publisher: minimax
     aliases:
@@ -6853,12 +6907,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.4'
-        cache_read_per_mtok: '0.06'
-        cache_write_5m_per_mtok: '0.375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 2.4
+        cache_read_per_mtok: 0.06
+        cache_write_5m_per_mtok: 0.375
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: mistral/codestral
     publisher: mistral
     aliases:
@@ -6871,11 +6926,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '0.9'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 0.9
+        cache_read_per_mtok: 0.03
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: mistral/ministral-3b
     publisher: mistral
     aliases:
@@ -6888,11 +6944,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.1'
-        cache_read_per_mtok: '0.01'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.1
+        cache_read_per_mtok: 0.01
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: mistral/ministral-8b
     publisher: mistral
     aliases:
@@ -6905,11 +6962,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.15'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.15
+        cache_read_per_mtok: 0.015
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: mistral/mistral-nemo
     publisher: mistral
     aliases:
@@ -6928,15 +6986,16 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.029'
-        output_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.029
+        output_per_mtok: 0.03
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.029'
-        output_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.029
+        output_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -6952,11 +7011,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
+        cache_read_per_mtok: 0.015
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: mixedbread/toast-1
     publisher: mixedbread
     aliases:
@@ -6969,11 +7029,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '0.72'
-        cache_read_per_mtok: '0.036'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 0.72
+        cache_read_per_mtok: 0.036
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: moonshotai/kimi-k2
     publisher: moonshotai
     aliases:
@@ -6992,15 +7053,16 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.57'
-        output_per_mtok: '2.3'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.57
+        output_per_mtok: 2.3
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.57'
-        output_per_mtok: '2.3'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.57
+        output_per_mtok: 2.3
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7016,11 +7078,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.9'
-        output_per_mtok: '8'
-        cache_read_per_mtok: '0.38'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.9
+        output_per_mtok: 8
+        cache_read_per_mtok: 0.38
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: morph/morph-v3-fast
     publisher: morph
     aliases:
@@ -7039,15 +7102,16 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.8'
-        output_per_mtok: '1.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.8
+        output_per_mtok: 1.2
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.8'
-        output_per_mtok: '1.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.8
+        output_per_mtok: 1.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7069,15 +7133,16 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.9'
-        output_per_mtok: '1.9'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.9
+        output_per_mtok: 1.9
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.9'
-        output_per_mtok: '1.9'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.9
+        output_per_mtok: 1.9
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7099,16 +7164,17 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.025'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.025
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.06'
-        output_per_mtok: '0.24'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.06
+        output_per_mtok: 0.24
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7130,19 +7196,20 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.01'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.01
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.07'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.04'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.07
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.04
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7158,10 +7225,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '0.6'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 0.6
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: nvidia/nemotron-nano-9b-v2
     publisher: nvidia
     aliases:
@@ -7174,10 +7242,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.06'
-        output_per_mtok: '0.23'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.06
+        output_per_mtok: 0.23
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-3.5-turbo
     publisher: openai
     aliases:
@@ -7196,15 +7265,16 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '1.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 1.5
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '1.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 1.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7226,15 +7296,16 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '10'
-        output_per_mtok: '30'
+        effective_from: "2026-10-20"
+        input_per_mtok: 10
+        output_per_mtok: 30
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '10'
-        output_per_mtok: '30'
+        effective_from: "2026-10-20"
+        input_per_mtok: 10
+        output_per_mtok: 30
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7250,11 +7321,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '4'
-        cache_read_per_mtok: '0.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 4
+        cache_read_per_mtok: 0.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-4.1-mini-batch
     publisher: openai
     aliases:
@@ -7267,11 +7339,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '0.8'
-        cache_read_per_mtok: '0.05'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 0.8
+        cache_read_per_mtok: 0.05
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-4.1-nano-batch
     publisher: openai
     aliases:
@@ -7284,11 +7357,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.0125'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.0125
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-4o-batch
     publisher: openai
     aliases:
@@ -7301,11 +7375,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.25'
-        output_per_mtok: '5'
-        cache_read_per_mtok: '0.625'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.25
+        output_per_mtok: 5
+        cache_read_per_mtok: 0.625
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-4o-mini-batch
     publisher: openai
     aliases:
@@ -7318,11 +7393,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.075'
-        output_per_mtok: '0.3'
-        cache_read_per_mtok: '0.0375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.075
+        output_per_mtok: 0.3
+        cache_read_per_mtok: 0.0375
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-5-batch
     publisher: openai
     aliases:
@@ -7335,11 +7411,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.625'
-        output_per_mtok: '5'
-        cache_read_per_mtok: '0.0625'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.625
+        output_per_mtok: 5
+        cache_read_per_mtok: 0.0625
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-5-mini-batch
     publisher: openai
     aliases:
@@ -7352,11 +7429,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.125'
-        output_per_mtok: '1'
-        cache_read_per_mtok: '0.0125'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.125
+        output_per_mtok: 1
+        cache_read_per_mtok: 0.0125
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-5-nano-batch
     publisher: openai
     aliases:
@@ -7369,11 +7447,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.025'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.0025'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.025
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.0025
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-5-pro-batch
     publisher: openai
     aliases:
@@ -7386,10 +7465,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '7.5'
-        output_per_mtok: '60'
+        effective_from: "2026-10-20"
+        input_per_mtok: 7.5
+        output_per_mtok: 60
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-5.2-batch
     publisher: openai
     aliases:
@@ -7402,11 +7482,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.875'
-        output_per_mtok: '7'
-        cache_read_per_mtok: '0.0875'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.875
+        output_per_mtok: 7
+        cache_read_per_mtok: 0.0875
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-5.4-mini-batch
     publisher: openai
     aliases:
@@ -7419,11 +7500,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.375'
-        output_per_mtok: '2.25'
-        cache_read_per_mtok: '0.0375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.375
+        output_per_mtok: 2.25
+        cache_read_per_mtok: 0.0375
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-5.4-nano-batch
     publisher: openai
     aliases:
@@ -7436,11 +7518,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.625'
-        cache_read_per_mtok: '0.01'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.625
+        cache_read_per_mtok: 0.01
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-oss-20b
     publisher: openai
     aliases:
@@ -7459,18 +7542,19 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.03'
-        output_per_mtok: '0.14'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.03
+        output_per_mtok: 0.14
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.018'
-        output_per_mtok: '0.09'
-        cache_read_per_mtok: '0.009'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.018
+        output_per_mtok: 0.09
+        cache_read_per_mtok: 0.009
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7486,10 +7570,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/gpt-oss-safeguard-20b
     publisher: openai
     aliases:
@@ -7508,18 +7593,19 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.07'
-        output_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.07
+        output_per_mtok: 0.2
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.075'
-        output_per_mtok: '0.3'
-        cache_read_per_mtok: '0.0375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.075
+        output_per_mtok: 0.3
+        cache_read_per_mtok: 0.0375
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7535,11 +7621,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '15'
-        output_per_mtok: '60'
-        cache_read_per_mtok: '7.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 15
+        output_per_mtok: 60
+        cache_read_per_mtok: 7.5
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: openai/o3-mini
     publisher: openai
     aliases:
@@ -7552,11 +7639,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.1'
-        output_per_mtok: '4.4'
-        cache_read_per_mtok: '0.55'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.1
+        output_per_mtok: 4.4
+        cache_read_per_mtok: 0.55
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: poolside/laguna-s-2.1
     publisher: poolside
     aliases:
@@ -7575,17 +7663,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.09'
-        output_per_mtok: '0.18'
-        cache_read_per_mtok: '0.009'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.09
+        output_per_mtok: 0.18
+        cache_read_per_mtok: 0.009
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.09'
-        output_per_mtok: '0.18'
-        cache_read_per_mtok: '0.009'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.09
+        output_per_mtok: 0.18
+        cache_read_per_mtok: 0.009
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7601,12 +7690,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '4'
-        output_per_mtok: '20'
-        cache_read_per_mtok: '0.4'
-        cache_write_5m_per_mtok: '5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 4
+        output_per_mtok: 20
+        cache_read_per_mtok: 0.4
+        cache_write_5m_per_mtok: 5
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: quiverai/arrow-2-telos
     publisher: quiverai
     aliases:
@@ -7619,12 +7709,13 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '6'
-        output_per_mtok: '30'
-        cache_read_per_mtok: '0.6'
-        cache_write_5m_per_mtok: '7.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 6
+        output_per_mtok: 30
+        cache_read_per_mtok: 0.6
+        cache_write_5m_per_mtok: 7.5
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: sakana/fugu-max
     publisher: sakana
     aliases:
@@ -7637,11 +7728,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.25
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: sakana/namazu
     publisher: sakana
     aliases:
@@ -7654,11 +7746,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.95'
-        output_per_mtok: '4'
-        cache_read_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.95
+        output_per_mtok: 4
+        cache_read_per_mtok: 0.15
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: scaledown/scaledown-extract-1
     publisher: scaledown
     aliases:
@@ -7671,10 +7764,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: scaledown/scaledown-summarize-1
     publisher: scaledown
     aliases:
@@ -7687,10 +7781,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: stepfun/step-3.7-flash
     publisher: stepfun
     aliases:
@@ -7709,17 +7804,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '1.15'
-        cache_read_per_mtok: '0.04'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 1.15
+        cache_read_per_mtok: 0.04
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '1.15'
-        cache_read_per_mtok: '0.04'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 1.15
+        cache_read_per_mtok: 0.04
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7741,19 +7837,20 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '2.7'
-        cache_read_per_mtok: '0.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 2.7
+        cache_read_per_mtok: 0.1
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '2.7'
-        cache_read_per_mtok: '0.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 2.7
+        cache_read_per_mtok: 0.1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7769,10 +7866,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.044'
-        output_per_mtok: '0.177'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.044
+        output_per_mtok: 0.177
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: tencent/hy-mt2-plus
     publisher: tencent
     aliases:
@@ -7785,10 +7883,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.074'
-        output_per_mtok: '0.295'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.074
+        output_per_mtok: 0.295
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: tencent/hy-mt2-pro
     publisher: tencent
     aliases:
@@ -7801,10 +7900,11 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.074'
-        output_per_mtok: '0.295'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.074
+        output_per_mtok: 0.295
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: tencent/hy3
     publisher: tencent
     aliases:
@@ -7817,13 +7917,14 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.14'
-        output_per_mtok: '0.58'
-        cache_read_per_mtok: '0.035'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.14
+        output_per_mtok: 0.58
+        cache_read_per_mtok: 0.035
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: tencent/hy4-preview
     publisher: tencent
     aliases:
@@ -7836,11 +7937,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.834'
-        output_per_mtok: '2.501'
-        cache_read_per_mtok: '0.042'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.834
+        output_per_mtok: 2.501
+        cache_read_per_mtok: 0.042
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: thinkingmachines/inkling-small
     publisher: thinkingmachines
     aliases:
@@ -7859,19 +7961,20 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.45'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.45
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.1
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.45'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.45
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7893,19 +7996,20 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.14'
-        output_per_mtok: '0.28'
-        cache_read_per_mtok: '0.0028'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.14
+        output_per_mtok: 0.28
+        cache_read_per_mtok: 0.0028
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.14'
-        output_per_mtok: '0.28'
-        cache_read_per_mtok: '0.0028'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.14
+        output_per_mtok: 0.28
+        cache_read_per_mtok: 0.0028
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7927,17 +8031,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3045'
-        output_per_mtok: '0.609'
-        cache_read_per_mtok: '0.0028'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3045
+        output_per_mtok: 0.609
+        cache_read_per_mtok: 0.0028
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.435'
-        output_per_mtok: '0.87'
-        cache_read_per_mtok: '0.0036'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.435
+        output_per_mtok: 0.87
+        cache_read_per_mtok: 0.0036
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7959,19 +8064,20 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.14'
-        output_per_mtok: '0.28'
-        cache_read_per_mtok: '0.0028'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.14
+        output_per_mtok: 0.28
+        cache_read_per_mtok: 0.0028
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.14'
-        output_per_mtok: '0.28'
-        cache_read_per_mtok: '0.0028'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.14
+        output_per_mtok: 0.28
+        cache_read_per_mtok: 0.0028
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -7993,19 +8099,20 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.435'
-        output_per_mtok: '0.87'
-        cache_read_per_mtok: '0.0036'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.435
+        output_per_mtok: 0.87
+        cache_read_per_mtok: 0.0036
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.435'
-        output_per_mtok: '0.87'
-        cache_read_per_mtok: '0.0036'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.435
+        output_per_mtok: 0.87
+        cache_read_per_mtok: 0.0036
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8027,17 +8134,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '4.35'
-        output_per_mtok: '8.7'
-        cache_read_per_mtok: '0.036'
+        effective_from: "2026-10-20"
+        input_per_mtok: 4.35
+        output_per_mtok: 8.7
+        cache_read_per_mtok: 0.036
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '4.35'
-        output_per_mtok: '8.7'
-        cache_read_per_mtok: '0.036'
+        effective_from: "2026-10-20"
+        input_per_mtok: 4.35
+        output_per_mtok: 8.7
+        cache_read_per_mtok: 0.036
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8059,17 +8167,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.2'
-        cache_read_per_mtok: '0.11'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 2.2
+        cache_read_per_mtok: 0.11
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.2'
-        cache_read_per_mtok: '0.11'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 2.2
+        cache_read_per_mtok: 0.11
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8091,17 +8200,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '1.1'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 1.1
+        cache_read_per_mtok: 0.03
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.13'
-        output_per_mtok: '0.85'
-        cache_read_per_mtok: '0.025'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.13
+        output_per_mtok: 0.85
+        cache_read_per_mtok: 0.025
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8123,17 +8233,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '1.8'
-        cache_read_per_mtok: '0.11'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 1.8
+        cache_read_per_mtok: 0.11
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '1.8'
-        cache_read_per_mtok: '0.11'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 1.8
+        cache_read_per_mtok: 0.11
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8155,19 +8266,20 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.2'
-        cache_read_per_mtok: '0.11'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 2.2
+        cache_read_per_mtok: 0.11
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.55'
-        output_per_mtok: '2.2'
-        cache_read_per_mtok: '0.11'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.55
+        output_per_mtok: 2.2
+        cache_read_per_mtok: 0.11
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8189,18 +8301,19 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 2.2
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.54'
-        output_per_mtok: '1.98'
-        cache_read_per_mtok: '0.099'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.54
+        output_per_mtok: 1.98
+        cache_read_per_mtok: 0.099
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8222,15 +8335,16 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.07'
-        output_per_mtok: '0.4'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.07
+        output_per_mtok: 0.4
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.0605'
-        output_per_mtok: '0.4'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.0605
+        output_per_mtok: 0.4
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8246,11 +8360,12 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.06'
-        output_per_mtok: '0.4'
-        cache_read_per_mtok: '0.01'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.06
+        output_per_mtok: 0.4
+        cache_read_per_mtok: 0.01
         source_url: https://ai-gateway.vercel.sh/v1/models
+
   - canonical_id: zai/glm-5
     publisher: zai
     aliases:
@@ -8269,16 +8384,17 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '3.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 3.2
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '3.2'
-        cache_read_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 3.2
+        cache_read_per_mtok: 0.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8300,17 +8416,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.2'
-        output_per_mtok: '4'
-        cache_read_per_mtok: '0.24'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.2
+        output_per_mtok: 4
+        cache_read_per_mtok: 0.24
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.2'
-        output_per_mtok: '4'
-        cache_read_per_mtok: '0.24'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.2
+        output_per_mtok: 4
+        cache_read_per_mtok: 0.24
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8332,17 +8449,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.37'
-        output_per_mtok: '1.25'
-        cache_read_per_mtok: '0.075'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.37
+        output_per_mtok: 1.25
+        cache_read_per_mtok: 0.075
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.37'
-        output_per_mtok: '1.25'
-        cache_read_per_mtok: '0.09'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.37
+        output_per_mtok: 1.25
+        cache_read_per_mtok: 0.09
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8364,17 +8482,18 @@ models:
     prices:
       - channel: vercel-ai-gateway
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.2'
-        output_per_mtok: '4'
-        cache_read_per_mtok: '0.24'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.2
+        output_per_mtok: 4
+        cache_read_per_mtok: 0.24
         source_url: https://ai-gateway.vercel.sh/v1/models
+
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.2'
-        output_per_mtok: '4'
-        cache_read_per_mtok: '0.24'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.2
+        output_per_mtok: 4
+        cache_read_per_mtok: 0.24
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
@@ -8390,13 +8509,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.8'
-        output_per_mtok: '1.6'
-        cache_read_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.8
+        output_per_mtok: 1.6
+        cache_read_per_mtok: 0.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: aion-labs/aion-3.0
     publisher: aion-labs
     aliases:
@@ -8409,13 +8529,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '3'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.75'
+        effective_from: "2026-10-20"
+        input_per_mtok: 3
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.75
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: aion-labs/aion-3.0-mini
     publisher: aion-labs
     aliases:
@@ -8428,13 +8549,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.7'
-        output_per_mtok: '1.4'
-        cache_read_per_mtok: '0.18'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.7
+        output_per_mtok: 1.4
+        cache_read_per_mtok: 0.18
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: aion-labs/aion-3.5
     publisher: aion-labs
     aliases:
@@ -8447,13 +8569,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '3'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.75'
+        effective_from: "2026-10-20"
+        input_per_mtok: 3
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.75
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: aion-labs/aion-3.5-mini
     publisher: aion-labs
     aliases:
@@ -8466,13 +8589,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.7'
-        output_per_mtok: '1.4'
-        cache_read_per_mtok: '0.18'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.7
+        output_per_mtok: 1.4
+        cache_read_per_mtok: 0.18
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: aion-labs/aion-rp-llama-3.1-8b
     publisher: aion-labs
     aliases:
@@ -8485,12 +8609,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.8'
-        output_per_mtok: '1.6'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.8
+        output_per_mtok: 1.6
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: amazon/nova-2-lite-v1
     publisher: amazon
     aliases:
@@ -8503,12 +8628,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '2.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 2.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: amazon/nova-premier-v1
     publisher: amazon
     aliases:
@@ -8521,13 +8647,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '12.5'
-        cache_read_per_mtok: '0.625'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 12.5
+        cache_read_per_mtok: 0.625
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: anthracite-org/magnum-v4-72b
     publisher: anthracite-org
     aliases:
@@ -8540,12 +8667,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: bytedance-seed/seed-2-1-turbo
     publisher: bytedance-seed
     aliases:
@@ -8558,12 +8686,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '2.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 2.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: bytedance/ui-tars-1.5-7b
     publisher: bytedance
     aliases:
@@ -8576,13 +8705,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: cognitivecomputations/dolphin-mistral-24b-venice-edition
     publisher: cognitivecomputations
     aliases:
@@ -8595,12 +8725,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '0.9'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 0.9
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: cohere/command-a-plus
     publisher: cohere
     aliases:
@@ -8613,13 +8744,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.5'
-        cache_read_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.5
+        cache_read_per_mtok: 0.15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: cohere/command-r-08-2024
     publisher: cohere
     aliases:
@@ -8632,12 +8764,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: cohere/command-r-plus-08-2024
     publisher: cohere
     aliases:
@@ -8650,12 +8783,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '10'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 10
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: cohere/command-r7b-12-2024
     publisher: cohere
     aliases:
@@ -8668,12 +8802,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.0375'
-        output_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.0375
+        output_per_mtok: 0.15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: deepseek/deepseek-chat-v3-0324
     publisher: deepseek
     aliases:
@@ -8686,13 +8821,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.29'
-        output_per_mtok: '1.14'
-        cache_read_per_mtok: '0.11'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.29
+        output_per_mtok: 1.14
+        cache_read_per_mtok: 0.11
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: deepseek/deepseek-chat-v3.1
     publisher: deepseek
     aliases:
@@ -8705,13 +8841,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '0.95'
-        cache_read_per_mtok: '0.13'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.25
+        output_per_mtok: 0.95
+        cache_read_per_mtok: 0.13
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: deepseek/deepseek-r1-0528
     publisher: deepseek
     aliases:
@@ -8724,13 +8861,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '2.15'
-        cache_read_per_mtok: '0.35'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 2.15
+        cache_read_per_mtok: 0.35
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: deepseek/deepseek-v3.1-terminus
     publisher: deepseek
     aliases:
@@ -8743,12 +8881,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.27'
-        output_per_mtok: '1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.27
+        output_per_mtok: 1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: deepseek/deepseek-v3.2-exp
     publisher: deepseek
     aliases:
@@ -8761,12 +8900,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.27'
-        output_per_mtok: '0.41'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.27
+        output_per_mtok: 0.41
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: deepseek/deepseek-v4-flash-0731
     publisher: deepseek
     aliases:
@@ -8779,13 +8919,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1298'
-        output_per_mtok: '0.3894'
-        cache_read_per_mtok: '0.00413'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1298
+        output_per_mtok: 0.3894
+        cache_read_per_mtok: 0.00413
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: deepseek/deepseek-v4-pro-0813
     publisher: deepseek
     aliases:
@@ -8798,13 +8939,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.66'
-        output_per_mtok: '1.98'
-        cache_read_per_mtok: '0.022'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.66
+        output_per_mtok: 1.98
+        cache_read_per_mtok: 0.022
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: google/gemma-2-27b-it
     publisher: google
     aliases:
@@ -8817,12 +8959,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.65'
-        output_per_mtok: '0.65'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.65
+        output_per_mtok: 0.65
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: google/gemma-3-12b-it
     publisher: google
     aliases:
@@ -8835,12 +8978,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: google/gemma-3-4b-it
     publisher: google
     aliases:
@@ -8853,13 +8997,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.04'
-        output_per_mtok: '0.05'
-        cache_read_per_mtok: '0.02'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.04
+        output_per_mtok: 0.05
+        cache_read_per_mtok: 0.02
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: gryphe/mythomax-l2-13b
     publisher: gryphe
     aliases:
@@ -8872,12 +9017,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.08'
-        output_per_mtok: '0.11'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.08
+        output_per_mtok: 0.11
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: ibm-granite/granite-4.0-h-micro
     publisher: ibm-granite
     aliases:
@@ -8890,12 +9036,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.017'
-        output_per_mtok: '0.112'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.017
+        output_per_mtok: 0.112
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: ibm-granite/granite-4.2-8b
     publisher: ibm-granite
     aliases:
@@ -8908,13 +9055,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.06'
-        output_per_mtok: '0.25'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.06
+        output_per_mtok: 0.25
+        cache_read_per_mtok: 0.015
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mancer/weaver
     publisher: mancer
     aliases:
@@ -8927,12 +9075,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.4'
-        output_per_mtok: '0.75'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.4
+        output_per_mtok: 0.75
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: meituan/longcat-2.0
     publisher: meituan
     aliases:
@@ -8945,13 +9094,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.006'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.006
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: meta-llama/llama-3.1-70b-instruct
     publisher: meta-llama
     aliases:
@@ -8964,12 +9114,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.4'
-        output_per_mtok: '0.4'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.4
+        output_per_mtok: 0.4
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: meta-llama/llama-3.1-8b-instruct
     publisher: meta-llama
     aliases:
@@ -8982,13 +9133,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.08'
-        cache_read_per_mtok: '0.025'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.08
+        cache_read_per_mtok: 0.025
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: meta-llama/llama-3.2-1b-instruct
     publisher: meta-llama
     aliases:
@@ -9001,12 +9153,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.027'
-        output_per_mtok: '0.201'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.027
+        output_per_mtok: 0.201
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: meta-llama/llama-3.2-3b-instruct
     publisher: meta-llama
     aliases:
@@ -9019,12 +9172,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.0509'
-        output_per_mtok: '0.335'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.0509
+        output_per_mtok: 0.335
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: meta-llama/llama-3.3-70b-instruct
     publisher: meta-llama
     aliases:
@@ -9037,12 +9191,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.32'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.32
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: meta-llama/llama-4-maverick
     publisher: meta-llama
     aliases:
@@ -9055,13 +9210,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1875'
-        output_per_mtok: '0.6525'
-        cache_read_per_mtok: '0.05'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1875
+        output_per_mtok: 0.6525
+        cache_read_per_mtok: 0.05
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: meta-llama/llama-4-scout
     publisher: meta-llama
     aliases:
@@ -9074,12 +9230,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.3'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.3
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: meta-llama/llama-guard-4-12b
     publisher: meta-llama
     aliases:
@@ -9092,12 +9249,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.18'
-        output_per_mtok: '0.18'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.18
+        output_per_mtok: 0.18
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: microsoft/phi-4
     publisher: microsoft
     aliases:
@@ -9110,12 +9268,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.07'
-        output_per_mtok: '0.14'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.07
+        output_per_mtok: 0.14
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: minimax/minimax-01
     publisher: minimax
     aliases:
@@ -9128,12 +9287,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '1.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 1.1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: minimax/minimax-m1
     publisher: minimax
     aliases:
@@ -9146,12 +9306,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.55'
-        output_per_mtok: '2.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.55
+        output_per_mtok: 2.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: minimax/minimax-m2-her
     publisher: minimax
     aliases:
@@ -9164,13 +9325,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1.2'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1.2
+        cache_read_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: minimax/minimax-m2.5
     publisher: minimax
     aliases:
@@ -9183,13 +9345,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.27'
-        output_per_mtok: '0.95'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.27
+        output_per_mtok: 0.95
+        cache_read_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/codestral-2508
     publisher: mistral
     aliases:
@@ -9202,13 +9365,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '0.9'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 0.9
+        cache_read_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/devstral-2512
     publisher: mistral
     aliases:
@@ -9221,13 +9385,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.4'
-        output_per_mtok: '2'
-        cache_read_per_mtok: '0.04'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.4
+        output_per_mtok: 2
+        cache_read_per_mtok: 0.04
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/ministral-3b-2512
     publisher: mistral
     aliases:
@@ -9240,13 +9405,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.1'
-        cache_read_per_mtok: '0.01'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.1
+        cache_read_per_mtok: 0.01
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/ministral-8b-2512
     publisher: mistral
     aliases:
@@ -9259,13 +9425,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.15'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.15
+        cache_read_per_mtok: 0.015
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-large
     publisher: mistral
     aliases:
@@ -9278,13 +9445,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-large-2407
     publisher: mistral
     aliases:
@@ -9297,13 +9465,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-large-2512
     publisher: mistral
     aliases:
@@ -9316,13 +9485,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.5'
-        output_per_mtok: '1.5'
-        cache_read_per_mtok: '0.05'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.5
+        output_per_mtok: 1.5
+        cache_read_per_mtok: 0.05
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-large-4-0
     publisher: mistral
     aliases:
@@ -9335,13 +9505,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.36'
-        output_per_mtok: '4.18'
-        cache_read_per_mtok: '0.14'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.36
+        output_per_mtok: 4.18
+        cache_read_per_mtok: 0.14
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-medium-3
     publisher: mistral
     aliases:
@@ -9354,13 +9525,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.4'
-        output_per_mtok: '2'
-        cache_read_per_mtok: '0.04'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.4
+        output_per_mtok: 2
+        cache_read_per_mtok: 0.04
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-medium-3.1
     publisher: mistral
     aliases:
@@ -9373,13 +9545,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.4'
-        output_per_mtok: '2'
-        cache_read_per_mtok: '0.04'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.4
+        output_per_mtok: 2
+        cache_read_per_mtok: 0.04
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-saba
     publisher: mistral
     aliases:
@@ -9392,13 +9565,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.02'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 0.6
+        cache_read_per_mtok: 0.02
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-small-24b-instruct-2501
     publisher: mistral
     aliases:
@@ -9411,12 +9585,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.08'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.08
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-small-3.1-24b-instruct
     publisher: mistral
     aliases:
@@ -9429,12 +9604,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.351'
-        output_per_mtok: '0.555'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.351
+        output_per_mtok: 0.555
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mistral-small-3.2-24b-instruct
     publisher: mistral
     aliases:
@@ -9447,12 +9623,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.09375'
-        output_per_mtok: '0.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.09375
+        output_per_mtok: 0.25
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: mistral/mixtral-8x22b-instruct
     publisher: mistral
     aliases:
@@ -9465,13 +9642,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2'
-        output_per_mtok: '6'
-        cache_read_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2
+        output_per_mtok: 6
+        cache_read_per_mtok: 0.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: moondream/moondream3-preview
     publisher: moondream
     aliases:
@@ -9484,12 +9662,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '2.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 2.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: moondream/moondream3.1-9b-a2b
     publisher: moondream
     aliases:
@@ -9502,12 +9681,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '2.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 2.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: moonshotai/kimi-k2-0905
     publisher: moonshotai
     aliases:
@@ -9520,12 +9700,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 2.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: moonshotai/kimi-k2-thinking
     publisher: moonshotai
     aliases:
@@ -9538,13 +9719,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.5'
-        cache_read_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 2.5
+        cache_read_per_mtok: 0.15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: nex-agi/nex-n2.5-mini
     publisher: nex-agi
     aliases:
@@ -9557,13 +9739,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.025'
-        output_per_mtok: '0.1'
-        cache_read_per_mtok: '0.0025'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.025
+        output_per_mtok: 0.1
+        cache_read_per_mtok: 0.0025
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: nex-agi/nex-n2.5-pro
     publisher: nex-agi
     aliases:
@@ -9576,13 +9759,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.075'
-        output_per_mtok: '0.25'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.075
+        output_per_mtok: 0.25
+        cache_read_per_mtok: 0.015
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: nousresearch/hermes-3-llama-3.1-405b
     publisher: nousresearch
     aliases:
@@ -9595,12 +9779,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: nousresearch/hermes-3-llama-3.1-70b
     publisher: nousresearch
     aliases:
@@ -9613,12 +9798,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.7'
-        output_per_mtok: '0.7'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.7
+        output_per_mtok: 0.7
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: nousresearch/hermes-4-405b
     publisher: nousresearch
     aliases:
@@ -9631,12 +9817,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '3'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 3
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: nvidia/nemotron-3-ultra-550b-a55b
     publisher: nvidia
     aliases:
@@ -9649,13 +9836,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '2.4'
-        cache_read_per_mtok: '0.12'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 2.4
+        cache_read_per_mtok: 0.12
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: nvidia/nemotron-3.5-content-safety
     publisher: nvidia
     aliases:
@@ -9668,12 +9856,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.2'
-        output_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.2
+        output_per_mtok: 0.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: openai/gpt-3.5-turbo-0613
     publisher: openai
     aliases:
@@ -9686,12 +9875,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: openai/gpt-3.5-turbo-16k
     publisher: openai
     aliases:
@@ -9704,12 +9894,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '3'
-        output_per_mtok: '4'
+        effective_from: "2026-10-20"
+        input_per_mtok: 3
+        output_per_mtok: 4
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: openai/gpt-3.5-turbo-instruct
     publisher: openai
     aliases:
@@ -9722,12 +9913,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1.5'
-        output_per_mtok: '2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1.5
+        output_per_mtok: 2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: openai/gpt-4
     publisher: openai
     aliases:
@@ -9740,12 +9932,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '30'
-        output_per_mtok: '60'
+        effective_from: "2026-10-20"
+        input_per_mtok: 30
+        output_per_mtok: 60
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: openai/gpt-4o-2024-05-13
     publisher: openai
     aliases:
@@ -9758,69 +9951,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '5'
-        output_per_mtok: '15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 5
+        output_per_mtok: 15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: openai/gpt-4o-2024-08-06
-    publisher: openai
-    aliases:
-      - provider: openrouter
-        alias: openai/gpt-4o-2024-08-06
-        channel: openrouter-api
-        rules:
-          input_includes_cache_read: true
-          input_includes_cache_write: true
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '10'
-        cache_read_per_mtok: '1.25'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: openai/gpt-4o-2024-11-20
-    publisher: openai
-    aliases:
-      - provider: openrouter
-        alias: openai/gpt-4o-2024-11-20
-        channel: openrouter-api
-        rules:
-          input_includes_cache_read: true
-          input_includes_cache_write: true
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '10'
-        cache_read_per_mtok: '1.25'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
-  - canonical_id: openai/gpt-4o-mini-2024-07-18
-    publisher: openai
-    aliases:
-      - provider: openrouter
-        alias: openai/gpt-4o-mini-2024-07-18
-        channel: openrouter-api
-        rules:
-          input_includes_cache_read: true
-          input_includes_cache_write: true
-    prices:
-      - channel: openrouter-api
-        region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.075'
-        rules:
-          varies_by_provider: true
-        source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: perceptron/perceptron-mk1
     publisher: perceptron
     aliases:
@@ -9833,12 +9970,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '1.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 1.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: perceptron/perceptron-mk1.5
     publisher: perceptron
     aliases:
@@ -9851,12 +9989,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '1.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 1.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: poolside/laguna-xs-2.1
     publisher: poolside
     aliases:
@@ -9869,13 +10008,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.06'
-        output_per_mtok: '0.12'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.06
+        output_per_mtok: 0.12
+        cache_read_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: prism-ml/ternary-bonsai-2-27b
     publisher: prism-ml
     aliases:
@@ -9888,13 +10028,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.075'
-        output_per_mtok: '0.5'
-        cache_read_per_mtok: '0.0375'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.075
+        output_per_mtok: 0.5
+        cache_read_per_mtok: 0.0375
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen-2.5-72b-instruct
     publisher: alibaba
     aliases:
@@ -9907,12 +10048,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.36'
-        output_per_mtok: '0.4'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.36
+        output_per_mtok: 0.4
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen-2.5-7b-instruct
     publisher: alibaba
     aliases:
@@ -9925,12 +10067,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen-2.5-coder-32b-instruct
     publisher: alibaba
     aliases:
@@ -9943,12 +10086,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.66'
-        output_per_mtok: '1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.66
+        output_per_mtok: 1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen2.5-vl-72b-instruct
     publisher: alibaba
     aliases:
@@ -9961,13 +10105,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.8'
-        output_per_mtok: '1'
-        cache_read_per_mtok: '0.4'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.8
+        output_per_mtok: 1
+        cache_read_per_mtok: 0.4
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3-235b-a22b-2507
     publisher: alibaba
     aliases:
@@ -9980,12 +10125,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.09'
-        output_per_mtok: '0.55'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.09
+        output_per_mtok: 0.55
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3-235b-a22b-thinking-2507
     publisher: alibaba
     aliases:
@@ -9998,12 +10144,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.45'
-        output_per_mtok: '3.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.45
+        output_per_mtok: 3.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3-30b-a3b
     publisher: alibaba
     aliases:
@@ -10016,12 +10163,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.12'
-        output_per_mtok: '0.5'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.12
+        output_per_mtok: 0.5
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3-30b-a3b-instruct-2507
     publisher: alibaba
     aliases:
@@ -10034,12 +10182,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.09'
-        output_per_mtok: '0.3'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.09
+        output_per_mtok: 0.3
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3-coder-30b-a3b-instruct
     publisher: alibaba
     aliases:
@@ -10052,12 +10201,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.07'
-        output_per_mtok: '0.28'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.07
+        output_per_mtok: 0.28
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3-vl-235b-a22b-instruct
     publisher: alibaba
     aliases:
@@ -10070,13 +10220,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.21'
-        output_per_mtok: '1.9'
-        cache_read_per_mtok: '0.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.21
+        output_per_mtok: 1.9
+        cache_read_per_mtok: 0.1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3-vl-30b-a3b-instruct
     publisher: alibaba
     aliases:
@@ -10089,12 +10240,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3-vl-30b-a3b-thinking
     publisher: alibaba
     aliases:
@@ -10107,12 +10259,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.29'
-        output_per_mtok: '1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.29
+        output_per_mtok: 1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3-vl-8b-instruct
     publisher: alibaba
     aliases:
@@ -10125,13 +10278,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.25'
-        output_per_mtok: '0.75'
-        cache_read_per_mtok: '0.12'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.25
+        output_per_mtok: 0.75
+        cache_read_per_mtok: 0.12
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3.5-122b-a10b
     publisher: alibaba
     aliases:
@@ -10144,12 +10298,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.26'
-        output_per_mtok: '2.08'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.26
+        output_per_mtok: 2.08
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3.5-27b
     publisher: alibaba
     aliases:
@@ -10162,13 +10317,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.27'
-        output_per_mtok: '2.16'
-        cache_read_per_mtok: '0.27'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.27
+        output_per_mtok: 2.16
+        cache_read_per_mtok: 0.27
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3.5-35b-a3b
     publisher: alibaba
     aliases:
@@ -10181,13 +10337,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.14'
-        output_per_mtok: '1'
-        cache_read_per_mtok: '0.05'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.14
+        output_per_mtok: 1
+        cache_read_per_mtok: 0.05
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3.5-397b-a17b
     publisher: alibaba
     aliases:
@@ -10200,12 +10357,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.39'
-        output_per_mtok: '2.34'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.39
+        output_per_mtok: 2.34
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3.5-9b
     publisher: alibaba
     aliases:
@@ -10218,12 +10376,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3.5-flash-02-23
     publisher: alibaba
     aliases:
@@ -10236,12 +10395,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.065'
-        output_per_mtok: '0.26'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.065
+        output_per_mtok: 0.26
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: alibaba/qwen3.6-35b-a3b
     publisher: alibaba
     aliases:
@@ -10254,13 +10414,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.95'
-        cache_read_per_mtok: '0.05'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.95
+        cache_read_per_mtok: 0.05
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: reflection/beam-1.0-501b-a23b
     publisher: reflection
     aliases:
@@ -10273,13 +10434,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '1'
-        cache_read_per_mtok: '0.04'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 1
+        cache_read_per_mtok: 0.04
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: rekaai/reka-edge
     publisher: rekaai
     aliases:
@@ -10292,12 +10454,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.1'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.1
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: rekaai/reka-flash-3
     publisher: rekaai
     aliases:
@@ -10310,12 +10473,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.2'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.2
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: relace/relace-apply-3
     publisher: relace
     aliases:
@@ -10328,12 +10492,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.85'
-        output_per_mtok: '1.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.85
+        output_per_mtok: 1.25
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: relace/relace-search
     publisher: relace
     aliases:
@@ -10346,12 +10511,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '1'
-        output_per_mtok: '3'
+        effective_from: "2026-10-20"
+        input_per_mtok: 1
+        output_per_mtok: 3
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: sao10k/l3-lunaris-8b
     publisher: sao10k
     aliases:
@@ -10364,12 +10530,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.04'
-        output_per_mtok: '0.05'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.04
+        output_per_mtok: 0.05
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: sao10k/l3.1-euryale-70b
     publisher: sao10k
     aliases:
@@ -10382,12 +10549,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.85'
-        output_per_mtok: '0.85'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.85
+        output_per_mtok: 0.85
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: scaledown/extract
     publisher: scaledown
     aliases:
@@ -10400,12 +10568,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.04'
-        output_per_mtok: '0'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.04
+        output_per_mtok: 0
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: scaledown/summarize
     publisher: scaledown
     aliases:
@@ -10418,12 +10587,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.04'
-        output_per_mtok: '0'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.04
+        output_per_mtok: 0
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: stepfun/step-3.5-flash
     publisher: stepfun
     aliases:
@@ -10436,12 +10606,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1'
-        output_per_mtok: '0.3'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1
+        output_per_mtok: 0.3
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: tencent/hunyuan-a13b-instruct
     publisher: tencent
     aliases:
@@ -10454,12 +10625,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.14'
-        output_per_mtok: '0.57'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.14
+        output_per_mtok: 0.57
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: tencent/hy-mt2-1.8b
     publisher: tencent
     aliases:
@@ -10472,12 +10644,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.044'
-        output_per_mtok: '0.177'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.044
+        output_per_mtok: 0.177
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: tencent/hy-mt2-30b-a3b
     publisher: tencent
     aliases:
@@ -10490,12 +10663,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.074'
-        output_per_mtok: '0.295'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.074
+        output_per_mtok: 0.295
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: tencent/hy-mt2-7b
     publisher: tencent
     aliases:
@@ -10508,12 +10682,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.074'
-        output_per_mtok: '0.295'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.074
+        output_per_mtok: 0.295
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: tencent/hy3-preview
     publisher: tencent
     aliases:
@@ -10526,13 +10701,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.18'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.06'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.18
+        output_per_mtok: 0.6
+        cache_read_per_mtok: 0.06
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: thedrummer/cydonia-24b-v4.1
     publisher: thedrummer
     aliases:
@@ -10545,13 +10721,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '0.5'
-        cache_read_per_mtok: '0.15'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 0.5
+        cache_read_per_mtok: 0.15
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: thedrummer/skyfall-36b-v2
     publisher: thedrummer
     aliases:
@@ -10564,13 +10741,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.55'
-        output_per_mtok: '0.8'
-        cache_read_per_mtok: '0.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.55
+        output_per_mtok: 0.8
+        cache_read_per_mtok: 0.25
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: thedrummer/unslopnemo-12b
     publisher: thedrummer
     aliases:
@@ -10583,12 +10761,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.4'
-        output_per_mtok: '0.4'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.4
+        output_per_mtok: 0.4
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: unbiased/pareto-26.10
     publisher: unbiased
     aliases:
@@ -10601,13 +10780,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.8'
-        output_per_mtok: '3.2'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.8
+        output_per_mtok: 3.2
+        cache_read_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: unbiased/pareto-26.9
     publisher: unbiased
     aliases:
@@ -10620,13 +10800,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.5'
-        output_per_mtok: '7.5'
-        cache_read_per_mtok: '0.25'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.5
+        output_per_mtok: 7.5
+        cache_read_per_mtok: 0.25
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: undi95/remm-slerp-l2-13b
     publisher: undi95
     aliases:
@@ -10639,12 +10820,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.35'
-        output_per_mtok: '0.65'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.35
+        output_per_mtok: 0.65
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: upstage/solar-mini4
     publisher: upstage
     aliases:
@@ -10657,13 +10839,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.05'
-        output_per_mtok: '0.2'
-        cache_read_per_mtok: '0.005'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.05
+        output_per_mtok: 0.2
+        cache_read_per_mtok: 0.005
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: upstage/solar-pro-3
     publisher: upstage
     aliases:
@@ -10676,13 +10859,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.015'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
+        cache_read_per_mtok: 0.015
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: upstage/solar-pro4
     publisher: upstage
     aliases:
@@ -10695,13 +10879,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.15'
-        output_per_mtok: '0.6'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.15
+        output_per_mtok: 0.6
+        cache_read_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: writer/palmyra-x5
     publisher: writer
     aliases:
@@ -10714,12 +10899,13 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.6'
-        output_per_mtok: '6'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.6
+        output_per_mtok: 6
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: zai/glm-4.6v
     publisher: zai
     aliases:
@@ -10732,13 +10918,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.3'
-        output_per_mtok: '0.9'
-        cache_read_per_mtok: '0.055'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.3
+        output_per_mtok: 0.9
+        cache_read_per_mtok: 0.055
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: zai/glm-5.3-prime
     publisher: zai
     aliases:
@@ -10751,13 +10938,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '2.8'
-        output_per_mtok: '8.8'
-        cache_read_per_mtok: '0.56'
+        effective_from: "2026-10-20"
+        input_per_mtok: 2.8
+        output_per_mtok: 8.8
+        cache_read_per_mtok: 0.56
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: ~deepseek/deepseek-flash-latest
     publisher: ~deepseek
     aliases:
@@ -10770,13 +10958,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.07'
-        output_per_mtok: '0.5'
-        cache_read_per_mtok: '0.008'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.07
+        output_per_mtok: 0.5
+        cache_read_per_mtok: 0.008
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: ~deepseek/deepseek-pro-latest
     publisher: ~deepseek
     aliases:
@@ -10789,13 +10978,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.1307'
-        output_per_mtok: '8'
-        cache_read_per_mtok: '0.13'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.1307
+        output_per_mtok: 8
+        cache_read_per_mtok: 0.13
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: ~deepseek/deepseek-v4-flash-latest
     publisher: ~deepseek
     aliases:
@@ -10808,13 +10998,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.0065'
-        output_per_mtok: '0.45'
-        cache_read_per_mtok: '0.0065'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.0065
+        output_per_mtok: 0.45
+        cache_read_per_mtok: 0.0065
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: ~moonshotai/kimi-latest
     publisher: ~moonshotai
     aliases:
@@ -10827,13 +11018,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.238'
-        output_per_mtok: '24'
-        cache_read_per_mtok: '0.228'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.238
+        output_per_mtok: 24
+        cache_read_per_mtok: 0.228
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: ~unbiased/pareto-latest
     publisher: ~unbiased
     aliases:
@@ -10846,13 +11038,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.8'
-        output_per_mtok: '3.2'
-        cache_read_per_mtok: '0.03'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.8
+        output_per_mtok: 3.2
+        cache_read_per_mtok: 0.03
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: ~z-ai/glm-flash-latest
     publisher: ~z-ai
     aliases:
@@ -10865,13 +11058,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.048'
-        output_per_mtok: '0.12'
-        cache_read_per_mtok: '0.006'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.048
+        output_per_mtok: 0.12
+        cache_read_per_mtok: 0.006
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
   - canonical_id: ~z-ai/glm-latest
     publisher: ~z-ai
     aliases:
@@ -10884,13 +11078,14 @@ models:
     prices:
       - channel: openrouter-api
         region: global
-        effective_from: '2026-10-20'
-        input_per_mtok: '0.079'
-        output_per_mtok: '1.4'
-        cache_read_per_mtok: '0.078'
+        effective_from: "2026-10-20"
+        input_per_mtok: 0.079
+        output_per_mtok: 1.4
+        cache_read_per_mtok: 0.078
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
+
 retrieval:
   - channel: anthropic-api
     operation: web_search

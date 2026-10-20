@@ -776,6 +776,89 @@ def test_gateway_discovery_maps_reviewed_publisher_prefixes():
     }
 
 
+def test_gateway_discovery_matches_a_same_publisher_short_alias():
+    source = _gateway_source()
+    document = _document(
+        {
+            "canonical_id": "openai/gpt-4o",
+            "publisher": "openai",
+            "aliases": [
+                {
+                    "provider": "openai",
+                    "alias": "gpt-4o-2024-08-06",
+                    "channel": "openai-api",
+                }
+            ],
+            "prices": [
+                _row(input_per_mtok=1, output_per_mtok=4)
+            ],
+        }
+    )
+    page = _openrouter_page(
+        _openrouter_model("openai/gpt-4o-2024-08-06")
+    )
+
+    operations = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+    assert [operation["op"] for operation in operations] == [
+        "add_alias",
+        "add_price",
+    ]
+    assert {operation["key"]["canonical_id"] for operation in operations} == {
+        "openai/gpt-4o"
+    }
+
+
+def test_gateway_discovery_inherits_existing_channel_alias_rules():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        {
+            "canonical_id": "deepseek/deepseek-v4.1-flash",
+            "publisher": "deepseek",
+            "aliases": [
+                {
+                    "provider": "deepseek",
+                    "alias": "deepseek-v4-flash-vision-exp",
+                    "channel": "deepseek-api",
+                },
+                {
+                    "provider": "deepseek",
+                    "alias": "deepseek/deepseek-v4.1-flash",
+                    "channel": "vercel-ai-gateway",
+                    "rules": {"input_includes_cache_read": True},
+                }
+            ],
+            "prices": [_row(input_per_mtok=1, output_per_mtok=4)],
+        }
+    )
+
+    operations = discovery_evidence(
+        source,
+        json.dumps(
+            {
+                "data": [
+                    {
+                        "id": "deepseek/deepseek-v4-flash-vision-exp",
+                        "owned_by": "deepseek",
+                        "type": "language",
+                        "pricing": {"input": "0.000001", "output": "0.000004"},
+                    }
+                ]
+            }
+        ),
+        document,
+        observed_on=OBSERVED_ON,
+    )["operations"]
+
+    alias = next(
+        operation["alias"]
+        for operation in operations
+        if operation["op"] == "add_alias"
+    )
+    assert alias["rules"] == {"input_includes_cache_read": True}
+
+
 def test_gateway_discovery_reports_near_identity_instead_of_adding_a_model():
     source = _gateway_source()
     document = _document(
@@ -798,6 +881,84 @@ def test_gateway_discovery_reports_near_identity_instead_of_adding_a_model():
             "model_key": "mistralai/mistral-medium-3-5",
             "reason": "ambiguous_identity",
             "candidates": ["mistral/mistral-medium-3.5"],
+        }
+    ]
+
+
+def test_gateway_discovery_reports_colliding_operations():
+    source = _gateway_source()
+    document = _document(
+        {
+            "canonical_id": "example/model",
+            "publisher": "example",
+            "aliases": [
+                {
+                    "provider": "example",
+                    "alias": "one",
+                    "channel": "example-api",
+                },
+                {
+                    "provider": "example",
+                    "alias": "two",
+                    "channel": "example-api",
+                },
+            ],
+            "prices": [_row(input_per_mtok=1, output_per_mtok=4)],
+        }
+    )
+    page = _openrouter_page(
+        _openrouter_model("example/one"),
+        _openrouter_model("example/two"),
+    )
+
+    evidence = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )
+    assert sorted(operation["op"] for operation in evidence["operations"]) == [
+        "add_alias",
+        "add_alias",
+        "add_price",
+    ]
+    assert evidence["operation_collisions"] == [
+        {
+            "canonical_id": "example/model",
+            "operation": "add_price",
+            "reason": "identical_operation_deduplicated",
+            "candidate_count": 2,
+        }
+    ]
+
+
+def test_gateway_discovery_blocks_conflicting_operations():
+    source = _gateway_source()
+    document = _document(
+        {
+            "canonical_id": "example/model",
+            "publisher": "example",
+            "aliases": [
+                {"provider": "example", "alias": "one", "channel": "example-api"},
+                {"provider": "example", "alias": "two", "channel": "example-api"},
+            ],
+            "prices": [_row(input_per_mtok=1, output_per_mtok=4)],
+        }
+    )
+    second = _openrouter_model("example/two")
+    second["pricing"]["prompt"] = "0.000002"
+
+    evidence = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model("example/one"), second),
+        document,
+        observed_on=OBSERVED_ON,
+    )
+
+    assert evidence["operations"] == []
+    assert evidence["operation_collisions"] == [
+        {
+            "canonical_id": "example/model",
+            "operation": "add_price",
+            "reason": "conflicting_operation",
+            "candidate_count": 2,
         }
     ]
 

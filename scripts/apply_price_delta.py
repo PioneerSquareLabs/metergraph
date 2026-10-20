@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -20,6 +21,7 @@ sys.path.insert(0, str(REPOSITORY_ROOT / "core" / "src"))
 import yaml  # noqa: E402
 
 from metergraph_core.catalog_delta import (  # noqa: E402
+    RATE_FIELDS,
     CatalogDeltaError,
     apply_catalog_delta,
     parse_catalog_delta,
@@ -37,6 +39,61 @@ class ApplyDeltaError(ValueError):
 class _IndentedDumper(yaml.SafeDumper):
     def increase_indent(self, flow: bool = False, indentless: bool = False):
         return super().increase_indent(flow, False)
+
+
+class _QuotedText(str):
+    pass
+
+
+class _PlainNumber(str):
+    pass
+
+
+def _represent_plain_number(dumper: yaml.SafeDumper, value: _PlainNumber):
+    number = Decimal(str(value))
+    tag = (
+        "tag:yaml.org,2002:int"
+        if number == number.to_integral_value()
+        else "tag:yaml.org,2002:float"
+    )
+    return dumper.represent_scalar(tag, str(value))
+
+
+_IndentedDumper.add_representer(
+    _QuotedText,
+    lambda dumper, value: dumper.represent_scalar(
+        "tag:yaml.org,2002:str", str(value), style='"'
+    ),
+)
+_IndentedDumper.add_representer(
+    _PlainNumber,
+    _represent_plain_number,
+)
+
+
+def _styled(value: Any, field: str | None = None) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _styled(item, str(key)) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_styled(item, field) for item in value]
+    if isinstance(value, str) and field in RATE_FIELDS:
+        return _PlainNumber(value)
+    if isinstance(value, str) and field in {"effective_from", "effective_to"}:
+        return _QuotedText(value)
+    return value
+
+
+def _semantic(value: Any, field: str | None = None) -> Any:
+    if isinstance(value, Mapping):
+        return {str(key): _semantic(item, str(key)) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_semantic(item, field) for item in value]
+    if field in RATE_FIELDS and value is not None:
+        try:
+            return format(Decimal(str(value)).normalize(), "f")
+        except InvalidOperation:
+            return value
+    return value
 
 
 def _canonical_id(line: str) -> str | None:
@@ -67,7 +124,7 @@ def _model_bounds(lines: list[str], canonical_id: str) -> tuple[int, int]:
 
 def _sequence_item(value: Mapping[str, Any], indent: int) -> list[str]:
     rendered = yaml.dump(
-        [dict(value)],
+        [_styled(dict(value))],
         Dumper=_IndentedDumper,
         sort_keys=False,
         default_flow_style=False,
@@ -104,7 +161,12 @@ def render_additive_delta(catalog_text: str, delta_document: Mapping[str, Any]) 
                 ),
                 len(lines),
             )
-            lines[insertion:insertion] = _sequence_item(operation.model, 2)
+            block = _sequence_item(operation.model, 2)
+            if insertion and lines[insertion - 1].strip():
+                block.insert(0, "\n")
+            if block and block[-1].strip():
+                block.append("\n")
+            lines[insertion:insertion] = block
             continue
         _, end = _model_bounds(lines, operation.key.canonical_id)
         if operation.op == "add_alias":
@@ -129,7 +191,7 @@ def render_additive_delta(catalog_text: str, delta_document: Mapping[str, Any]) 
         load_catalog_document(actual)
     except (yaml.YAMLError, ValueError) as exc:
         raise ApplyDeltaError(f"rendered catalog is invalid: {exc}") from exc
-    if _canonical_json(actual) != _canonical_json(expected):
+    if _canonical_json(_semantic(actual)) != _canonical_json(_semantic(expected)):
         raise ApplyDeltaError("rendered catalog differs from the validated delta result")
     return rendered
 

@@ -617,6 +617,7 @@ def _gateway_price(
     return price
 
 
+# Reviewed gateway spellings for publishers the catalog already names.
 _GATEWAY_PUBLISHER_PREFIXES = {
     "mistralai": "mistral",
     "qwen": "alibaba",
@@ -631,6 +632,11 @@ def _catalog_gateway_identity(model_key: str) -> str:
     return f"{_GATEWAY_PUBLISHER_PREFIXES.get(prefix, prefix)}/{suffix}"
 
 
+def _catalog_publisher(provider: Any) -> str:
+    value = str(provider or "").strip().lower()
+    return _GATEWAY_PUBLISHER_PREFIXES.get(value, value)
+
+
 def _identity_shape(model_key: str) -> tuple[str, str]:
     prefix, _, suffix = _catalog_gateway_identity(model_key).partition("/")
     return prefix, "".join(character for character in suffix if character.isalnum())
@@ -639,6 +645,7 @@ def _identity_shape(model_key: str) -> tuple[str, str]:
 def _exact_models(
     document: Mapping[str, Any], model_key: str
 ) -> list[Mapping[str, Any]]:
+    publisher, _, _ = _catalog_gateway_identity(model_key).partition("/")
     wanted = {
         model_key.strip().lower(),
         _catalog_gateway_identity(model_key),
@@ -653,6 +660,12 @@ def _exact_models(
             for alias in entry.get("aliases") or []
             if isinstance(alias, Mapping)
         )
+        names.update(
+            f"{publisher}/{str(alias.get('alias') or '').strip().lower()}"
+            for alias in entry.get("aliases") or []
+            if isinstance(alias, Mapping)
+            and _catalog_publisher(alias.get("provider")) == publisher
+        )
         if wanted & names:
             found.append(entry)
     return found
@@ -662,12 +675,22 @@ def _near_models(
     document: Mapping[str, Any], model_key: str
 ) -> list[Mapping[str, Any]]:
     wanted = _identity_shape(model_key)
-    return [
-        entry
-        for entry in document.get("models") or []
-        if isinstance(entry, Mapping)
-        and _identity_shape(str(entry.get("canonical_id") or "")) == wanted
-    ]
+    found = []
+    for entry in document.get("models") or []:
+        if not isinstance(entry, Mapping):
+            continue
+        shapes = {_identity_shape(str(entry.get("canonical_id") or ""))}
+        shapes.update(
+            _identity_shape(
+                f"{_catalog_publisher(alias.get('provider'))}/"
+                f"{str(alias.get('alias') or '').strip().lower()}"
+            )
+            for alias in entry.get("aliases") or []
+            if isinstance(alias, Mapping)
+        )
+        if wanted in shapes:
+            found.append(entry)
+    return found
 
 
 def _gateway_additions(
@@ -675,7 +698,7 @@ def _gateway_additions(
     extraction: Extraction,
     document: Mapping[str, Any],
     observed_on: date,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
     """Reviewed additive operations for exact gateway model identities."""
     operations: list[dict[str, Any]] = []
     identity_exclusions: list[dict[str, Any]] = []
@@ -731,8 +754,6 @@ def _gateway_additions(
             current
             for current in entry.get("aliases") or []
             if isinstance(current, Mapping)
-            and str(current.get("alias") or "").strip().lower()
-            == rate.model_key.lower()
             and current.get("channel") == source.channel
         ]
         if channel_aliases:
@@ -783,8 +804,48 @@ def _gateway_additions(
                     "price": _gateway_price(source, rate, observed_on),
                 }
             )
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for operation in operations:
+        target = operation["op"], _canonical_json(operation["key"])
+        grouped.setdefault(target, []).append(operation)
+    retained: list[dict[str, Any]] = []
+    colliding_models: set[str] = set()
+    operation_collisions: list[dict[str, Any]] = []
+    for (operation_name, _), candidates in grouped.items():
+        if len(candidates) == 1:
+            retained.extend(candidates)
+            continue
+        canonical_id = str(candidates[0]["key"]["canonical_id"])
+        if len({_canonical_json(candidate) for candidate in candidates}) == 1:
+            retained.append(candidates[0])
+            operation_collisions.append(
+                {
+                    "canonical_id": canonical_id,
+                    "operation": operation_name,
+                    "reason": "identical_operation_deduplicated",
+                    "candidate_count": len(candidates),
+                }
+            )
+            continue
+        colliding_models.add(canonical_id)
+        operation_collisions.append(
+            {
+                "canonical_id": canonical_id,
+                "operation": operation_name,
+                "reason": "conflicting_operation",
+                "candidate_count": len(candidates),
+            }
+        )
+    operations = [
+        operation
+        for operation in retained
+        if operation["key"]["canonical_id"] not in colliding_models
+    ]
+    operation_collisions.sort(
+        key=lambda item: (item["canonical_id"], item["operation"])
+    )
     identity_exclusions.sort(key=lambda item: item["model_key"])
-    return operations, identity_exclusions
+    return operations, identity_exclusions, operation_collisions
 
 
 def discovery_evidence(
@@ -804,6 +865,7 @@ def discovery_evidence(
     candidates: list[dict[str, Any]] = []
     operations: list[dict[str, Any]] = []
     identity_exclusions: list[dict[str, Any]] = []
+    operation_collisions: list[dict[str, Any]] = []
     if extraction.applicable:
         matches, unclaimed = _match(source, extraction, document, observed_on)
         for match in matches:
@@ -864,7 +926,7 @@ def discovery_evidence(
             )
         candidates.sort(key=lambda c: (c["model_key"], c["region"]))
         if source.parser in {"vercel-gateway-json", "openrouter-json"}:
-            additions, identity_exclusions = _gateway_additions(
+            additions, identity_exclusions, operation_collisions = _gateway_additions(
                 source, extraction, document, observed_on
             )
             additions_by_target = {
@@ -904,6 +966,7 @@ def discovery_evidence(
         "ambiguities": list(extraction.ambiguities),
         "exclusions": exclusions,
         "identity_exclusions": identity_exclusions,
+        "operation_collisions": operation_collisions,
         "candidates": candidates,
         # Reviewable changes. Exact structured gateway identities may add
         # models or aliases; other unknown models stay evidence only.

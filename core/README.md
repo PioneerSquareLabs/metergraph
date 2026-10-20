@@ -358,6 +358,10 @@ to a new catalog path while preserving existing comments. It rejects in-place
 writes and history-changing operations, then verifies the rendered catalog
 against the pure delta result.
 
+Apply overlapping gateway sources sequentially. Run discovery for the next
+source against the prior candidate so a shared new model becomes an alias and
+price on one canonical entry instead of a conflicting second `add_model`.
+
 The fetch-capable scripts read `<source-id>.*` files from `--content-dir` instead
 of fetching. The
 tests use one synthetic fixture per low-risk source, plus OpenAI's, in

@@ -93,8 +93,14 @@ def test_render_additive_delta_preserves_comments_and_matches_pure_application()
 
     assert "# Keep this catalog comment." in rendered
     assert rendered.index("example/model-b") < rendered.index("retrieval:")
+    assert 'effective_from: "2026-10-20"' in rendered
+    assert "input_per_mtok: 1\n" in rendered
+    assert "!!float" not in rendered
+    assert "\n\n  - canonical_id: example/model-b" in rendered
     expected = apply_catalog_delta(yaml.safe_load(CATALOG), _delta())
-    assert yaml.safe_load(rendered) == expected
+    assert apply_price_delta._canonical_json(
+        apply_price_delta._semantic(yaml.safe_load(rendered))
+    ) == apply_price_delta._canonical_json(apply_price_delta._semantic(expected))
 
 
 def test_render_additive_delta_rejects_history_changes():
