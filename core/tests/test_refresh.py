@@ -553,20 +553,8 @@ def test_discovery_evidence_proposes_no_operation_for_a_row_starting_that_day():
 
 
 def test_discovery_evidence_for_gpu_licensing_carries_no_token_candidates():
-    source = parse_source_registry(
-        {
-            "schema_version": 1,
-            "sources": [
-                dict(
-                    _source("nvidia-nim-pricing", "nvidia", "nvidia-ai-enterprise", "nvidia", low_risk=False, dimensions=["gpu_hour_usd", "license_per_gpu_year_usd"]),
-                    catalog_channel=False,
-                    source_shape="gpu_hour_or_license",
-                    clarity="prose",
-                )
-            ],
-        }
-    ).get("nvidia-nim-pricing")
-    evidence = discovery_evidence(source, _fixture("nvidia-nim-pricing"), _document(), observed_on=OBSERVED_ON)
+    source = _discovery_source("gpu-license-prose")
+    evidence = discovery_evidence(source, _generic("gpu-license-prose"), _document(), observed_on=OBSERVED_ON)
     assert evidence["applicable"] is False
     assert evidence["candidates"] == []
     assert evidence["evidence"]["candidates"] == {"license_per_gpu_year_usd": "1000", "gpu_hour_usd": "0.50"}
@@ -807,23 +795,26 @@ def test_discovery_evidence_with_datetime_rows_serializes_to_json():
     assert evidence["operations"][0]["expect"]["effective_from"] == "2026-01-01T00:00:00+00:00"
 
 
-# --- Evidence retention ------------------------------------------------------------
+# --- Raw page content is never emitted ----------------------------------------------
 
-DISCOVERY_ONLY = {
-    "fireworks-api-pricing": ("fireworks", "fireworks-api", "token_table", ["input_per_mtok", "output_per_mtok"]),
-    "zai-api-pricing": ("zai", "zai-api", "token_table", ["input_per_mtok", "output_per_mtok"]),
-    "aws-bedrock-pricing": ("aws-bedrock", "aws-bedrock", "token_option_dependent", ["input_per_mtok", "output_per_mtok"]),
-    "aws-bedrock-geo-pricing": ("aws-bedrock", "aws-bedrock-geo", "token_option_dependent", ["input_per_mtok", "output_per_mtok"]),
-    "azure-foundry-pricing": ("azure-foundry", "azure-foundry", "token_option_dependent", ["input_per_mtok", "output_per_mtok"]),
-    "nvidia-nim-pricing": ("nvidia", "nvidia-ai-enterprise", "gpu_hour_or_license", ["gpu_hour_usd", "license_per_gpu_year_usd"]),
+GENERIC = Path(__file__).parent / "fixtures" / "discovery"
+# Each generic synthetic page with the discovery parser, shape and dimensions
+# of a source that would be read with it.
+GENERIC_SOURCES = {
+    "token-table": ("html-tables", "token_table", ["input_per_mtok", "output_per_mtok"]),
+    "gpu-license-prose": ("gpu-license-prose", "gpu_hour_or_license", ["gpu_hour_usd", "license_per_gpu_year_usd"]),
 }
 
 
-def _discovery_source(source_id):
-    parser, channel, shape, dimensions = DISCOVERY_ONLY[source_id]
-    entry = _source(source_id, parser, channel, parser, low_risk=False, dimensions=dimensions)
+def _generic(name):
+    return (GENERIC / f"{name}.html").read_text()
+
+
+def _discovery_source(page):
+    parser, shape, dimensions = GENERIC_SOURCES[page]
+    entry = _source("example-discovery-pricing", parser, "example-channel", "example", low_risk=False, fingerprint=None, dimensions=dimensions)
     entry.update(source_shape=shape, catalog_channel=False)
-    return _registry(entry).get(source_id)
+    return _registry(entry).get("example-discovery-pricing")
 
 
 def _verbatim_cells(content):
@@ -836,22 +827,22 @@ def _verbatim_cells(content):
     return [t for t in texts if re.search(r"[A-Za-z]{2}", t) and (" " in t or re.search(r"[A-Z]", t))]
 
 
-@pytest.mark.parametrize("source_id", list(DISCOVERY_ONLY))
-def test_forbidden_raw_content_never_appears_in_discovery_evidence(source_id):
+@pytest.mark.parametrize("page", list(GENERIC_SOURCES))
+def test_raw_page_content_never_appears_in_discovery_evidence(page):
     import json
 
-    content = _fixture(source_id)
-    evidence = discovery_evidence(_discovery_source(source_id), content, _document(), observed_on=OBSERVED_ON)
+    content = _generic(page)
+    evidence = discovery_evidence(_discovery_source(page), content, _document(), observed_on=OBSERVED_ON)
     text = json.dumps(evidence)
     cells = _verbatim_cells(content)
     assert cells
     assert [cell for cell in cells if cell in text] == []
     assert evidence["evidence"]["redacted"] is True
-    assert evidence["fingerprint"] == structural_fingerprint(DISCOVERY_ONLY[source_id][0], content)
+    assert evidence["fingerprint"] == structural_fingerprint(GENERIC_SOURCES[page][0], content)
 
 
 def test_redacted_table_evidence_keeps_normalized_labels_and_amounts():
-    evidence = discovery_evidence(_discovery_source("fireworks-api-pricing"), _fixture("fireworks-api-pricing"), _document(), observed_on=OBSERVED_ON)
+    evidence = discovery_evidence(_discovery_source("token-table"), _generic("token-table"), _document(), observed_on=OBSERVED_ON)
     assert evidence["evidence"] == {
         "kind": "tables",
         "redacted": True,
@@ -859,17 +850,17 @@ def test_redacted_table_evidence_keeps_normalized_labels_and_amounts():
             {
                 "columns": 4,
                 "rows": [
-                    {"label": "example-model-70b", "amounts": ["0.90", "0.45", "0.90"]},
-                    {"label": "example-model-8b", "amounts": ["0.20", "0.10", "0.20"]},
+                    {"label": "example-model-large", "amounts": ["2.00", "0.20", "8.00"]},
+                    {"label": "example-model-small", "amounts": ["0.40", "1.60"]},
                 ],
             },
-            {"columns": 2, "rows": [{"label": "example-gpu", "amounts": ["2.90"]}]},
+            {"columns": 2, "rows": [{"label": "example-accelerator", "amounts": ["2.90"]}]},
         ],
     }
 
 
 def test_redacted_license_evidence_keeps_candidates_and_drops_statements():
-    evidence = discovery_evidence(_discovery_source("nvidia-nim-pricing"), _fixture("nvidia-nim-pricing"), _document(), observed_on=OBSERVED_ON)
+    evidence = discovery_evidence(_discovery_source("gpu-license-prose"), _generic("gpu-license-prose"), _document(), observed_on=OBSERVED_ON)
     assert evidence["evidence"] == {
         "kind": "gpu_or_license_statements",
         "redacted": True,

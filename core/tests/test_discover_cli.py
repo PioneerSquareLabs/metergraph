@@ -19,14 +19,19 @@ sys.modules["discover_prices"] = discover_prices
 _spec.loader.exec_module(discover_prices)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sources"
+GENERIC = Path(__file__).parent / "fixtures" / "discovery"
 OPENAI_URL = "https://example.com/openai-pricing"
-FIREWORKS_URL = "https://example.com/fireworks-pricing"
-NVIDIA_URL = "https://example.com/nvidia-pricing"
-BEDROCK_URL = "https://example.com/bedrock-pricing"
+TABLES_URL = "https://example.com/tables-pricing"
+LICENSE_URL = "https://example.com/license-pricing"
+SHARED_URL = "https://example.com/shared-pricing"
 
 
 def _fixture(source_id):
     return (FIXTURES / f"{source_id}.html").read_text()
+
+
+def _generic(name):
+    return (GENERIC / f"{name}.html").read_text()
 
 
 def _openai():
@@ -53,11 +58,11 @@ def _discovery_only(source_id, provider, channel, parser, url, **overrides):
 def _sources():
     return [
         _openai(),
-        _discovery_only("fireworks-api-pricing", "fireworks", "fireworks-api", "fireworks", FIREWORKS_URL),
-        _discovery_only("aws-bedrock-pricing", "aws", "aws-bedrock", "aws-bedrock", BEDROCK_URL),
-        _discovery_only("aws-bedrock-geo-pricing", "aws", "aws-bedrock-geo", "aws-bedrock", BEDROCK_URL),
+        _discovery_only("table-source-pricing", "example-tables", "tables-api", "html-tables", TABLES_URL),
+        _discovery_only("shared-page-pricing", "example-shared", "shared-api", "html-tables", SHARED_URL),
+        _discovery_only("shared-page-geo-pricing", "example-shared", "shared-geo-api", "html-tables", SHARED_URL),
         _discovery_only(
-            "nvidia-nim-pricing", "nvidia", "nvidia-ai-enterprise", "nvidia", NVIDIA_URL,
+            "license-source-pricing", "example-license", "license-only", "gpu-license-prose", LICENSE_URL,
             catalog_channel=False, source_shape="gpu_hour_or_license", clarity="prose",
             dimensions=["gpu_hour_usd", "license_per_gpu_year_usd"],
         ),
@@ -86,8 +91,10 @@ def paths(tmp_path):
     registry = tmp_path / "sources.yaml"
     content = tmp_path / "content"
     content.mkdir()
-    for source_id in ("openai-api-pricing", "fireworks-api-pricing", "aws-bedrock-pricing", "aws-bedrock-geo-pricing", "nvidia-nim-pricing"):
-        (content / f"{source_id}.html").write_text(_fixture(source_id))
+    (content / "openai-api-pricing.html").write_text(_fixture("openai-api-pricing"))
+    for source_id in ("table-source-pricing", "shared-page-pricing", "shared-page-geo-pricing"):
+        (content / f"{source_id}.html").write_text(_generic("token-table"))
+    (content / "license-source-pricing.html").write_text(_generic("gpu-license-prose"))
     catalog.write_text(yaml.safe_dump(_catalog()))
     registry.write_text(yaml.safe_dump({"schema_version": 1, "sources": _sources()}))
     base = ["--catalog", str(catalog), "--registry", str(registry), "--observed-on", "2026-10-20"]
@@ -112,17 +119,17 @@ def test_discovery_without_an_adapter_emits_deterministic_evidence(paths, capsys
     second = _run(argv, capsys)
     assert first == second
     assert [p["source_id"] for p in first["proposals"]] == [
-        "fireworks-api-pricing", "aws-bedrock-pricing", "aws-bedrock-geo-pricing", "nvidia-nim-pricing",
+        "table-source-pricing", "shared-page-pricing", "shared-page-geo-pricing", "license-source-pricing",
     ]
-    fireworks = _proposal(first, "fireworks-api-pricing")
-    assert fireworks["requires_review"] is True
-    assert fireworks["reasons"] == ["not_low_risk"]
-    assert fireworks["evidence"]["evidence"]["kind"] == "tables"
-    assert fireworks["proposed_delta"] is None
-    assert fireworks["adapter"] is None
-    nvidia = _proposal(first, "nvidia-nim-pricing")
-    assert nvidia["evidence"]["evidence"]["candidates"] == {"license_per_gpu_year_usd": "1000", "gpu_hour_usd": "0.50"}
-    assert nvidia["proposed_delta"] is None
+    tables = _proposal(first, "table-source-pricing")
+    assert tables["requires_review"] is True
+    assert tables["reasons"] == ["not_low_risk"]
+    assert tables["evidence"]["evidence"]["kind"] == "tables"
+    assert tables["proposed_delta"] is None
+    assert tables["adapter"] is None
+    licensing = _proposal(first, "license-source-pricing")
+    assert licensing["evidence"]["evidence"]["candidates"] == {"license_per_gpu_year_usd": "1000", "gpu_hour_usd": "0.50"}
+    assert licensing["proposed_delta"] is None
 
 
 def test_discovery_output_carries_no_applicable_delta(paths, capsys):
@@ -133,16 +140,16 @@ def test_discovery_output_carries_no_applicable_delta(paths, capsys):
 
 def test_discovery_fetches_only_registry_urls_once_each(paths, capsys, monkeypatch):
     fetched = []
-    pages = {FIREWORKS_URL: "fireworks-api-pricing", BEDROCK_URL: "aws-bedrock-pricing", NVIDIA_URL: "nvidia-nim-pricing"}
+    pages = {TABLES_URL: "token-table", SHARED_URL: "token-table", LICENSE_URL: "gpu-license-prose"}
 
     def fake_fetch(url, allowed):
         assert url in allowed
         fetched.append(url)
-        return _fixture(pages[url])
+        return _generic(pages[url])
 
     monkeypatch.setattr(discover_prices, "fetch_text", fake_fetch)
     _run(paths["base"], capsys)
-    assert fetched == [FIREWORKS_URL, BEDROCK_URL, NVIDIA_URL]
+    assert fetched == [TABLES_URL, SHARED_URL, LICENSE_URL]
 
 
 def _escalation_report(tmp, reason="bound_exceeded"):
@@ -218,14 +225,14 @@ def test_a_new_source_is_read_from_stdin(paths, capsys, monkeypatch):
     assert new_source["evidence"]["tables"] == [{"columns": 1, "rows": []}]
 
 
-def test_the_report_repeats_no_page_cells_the_registry_forbids_keeping(paths, capsys):
+def test_the_report_repeats_no_page_cells(paths, capsys):
     output = _run(paths["base"] + ["--content-dir", str(paths["content"])], capsys)
     text = json.dumps(output)
-    for cell in ("Example model 70B", "$ / 1M input tokens", "Example Provider models", "These licenses start at"):
+    for cell in ("Example Model Large", "Input (per 1M tokens)", "Example Accelerator", "Licenses start at"):
         assert cell not in text
-    assert _proposal(output, "fireworks-api-pricing")["evidence"]["evidence"]["tables"][0]["rows"][0] == {
-        "label": "example-model-70b",
-        "amounts": ["0.90", "0.45", "0.90"],
+    assert _proposal(output, "table-source-pricing")["evidence"]["evidence"]["tables"][0]["rows"][0] == {
+        "label": "example-model-large",
+        "amounts": ["2.00", "0.20", "8.00"],
     }
 
 
@@ -255,18 +262,18 @@ def propose(*args, **kwargs):
 
 def test_the_adapter_receives_only_the_source_its_content_and_current_rows(paths, capsys, monkeypatch):
     spec = _adapter(paths["tmp"], monkeypatch, RECORDING_ADAPTER)
-    _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "fireworks-api-pricing", "--llm-adapter", spec], capsys)
+    _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec], capsys)
     import stub_pricing_adapter
 
     [(args, kwargs)] = stub_pricing_adapter.CALLS
     assert kwargs == {}
     source, content, current_rows = args
     assert source == {
-        "id": "fireworks-api-pricing", "provider": "fireworks", "channel": "fireworks-api", "url": FIREWORKS_URL,
-        "parser": "fireworks", "source_shape": "token_table", "clarity": "semi_structured",
+        "id": "table-source-pricing", "provider": "example-tables", "channel": "tables-api", "url": TABLES_URL,
+        "parser": "html-tables", "source_shape": "token_table", "clarity": "semi_structured",
         "dimensions": ["input_per_mtok", "output_per_mtok"],
     }
-    assert content == _fixture("fireworks-api-pricing")
+    assert content == _generic("token-table")
     assert current_rows == []
 
 
@@ -281,9 +288,9 @@ def test_the_adapter_sees_current_rows_on_its_channel(paths, capsys, monkeypatch
 
 
 PROPOSING_ADAPTER = '''
-ROW = {"channel": "fireworks-api", "region": "global", "effective_from": "2026-10-20",
-       "input_per_mtok": "0.9", "output_per_mtok": "0.9", "source_url": "https://example.com/fireworks-pricing"}
-KEY = {"canonical_id": "example/gpt-x", "channel": "fireworks-api", "region": "global", "effective_from": "2026-10-20"}
+ROW = {"channel": "tables-api", "region": "global", "effective_from": "2026-10-20",
+       "input_per_mtok": "0.9", "output_per_mtok": "0.9", "source_url": "https://example.com/tables-pricing"}
+KEY = {"canonical_id": "example/gpt-x", "channel": "tables-api", "region": "global", "effective_from": "2026-10-20"}
 
 def propose(source, content, current_rows):
     return [
@@ -298,14 +305,14 @@ def propose(source, content, current_rows):
 
 def test_adapter_output_is_schema_validated_and_invalid_items_are_rejected_with_reasons(paths, capsys, monkeypatch):
     spec = _adapter(paths["tmp"], monkeypatch, PROPOSING_ADAPTER)
-    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "fireworks-api-pricing", "--llm-adapter", spec], capsys)
-    proposal = _proposal(output, "fireworks-api-pricing")
+    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec], capsys)
+    proposal = _proposal(output, "table-source-pricing")
     adapter = proposal["adapter"]
     assert adapter["name"] == "stub_pricing_adapter:propose"
-    assert [op["key"]["channel"] for op in adapter["operations"]] == ["fireworks-api"]
+    assert [op["key"]["channel"] for op in adapter["operations"]] == ["tables-api"]
     assert [(r["index"], r["error"]) for r in adapter["rejected"]] == [
         (1, "operation 0: price input_per_mtok must be a non-negative decimal string"),
-        (2, "an adapter may only propose rows on the source's channel fireworks-api"),
+        (2, "an adapter may only propose rows on the source's channel tables-api"),
         (3, "unknown operation field 'low_risk'"),
         (4, "operation 0: must be a mapping"),
     ]
@@ -315,7 +322,7 @@ def test_adapter_output_is_schema_validated_and_invalid_items_are_rejected_with_
 
 def test_an_adapter_cannot_mark_anything_low_risk_or_applicable(paths, capsys, monkeypatch):
     spec = _adapter(paths["tmp"], monkeypatch, PROPOSING_ADAPTER)
-    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "fireworks-api-pricing", "--llm-adapter", spec], capsys)
+    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec], capsys)
     text = json.dumps(output)
     assert '"low_risk"' not in text
     assert "delta" not in output
@@ -325,16 +332,16 @@ def test_an_adapter_cannot_mark_anything_low_risk_or_applicable(paths, capsys, m
 
 def test_a_failing_adapter_is_reported_without_stopping_discovery(paths, capsys, monkeypatch):
     spec = _adapter(paths["tmp"], monkeypatch, "def propose(source, content, rows):\n    raise RuntimeError('model unavailable')\n")
-    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "fireworks-api-pricing", "--llm-adapter", spec], capsys)
-    adapter = _proposal(output, "fireworks-api-pricing")["adapter"]
+    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec], capsys)
+    adapter = _proposal(output, "table-source-pricing")["adapter"]
     assert adapter["operations"] == []
     assert adapter["error"] == "RuntimeError: model unavailable"
 
 
 def test_an_adapter_that_returns_a_non_list_is_reported(paths, capsys, monkeypatch):
     spec = _adapter(paths["tmp"], monkeypatch, "def propose(source, content, rows):\n    return {'op': 'add_price'}\n")
-    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "fireworks-api-pricing", "--llm-adapter", spec], capsys)
-    assert _proposal(output, "fireworks-api-pricing")["adapter"]["error"] == "the adapter must return a list"
+    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec], capsys)
+    assert _proposal(output, "table-source-pricing")["adapter"]["error"] == "the adapter must return a list"
 
 
 # --- The report never overwrites an input -----------------------------------------
@@ -388,9 +395,9 @@ def test_the_report_may_not_overwrite_the_new_source_file_through_a_symlink(path
 
 
 def test_the_report_may_not_overwrite_a_content_file_it_read(paths, capsys):
-    page = paths["content"] / "fireworks-api-pricing.html"
+    page = paths["content"] / "table-source-pricing.html"
     _refused(
-        paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "fireworks-api-pricing", "--json", str(page)],
+        paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--json", str(page)],
         capsys,
         page,
     )

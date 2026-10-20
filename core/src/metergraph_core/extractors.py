@@ -7,10 +7,10 @@ the parser id a source registry entry names.
 Official parsers (OpenAI, Anthropic, Google, DeepSeek, Mistral, xAI and
 Perplexity) turn a page into ``{model name: {field: Decimal}}`` tables keyed
 by the page's own model spelling; :func:`extract` maps those to catalog
-price columns. Discovery-only parsers (Fireworks, Z.AI, AWS Bedrock, Azure
-Foundry and NVIDIA) record normalized evidence for a reviewer and never
-produce applicable price rows. NVIDIA's evidence is GPU or license pricing,
-never token rates.
+price columns. The two generic discovery parsers, ``html-tables`` and
+``gpu-license-prose``, record normalized evidence from any page for a
+reviewer and never produce applicable price rows; the license parser's
+evidence is GPU or license pricing, never token rates.
 
 :func:`structural_fingerprint` summarizes only the page structure a parser
 relies on -- labels, headers and key paths -- never prices or the set of
@@ -520,13 +520,13 @@ def _table_features(content: str) -> Any:
     return {"headers": sorted(list(row) for row in headers)}
 
 
-_NVIDIA_CANDIDATES = {
+_LICENSE_CANDIDATES = {
     "license_per_gpu_year_usd": re.compile(r"\$([0-9][0-9,]*(?:\.[0-9]+)?) per GPU per year"),
     "gpu_hour_usd": re.compile(r"\$([0-9][0-9,]*(?:\.[0-9]+)?) per GPU per hour"),
 }
 
 
-def _nvidia_statements(content: str) -> list[str]:
+def _license_statements(content: str) -> list[str]:
     statements = []
     for cell in page_text(content).split(" | "):
         for sentence in re.split(r"(?<=[.!?])\s+", cell.strip()):
@@ -535,10 +535,10 @@ def _nvidia_statements(content: str) -> list[str]:
     return statements
 
 
-def _nvidia_evidence(content: str) -> dict[str, Any]:
-    statements = _nvidia_statements(content)
+def _license_evidence(content: str) -> dict[str, Any]:
+    statements = _license_statements(content)
     candidates = {}
-    for dimension, pattern in _NVIDIA_CANDIDATES.items():
+    for dimension, pattern in _LICENSE_CANDIDATES.items():
         for statement in statements:
             match = pattern.search(statement)
             if match:
@@ -551,7 +551,7 @@ def _nvidia_evidence(content: str) -> dict[str, Any]:
     }
 
 
-def _nvidia_features(content: str) -> Any:
+def _license_features(content: str) -> Any:
     text = page_text(content)
     return {
         "phrases": [phrase in text for phrase in ("per GPU per year", "per GPU per hour", "license")],
@@ -621,11 +621,10 @@ PARSERS: Mapping[str, ParserSpec] = MappingProxyType(
         "mistral": ParserSpec(True, _mistral_features, table=parse_mistral),
         "xai": ParserSpec(True, _xai_features, table=parse_xai),
         "perplexity": ParserSpec(True, _perplexity_features, table=parse_perplexity),
-        "fireworks": ParserSpec(False, _table_features, evidence=_table_evidence),
-        "zai": ParserSpec(False, _table_features, evidence=_table_evidence),
-        "aws-bedrock": ParserSpec(False, _table_features, evidence=_table_evidence),
-        "azure-foundry": ParserSpec(False, _table_features, evidence=_table_evidence),
-        "nvidia": ParserSpec(False, _nvidia_features, evidence=_nvidia_evidence),
+        # Generic discovery parsers: any page's tables, or GPU and license
+        # pricing stated in prose. They describe no provider's layout.
+        "html-tables": ParserSpec(False, _table_features, evidence=_table_evidence),
+        "gpu-license-prose": ParserSpec(False, _license_features, evidence=_license_evidence),
     }
 )
 

@@ -283,22 +283,25 @@ for source in load_source_registry().sources:
 
 Seeding a source does not make it low-risk. Low-risk means a proven official
 parser whose live structural fingerprint has been reviewed and recorded.
-OpenAI, Anthropic, Google and xAI start low-risk; each may change existing rates
-on existing rows by up to 50 percent. DeepSeek, Mistral and Perplexity keep
-their official parsers but start non-low-risk, because their live pages do not
-currently parse cleanly to the catalog; they are promoted through a reviewed
-registry change once their parsers and fingerprints are reviewed. Fireworks,
-Z.AI, AWS Bedrock (both the in-region and geographic channels), Azure Foundry
-and NVIDIA start non-low-risk; their extractors record evidence for review and
-never produce price rows.
-NVIDIA's NIM production pricing is per GPU or license, so it is recorded with
-GPU-hour and license dimensions and never as token pricing.
+OpenAI, Anthropic, Google (Gemini API) and xAI start low-risk; each may change
+existing rates on existing rows by up to 50 percent.
+
+Every other source is reviewed discovery only. It is read with a generic
+parser, `html-tables` for any page's tables or `gpu-license-prose` for GPU or
+license pricing stated in prose, which records normalized evidence and never
+produces price rows. A generic parser does not mean the page's layout is
+supported. DeepSeek, Mistral and Perplexity have official parsers (used by
+`scripts/check_prices.py`) whose live pages do not currently parse cleanly to
+the catalog; a source is promoted only through a reviewed registry change once
+its parser and fingerprint are reviewed. NVIDIA's NIM production pricing is per
+GPU or license, so it is recorded with GPU-hour and license dimensions and never
+as token pricing.
 
 ### Extractors
 
 `extract(parser_id, content)` reads source content the caller supplies and
 returns the rates it finds, mapped to catalog price columns, or evidence for a
-discovery-only parser. `structural_fingerprint(parser_id, content)` summarizes
+generic discovery parser. `structural_fingerprint(parser_id, content)` summarizes
 only the labels, headers and key paths that parser relies on, so a price change
 or a newly listed model keeps the fingerprint and a format change alters it.
 Extractors never fetch. The package adds no browser or LLM dependency.
@@ -337,9 +340,10 @@ proposed delta for changed catalog rows. An optional adapter
 is schema-validated and kept as review evidence. Everything discovery emits
 requires review.
 
-Both read `<source-id>.*` files from `--content-dir` instead of fetching, which
-is how their tests run against the synthetic fixtures in
-`tests/fixtures/sources/`.
+Both read `<source-id>.*` files from `--content-dir` instead of fetching. The
+tests use synthetic fixtures: one per low-risk source in
+`tests/fixtures/sources/`, reproducing only the structure its parser reads, and
+two generic pages in `tests/fixtures/discovery/` for every other source.
 
 ## Provider review and contributions
 
@@ -352,10 +356,11 @@ their models:
    rows in `prices.yaml`.
 2. **Propose a correction or a new source.** Edit your entry or add a new
    provider with its official pricing URL. A new source starts non-low-risk.
-3. **Add the fixture, extractor and tests.** Add a minimal synthetic fixture in
-   `tests/fixtures/sources/` that reproduces only the structure your parser
-   reads, never a saved copy of the page. Add or update the extractor in
-   `extractors.py` when one applies, and extend the tests.
+3. **Add the extractor, fixture and tests when proposing low-risk status.** A
+   discovery-only source needs no fixture of its own. A source proposed for
+   low-risk status needs an extractor in `extractors.py` and a minimal synthetic
+   fixture in `tests/fixtures/sources/` that reproduces only the structure the
+   parser reads, never a saved copy of the page, with tests.
 4. **Open a pull request** with the official-source evidence and an effective
    date for each pricing change. Price changes close the old row's window and
    add a new row; they never edit history.

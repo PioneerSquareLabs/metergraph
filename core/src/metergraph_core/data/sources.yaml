@@ -71,14 +71,12 @@ sources:
     channel: deepseek-api
     catalog_channel: true
     url: https://api-docs.deepseek.com/quick_start/pricing
-    parser: deepseek
+    parser: html-tables
     source_shape: token_table
     clarity: structured
-    # The page lists peak and off-peak rates; the catalog stores the peak rate
-    # with an off-peak rule, and the parser reads the peak rows.
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
-    # Not low-risk yet: the live page lists the models, but its peak rows no
-    # longer parse. Promote once the parser and fingerprint are reviewed.
+    # Reviewed discovery only: the official deepseek parser no longer reads the
+    # live page's peak rows. Promote once it and a fingerprint are reviewed.
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
 
@@ -87,12 +85,12 @@ sources:
     channel: mistral-api
     catalog_channel: true
     url: https://docs.mistral.ai/models/mistral-large
-    parser: mistral
+    parser: html-tables
     source_shape: token_model_card
     clarity: structured
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
-    # Not low-risk yet: the live active (sale) price differs from the catalog
-    # row by half, so the page's reading needs review before promotion.
+    # Reviewed discovery only: the live active (sale) price differs from the
+    # catalog row by half, so the official mistral parser needs review first.
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
 
@@ -116,24 +114,27 @@ sources:
     channel: perplexity-api
     catalog_channel: true
     url: https://docs.perplexity.ai/docs/getting-started/pricing
-    parser: perplexity
+    parser: html-tables
     source_shape: token_embedded_data
     clarity: structured
     dimensions: [input_per_mtok, output_per_mtok]
-    # Not low-risk yet: the live page no longer yields the pricing object the
-    # parser reads. Promote once the parser and fingerprint are reviewed.
+    # Reviewed discovery only: the live page no longer yields the pricing
+    # object the official perplexity parser reads.
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
 
-  # The sources below start non-low-risk with discovery-only extractors that
-  # record evidence for review and never produce applicable price rows.
+  # Every source that is not low-risk is reviewed discovery only: a generic
+  # parser (html-tables or gpu-license-prose) records normalized evidence and
+  # never produces applicable price rows. A generic parser does not mean the
+  # page's layout is supported; the provider sources below have no parser of
+  # their own.
 
   - id: fireworks-api-pricing
     provider: fireworks
     channel: fireworks-api
     catalog_channel: true
     url: https://fireworks.ai/pricing
-    parser: fireworks
+    parser: html-tables
     source_shape: token_table
     clarity: semi_structured
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
@@ -145,7 +146,7 @@ sources:
     channel: zai-api
     catalog_channel: true
     url: https://docs.z.ai/guides/overview/pricing
-    parser: zai
+    parser: html-tables
     source_shape: token_table
     clarity: structured
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
@@ -160,7 +161,7 @@ sources:
     channel: aws-bedrock
     catalog_channel: true
     url: https://aws.amazon.com/bedrock/pricing/
-    parser: aws-bedrock
+    parser: html-tables
     source_shape: token_option_dependent
     clarity: option_dependent
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
@@ -172,7 +173,7 @@ sources:
     channel: aws-bedrock-geo
     catalog_channel: true
     url: https://aws.amazon.com/bedrock/pricing/
-    parser: aws-bedrock
+    parser: html-tables
     source_shape: token_option_dependent
     clarity: option_dependent
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
@@ -186,7 +187,7 @@ sources:
     channel: azure-foundry
     catalog_channel: false
     url: https://azure.microsoft.com/en-us/pricing/details/ai-foundry-models/aoai/
-    parser: azure-foundry
+    parser: html-tables
     source_shape: token_option_dependent
     clarity: option_dependent
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
@@ -201,7 +202,7 @@ sources:
     channel: nvidia-ai-enterprise
     catalog_channel: false
     url: https://docs.api.nvidia.com/nim/docs/product
-    parser: nvidia
+    parser: gpu-license-prose
     source_shape: gpu_hour_or_license
     clarity: prose
     dimensions: [gpu_hour_usd, license_per_gpu_year_usd]

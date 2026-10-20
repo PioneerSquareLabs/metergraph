@@ -2,6 +2,7 @@
 their fixtures."""
 
 import re
+from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
@@ -131,8 +132,8 @@ def test_low_risk_requires_a_catalog_channel():
 
 
 def test_low_risk_requires_a_parser_that_emits_price_rows():
-    with pytest.raises(SourceRegistryError, match="parser 'fireworks' emits no price rows"):
-        parse_source_registry(_registry(_entry(parser="fireworks")))
+    with pytest.raises(SourceRegistryError, match="parser 'html-tables' emits no price rows"):
+        parse_source_registry(_registry(_entry(parser="html-tables")))
 
 
 def test_low_risk_dimensions_must_be_dimensions_the_source_represents():
@@ -174,7 +175,7 @@ def test_low_risk_eligibility_must_be_a_boolean():
 
 def test_gpu_or_license_sources_carry_no_token_dimensions():
     entry = _not_low_risk(
-        parser="nvidia",
+        parser="gpu-license-prose",
         source_shape="gpu_hour_or_license",
         dimensions=["input_per_mtok"],
     )
@@ -190,7 +191,7 @@ def test_token_sources_carry_no_gpu_or_license_dimensions():
 
 def test_a_gpu_or_license_source_records_its_non_token_dimensions():
     entry = _not_low_risk(
-        parser="nvidia",
+        parser="gpu-license-prose",
         source_shape="gpu_hour_or_license",
         clarity="option_dependent",
         dimensions=["gpu_hour_usd", "license_per_gpu_year_usd"],
@@ -204,7 +205,7 @@ def test_one_provider_may_register_one_url_for_several_channels():
         id="aws-bedrock-pricing",
         provider="aws",
         channel="aws-bedrock",
-        parser="aws-bedrock",
+        parser="html-tables",
         source_shape="token_option_dependent",
         url="https://example.com/bedrock",
     )
@@ -257,7 +258,7 @@ def test_validate_accepts_catalog_and_registry_only_channels():
         provider="azure",
         channel="azure-foundry",
         catalog_channel=False,
-        parser="azure-foundry",
+        parser="html-tables",
         source_shape="token_option_dependent",
         url="https://example.com/azure",
     )
@@ -265,7 +266,7 @@ def test_validate_accepts_catalog_and_registry_only_channels():
 
 
 def test_validate_rejects_a_catalog_channel_the_catalog_lacks():
-    entry = _not_low_risk(channel="fireworks-api", parser="fireworks")
+    entry = _not_low_risk(channel="fireworks-api", parser="html-tables")
     with pytest.raises(SourceRegistryError, match="example-api-pricing: catalog channel 'fireworks-api' has no catalog rows"):
         validate_source_registry(parse_source_registry(_registry(entry)), _catalog())
 
@@ -377,11 +378,36 @@ def test_nvidia_records_gpu_or_license_pricing_and_no_token_dimensions():
     assert set(nvidia.dimensions) == {"gpu_hour_usd", "license_per_gpu_year_usd"}
 
 
-def test_every_source_has_exactly_one_fixture():
-    fixtures = sorted(path.name for path in FIXTURES.iterdir())
+GENERIC = Path(__file__).parent / "fixtures" / "discovery"
+# The generic synthetic page each discovery parser is exercised on.
+GENERIC_PAGES = {"html-tables": "token-table.html", "gpu-license-prose": "gpu-license-prose.html"}
+
+
+def test_only_low_risk_sources_have_source_specific_fixtures():
+    fixtures = {path.name.split(".")[0] for path in FIXTURES.iterdir()}
+    assert fixtures == {source.id for source in load_source_registry().low_risk()}
+
+
+def test_every_non_low_risk_source_uses_a_generic_discovery_parser():
     for source in load_source_registry().sources:
-        matching = [name for name in fixtures if name.split(".")[0] == source.id]
-        assert len(matching) == 1, (source.id, matching)
+        if not source.low_risk.eligible:
+            assert source.parser in GENERIC_PAGES, source.id
+
+
+def test_every_non_low_risk_source_yields_normalized_discovery_evidence():
+    from metergraph_core import discovery_evidence
+
+    catalog = load_catalog()
+    for source in load_source_registry().sources:
+        if source.low_risk.eligible:
+            continue
+        page = (GENERIC / GENERIC_PAGES[source.parser]).read_text()
+        evidence = discovery_evidence(source, page, catalog.document, observed_on=date(2026, 10, 20))["evidence"]
+        assert evidence["redacted"] is True, source.id
+        if evidence["kind"] == "tables":
+            assert evidence["tables"][0]["rows"][0] == {"label": "example-model-large", "amounts": ["2.00", "0.20", "8.00"]}
+        else:
+            assert evidence["candidates"] == {"license_per_gpu_year_usd": "1000", "gpu_hour_usd": "0.50"}
 
 
 _CREDENTIAL = re.compile(r"token|secret|password|passwd|api[_-]?key|authorization|credential|bearer", re.I)

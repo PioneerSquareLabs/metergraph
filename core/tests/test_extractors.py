@@ -13,11 +13,16 @@ from metergraph_core.extractors import (
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sources"
+GENERIC = Path(__file__).parent / "fixtures" / "discovery"
 D = Decimal
 
 
 def _fixture(source_id):
     return (FIXTURES / f"{source_id}.html").read_text()
+
+
+def _generic(name):
+    return (GENERIC / f"{name}.html").read_text()
 
 
 def _rates(extraction):
@@ -38,20 +43,9 @@ EXPECTED = {
         ("gemini-x", "global"): {"input_per_mtok": D("0.25"), "output_per_mtok": D("1.50"), "cache_read_per_mtok": D("0.025")},
         ("gemini-x-image", "global"): {"input_per_mtok": D("0.30")},
     },
-    ("deepseek", "deepseek-api-pricing"): {
-        ("deepseek-flash", "global"): {"cache_read_per_mtok": D("0.006"), "input_per_mtok": D("0.3"), "output_per_mtok": D("1.2")},
-        ("deepseek-pro", "global"): {"cache_read_per_mtok": D("0.044"), "input_per_mtok": D("1.32"), "output_per_mtok": D("3.96")},
-    },
-    ("mistral", "mistral-api-pricing"): {
-        ("mistral-large-4", "global"): {"input_per_mtok": D("0.68"), "cache_read_per_mtok": D("0.07"), "output_per_mtok": D("2.09")},
-    },
     ("xai", "xai-api-pricing"): {
         ("grok-x", "global"): {"input_per_mtok": D("2"), "cache_read_per_mtok": D("0.5"), "output_per_mtok": D("6")},
         ("grok-x", "us"): {"input_per_mtok": D("2.2"), "cache_read_per_mtok": D("0.55"), "output_per_mtok": D("6.6")},
-    },
-    ("perplexity", "perplexity-api-pricing"): {
-        ("sonar", "global"): {"input_per_mtok": D("1"), "output_per_mtok": D("1")},
-        ("sonar-pro", "global"): {"input_per_mtok": D("3"), "output_per_mtok": D("15")},
     },
 }
 
@@ -81,8 +75,9 @@ def test_extracted_rates_are_immutable():
         rate.rates["input_per_mtok"] = D("0")
 
 
-# Each official parser's fixture with a price changed, with a model added, and
-# with a parser-relevant structural change.
+# Each low-risk parser's fixture with a price changed, with a model added, and
+# with a parser-relevant structural change. The other official parsers keep
+# their focused inline cases in test_check_prices.py.
 VARIANTS = {
     "openai": (
         "openai-api-pricing",
@@ -111,21 +106,6 @@ VARIANTS = {
         ),
         lambda c: c.replace("Context caching price", "Caching price"),
     ),
-    "deepseek": (
-        "deepseek-api-pricing",
-        lambda c: c.replace("<td>$0.3</td>", "<td>$0.35</td>"),
-        lambda c: c.replace("<th>deepseek-v4-pro</th>", "<th>deepseek-v4-pro</th><th>deepseek-v5</th>")
-        .replace("<td>$0.044</td></tr>", "<td>$0.044</td><td>$0.05</td></tr>")
-        .replace("<td>$1.32</td></tr>", "<td>$1.32</td><td>$1.5</td></tr>")
-        .replace("<td>$3.96</td></tr>", "<td>$3.96</td><td>$4</td></tr>"),
-        lambda c: c.replace("CACHE HIT", "CACHED"),
-    ),
-    "mistral": (
-        "mistral-api-pricing",
-        lambda c: c.replace('"price\\":0.68', '"price\\":0.70'),
-        None,
-        lambda c: c.replace("Cached input", "Cache read"),
-    ),
     "xai": (
         "xai-api-pricing",
         lambda c: c.replace("&quot;20000&quot;", "&quot;25000&quot;"),
@@ -134,16 +114,6 @@ VARIANTS = {
             "{&quot;name&quot;:&quot;grok-y&quot;,&quot;version&quot;:&quot;1.0&quot;,&quot;promptTextTokenPrice&quot;:&quot;1000&quot;,&quot;cachedPromptTokenPrice&quot;:&quot;100&quot;,&quot;completionTextTokenPrice&quot;:&quot;3000&quot;,&quot;cluster&quot;:&quot;us-east-1&quot;}</script>",
         ),
         lambda c: c.replace("cachedPromptTokenPrice", "cachedTokenPrice"),
-    ),
-    "perplexity": (
-        "perplexity-api-pricing",
-        lambda c: c.replace('\\"input\\":3', '\\"input\\":4'),
-        lambda c: c.replace(
-            "]},",
-            ',{\\"id\\":`sonar-deep`,\\"input\\":2,\\"output\\":8}]},',
-            1,
-        ),
-        lambda c: c.replace("const PRICING=", "const PRICES="),
     ),
 }
 
@@ -209,8 +179,8 @@ def test_extraction_carries_the_structural_fingerprint():
 
 
 def test_fingerprints_differ_between_parsers_for_the_same_content():
-    content = _fixture("fireworks-api-pricing")
-    assert structural_fingerprint("fireworks", content) != structural_fingerprint("zai", content)
+    content = _generic("token-table")
+    assert structural_fingerprint("html-tables", content) != structural_fingerprint("gpu-license-prose", content)
 
 
 def test_two_candidate_values_for_one_model_are_ambiguous():
@@ -232,54 +202,43 @@ def test_a_repeated_model_with_equal_values_is_not_ambiguous():
     assert extract("anthropic", content).ambiguities == ()
 
 
-DISCOVERY_ONLY = {
-    "fireworks": ("fireworks-api-pricing", ["Base model", "$ / 1M input tokens", "$ / 1M cached input tokens", "$ / 1M output tokens"]),
-    "zai": ("zai-api-pricing", ["Model", "Input", "Cached Input", "Cached Input Storage", "Output"]),
-    "aws-bedrock": ("aws-bedrock-pricing", ["Example Provider models", "Price per 1M input tokens", "Price per 1M output tokens", "Price per 1M input tokens (batch)", "Price per 1M output tokens (batch)"]),
-    "azure-foundry": ("azure-foundry-pricing", ["Models", "Input (per 1M tokens)", "Cached input (per 1M tokens)", "Output (per 1M tokens)"]),
-}
+# Discovery-only parsers are generic: they read any page's tables or GPU and
+# license prose, and are tested on generic synthetic pages, never on a mock of
+# one provider's site.
 
 
-@pytest.mark.parametrize("parser", list(DISCOVERY_ONLY))
-def test_discovery_only_extractors_emit_evidence_and_no_rates(parser):
-    source_id, first_headers = DISCOVERY_ONLY[parser]
-    extraction = extract(parser, _fixture(source_id))
+def test_the_table_parser_emits_evidence_and_no_rates():
+    extraction = extract("html-tables", _generic("token-table"))
     assert extraction.applicable is False
     assert extraction.rates == ()
-    assert extraction.evidence["kind"] == "tables"
-    assert extraction.evidence["tables"][0]["headers"] == first_headers
+    assert extraction.evidence == {
+        "kind": "tables",
+        "tables": [
+            {
+                "headers": ["Model", "Input (per 1M tokens)", "Cached input (per 1M tokens)", "Output (per 1M tokens)"],
+                "rows": [
+                    ["Example Model Large", "$2.00", "$0.20", "$8.00"],
+                    ["Example Model Small", "$0.40", "Free", "$1.60"],
+                ],
+            },
+            {"headers": ["Accelerator", "Price per hour"], "rows": [["Example Accelerator", "$2.90"]]},
+        ],
+    }
 
 
-def test_table_evidence_keeps_each_rows_cells():
-    extraction = extract("fireworks", _fixture("fireworks-api-pricing"))
-    assert extraction.evidence["tables"] == [
-        {
-            "headers": ["Base model", "$ / 1M input tokens", "$ / 1M cached input tokens", "$ / 1M output tokens"],
-            "rows": [
-                ["Example model 70B", "$0.90", "$0.45", "$0.90"],
-                ["Example model 8B", "$0.20", "$0.10", "$0.20"],
-            ],
-        },
-        {"headers": ["GPU type", "$ / hour"], "rows": [["Example GPU", "$2.90"]]},
-    ]
+def test_the_table_parser_reads_a_page_without_tables_as_empty_evidence():
+    extraction = extract("html-tables", "<p>No tables here.</p>")
+    assert extraction.evidence == {"kind": "tables", "tables": []}
 
 
-def test_bedrock_geo_fixture_reads_through_the_bedrock_extractor():
-    extraction = extract("aws-bedrock", _fixture("aws-bedrock-geo-pricing"))
-    assert extraction.rates == ()
-    assert extraction.evidence["tables"][0]["rows"] == [
-        ["Example Model X", "$2.42", "$12.10", "$0.24", "$3.03"]
-    ]
+def test_the_table_fingerprint_ignores_prices_but_not_headers():
+    base = _generic("token-table")
+    assert structural_fingerprint("html-tables", base.replace("$2.00", "$2.50")) == structural_fingerprint("html-tables", base)
+    assert structural_fingerprint("html-tables", base.replace("Cached input (per", "Cache hit (per")) != structural_fingerprint("html-tables", base)
 
 
-def test_discovery_fingerprint_ignores_prices_but_not_headers():
-    base = _fixture("zai-api-pricing")
-    assert structural_fingerprint("zai", base.replace("$0.6", "$0.7")) == structural_fingerprint("zai", base)
-    assert structural_fingerprint("zai", base.replace("Cached Input<", "Cache Hit<")) != structural_fingerprint("zai", base)
-
-
-def test_nvidia_records_license_pricing_and_never_token_rates():
-    extraction = extract("nvidia", _fixture("nvidia-nim-pricing"))
+def test_the_license_parser_records_license_pricing_and_never_token_rates():
+    extraction = extract("gpu-license-prose", _generic("gpu-license-prose"))
     assert extraction.applicable is False
     assert extraction.rates == ()
     assert extraction.evidence["kind"] == "gpu_or_license_statements"
@@ -288,15 +247,15 @@ def test_nvidia_records_license_pricing_and_never_token_rates():
         "gpu_hour_usd": "0.50",
     }
     assert extraction.evidence["statements"] == [
-        "These licenses start at $1000 per GPU per year, or about $0.50 per GPU per hour in the cloud."
+        "Licenses start at $1000 per GPU per year, or about $0.50 per GPU per hour in the cloud."
     ]
 
 
-def test_nvidia_ignores_token_wording_on_its_page():
-    content = _fixture("nvidia-nim-pricing").replace(
+def test_the_license_parser_ignores_token_wording():
+    content = _generic("gpu-license-prose").replace(
         "</body>", "<p>Hosted trials cost $0.10 per 1M tokens.</p></body>"
     )
-    extraction = extract("nvidia", content)
+    extraction = extract("gpu-license-prose", content)
     assert extraction.rates == ()
     assert set(extraction.evidence["candidates"]) == {"license_per_gpu_year_usd", "gpu_hour_usd"}
 
