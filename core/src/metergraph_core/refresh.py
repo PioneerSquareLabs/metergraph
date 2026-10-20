@@ -30,6 +30,7 @@ from .catalog_delta import (
     PRICING_DELTA_SCHEMA_VERSION,
     RATE_FIELDS,
     PriceRowKey,
+    _instant,
     row_key,
 )
 from .extractors import (
@@ -41,7 +42,7 @@ from .extractors import (
     redact_evidence,
     regional_key,
 )
-from .loader import load_catalog_document
+from .loader import _canonical_value, load_catalog_document
 from .sources import PriceSource, SourceRegistry
 
 # Provider names that are not a page's own spelling of a model.
@@ -115,7 +116,8 @@ class RefreshResult:
 
     def as_json(self) -> dict[str, Any]:
         return {
-            "delta": copy.deepcopy(self.delta),
+            # Rows may carry date or datetime values; report them as ISO text.
+            "delta": _canonical_value(self.delta),
             "observations": [o.as_json() for o in self.observations],
             "escalations": [e.as_json() for e in self.escalations],
         }
@@ -144,7 +146,12 @@ def _rate(value: Any) -> Decimal | None:
 
 
 def _day(value: Any) -> date:
-    return value if isinstance(value, date) else date.fromisoformat(str(value)[:10])
+    """The UTC date of an effective date given as a date, a naive or aware
+    datetime, or an ISO string with or without an offset."""
+    instant = _instant(value)
+    if instant is None:
+        raise ValueError(f"invalid effective date {value!r}")
+    return instant.date()
 
 
 def _in_effect(item: Mapping[str, Any], day: date, *, dated: bool) -> bool:
@@ -481,8 +488,8 @@ def discovery_evidence(
         "ambiguities": list(extraction.ambiguities),
         "candidates": candidates,
         # Reviewable replace_price operations for changed catalog rows; new
-        # models and regions stay evidence only.
-        "operations": operations,
+        # models and regions stay evidence only. Dates are reported as text.
+        "operations": _canonical_value(operations),
         # Raw page cells and statements appear only where the registry
         # allows storing raw content; otherwise only normalized facts.
         "evidence": (

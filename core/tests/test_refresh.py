@@ -2,7 +2,7 @@
 content. Nothing here fetches or applies a delta."""
 
 import copy
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -465,6 +465,69 @@ def test_discovery_evidence_quotes_only_the_permitted_excerpt():
     source = _registry(entry).get("openai-api-pricing")
     evidence = discovery_evidence(source, "<p>Prices changed on the page today.</p>", _document(), observed_on=OBSERVED_ON)
     assert evidence["excerpt"] == "Prices chang"
+
+
+# --- Effective dates in other forms --------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "effective_from",
+    [
+        datetime(2026, 1, 1, tzinfo=timezone.utc),
+        datetime(2026, 1, 1),
+        "2026-01-01T00:00:00Z",
+        "2026-01-01T09:30:00+05:30",
+    ],
+    ids=["aware-datetime", "naive-datetime", "z-suffix", "offset"],
+)
+def test_rows_dated_as_datetimes_or_offsets_plan_normally(effective_from):
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    document["models"][0]["prices"][0]["effective_from"] = effective_from
+    result = _plan(document)
+    assert result.escalations == ()
+    [operation] = result.delta["operations"]
+    assert operation["key"]["effective_from"] == "2026-01-01" or operation["key"]["effective_from"].startswith("2026-01-01T")
+    assert operation["price"]["effective_from"] == "2026-10-20"
+    apply_catalog_delta(document, result.delta)
+
+
+def test_an_offset_start_is_compared_on_its_utc_date():
+    # 01:00 at +02:00 on 20 October is 23:00 UTC on 19 October, so the row
+    # started before the observation date and may be replaced.
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    document["models"][0]["prices"][0]["effective_from"] = "2026-10-20T01:00:00+02:00"
+    [operation] = _plan(document).delta["operations"]
+    assert operation["price"]["effective_from"] == "2026-10-20"
+
+
+def test_an_offset_start_on_the_observation_date_in_utc_escalates():
+    # 23:00 at -02:00 on 19 October is 01:00 UTC on 20 October.
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    document["models"][0]["prices"][0]["effective_from"] = "2026-10-19T23:00:00-02:00"
+    result = _plan(document)
+    assert result.delta["operations"] == []
+    assert [e.reason for e in result.escalations] == ["not_after_current"]
+
+
+def test_a_result_with_datetime_rows_serializes_to_json():
+    import json
+
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    document["models"][0]["prices"][0]["effective_from"] = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    data = _plan(document).as_json()
+    json.dumps(data)
+    apply_catalog_delta(document, data["delta"])
+
+
+def test_discovery_evidence_with_datetime_rows_serializes_to_json():
+    import json
+
+    source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    document["models"][0]["prices"][0]["effective_from"] = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
+    json.dumps(evidence)
+    assert evidence["operations"][0]["expect"]["effective_from"] == "2026-01-01T00:00:00+00:00"
 
 
 # --- Evidence retention ------------------------------------------------------------
