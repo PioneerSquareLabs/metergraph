@@ -408,6 +408,35 @@ def test_minimax_m3_1_flash_gateway_promotion_ends_after_october_22():
     assert standard.price.cache_read_per_mtok == Decimal("0.015")
 
 
+def test_minimax_m3_1_flash_promotion_prices_cache_reads_at_zero():
+    result = LOADED.price(
+        model="minimax/minimax-m3.1-flash",
+        channel="vercel-ai-gateway",
+        at=_at("2026-10-22"),
+        input_tokens=1_000_000,
+        output_tokens=0,
+        cache_read_tokens=1_000_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0")
+
+
+def test_deepseek_v4_1_flash_1017_fast_has_fixed_gateway_pricing():
+    costs = {
+        LOADED.price(
+            model="deepseek/deepseek-v4.1-flash-1017-fast",
+            channel="vercel-ai-gateway",
+            at=datetime(2026, 10, 19, hour, tzinfo=timezone.utc),
+            input_tokens=1_000_000,
+            output_tokens=1_000_000,
+        ).cost_usd
+        for hour in (2, 5)
+    }
+
+    assert costs == {Decimal("3.00000000")}
+
+
 def test_beam_is_recognized_but_unpriced_on_the_mixed_provider_gateway():
     assert (
         LOADED.canonical_model_id("reflection", "reflection/beam")

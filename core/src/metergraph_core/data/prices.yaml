@@ -2719,6 +2719,8 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-19"
+        # The live feed publishes the off-peak rate plus a 2x peak multiplier.
+        # Store the peak rate so the shared discount rule applies it once.
         input_per_mtok: 0.15
         output_per_mtok: 0.60
         cache_read_per_mtok: 0.003
@@ -4630,6 +4632,8 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-17"
+        # The live feed publishes the off-peak rate plus a 2x peak multiplier.
+        # Store the peak rate so the shared discount rule applies it once.
         input_per_mtok: 0.15
         output_per_mtok: 0.60
         cache_read_per_mtok: 0.003
@@ -4654,6 +4658,7 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-17"
+        # Vercel reports one fixed Baseten rate and no peak-pricing rule.
         input_per_mtok: 0.60
         output_per_mtok: 2.40
         cache_read_per_mtok: 0.014
@@ -4723,6 +4728,7 @@ models:
         effective_to: "2026-10-23"
         input_per_mtok: 0.00
         output_per_mtok: 0.00
+        cache_read_per_mtok: 0.00
         source_url: https://vercel.com/changelog/minimax-m3-1-flash-now-available-on-ai-gateway-for-free
       - channel: vercel-ai-gateway
         region: global
