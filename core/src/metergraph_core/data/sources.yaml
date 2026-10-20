@@ -1,0 +1,228 @@
+# MeterGraph public pricing source registry.
+#
+# One entry per official pricing source: the provider and catalog channel it
+# prices, its URL, the parser that reads it, the page's shape and clarity, the
+# catalog price columns it represents, its expected structural fingerprint,
+# whether automated low-risk refreshes may use it and within which bounds, and
+# what evidence from it may be kept.
+#
+# Refresh tools fetch only URLs listed here. A source becomes low-risk only
+# through a reviewed change to this file; nobody, including the provider,
+# marks their own source low-risk. Seeding a source does not make it
+# low-risk. See core/README.md for the review and contribution path.
+#
+# `fingerprint: null` means the page structure has not been recorded, so a
+# low-risk refresh escalates instead of proposing changes.
+schema_version: 1
+sources:
+  - id: openai-api-pricing
+    provider: openai
+    channel: openai-api
+    catalog_channel: true
+    url: https://developers.openai.com/api/docs/pricing
+    parser: openai
+    source_shape: token_embedded_data
+    clarity: structured
+    dimensions: [input_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, output_per_mtok]
+    fingerprint: null
+    low_risk:
+      eligible: true
+      max_relative_change: "0.5"
+      dimensions: [input_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, output_per_mtok]
+    evidence: &unreviewed_terms
+      store_raw: false
+      redistribute_raw: false
+      excerpt_chars: 0
+      reason: >-
+        The provider's terms for storing or redistributing page content have
+        not been reviewed. Keep only the structural fingerprint and the
+        normalized values the extractor reads.
+
+  - id: anthropic-api-pricing
+    provider: anthropic
+    channel: anthropic-api
+    catalog_channel: true
+    url: https://platform.claude.com/docs/en/about-claude/pricing
+    parser: anthropic
+    source_shape: token_table
+    clarity: structured
+    # The 5m column is the base cache-write rate the catalog stores in
+    # cache_write_5m_per_mtok; the parser does not read the 1h column.
+    dimensions: [input_per_mtok, output_per_mtok, cache_write_5m_per_mtok, cache_read_per_mtok]
+    fingerprint: null
+    low_risk:
+      eligible: true
+      max_relative_change: "0.5"
+      dimensions: [input_per_mtok, output_per_mtok, cache_write_5m_per_mtok, cache_read_per_mtok]
+    evidence: *unreviewed_terms
+
+  - id: google-api-pricing
+    provider: google
+    channel: google-api
+    catalog_channel: true
+    url: https://ai.google.dev/gemini-api/docs/pricing
+    parser: google
+    source_shape: token_table
+    clarity: semi_structured
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: null
+    low_risk:
+      eligible: true
+      max_relative_change: "0.5"
+      dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    evidence: *unreviewed_terms
+
+  - id: deepseek-api-pricing
+    provider: deepseek
+    channel: deepseek-api
+    catalog_channel: true
+    url: https://api-docs.deepseek.com/quick_start/pricing
+    parser: deepseek
+    source_shape: token_table
+    clarity: structured
+    # The page lists peak and off-peak rates; the catalog stores the peak rate
+    # with an off-peak rule, and the parser reads the peak rows.
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: null
+    low_risk:
+      eligible: true
+      max_relative_change: "0.5"
+      dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    evidence: *unreviewed_terms
+
+  - id: mistral-api-pricing
+    provider: mistral
+    channel: mistral-api
+    catalog_channel: true
+    url: https://docs.mistral.ai/models/mistral-large
+    parser: mistral
+    source_shape: token_model_card
+    clarity: structured
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: null
+    low_risk:
+      eligible: true
+      max_relative_change: "0.5"
+      dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    evidence: *unreviewed_terms
+
+  - id: xai-api-pricing
+    provider: xai
+    channel: xai-api
+    catalog_channel: true
+    url: https://docs.x.ai/developers/models
+    parser: xai
+    source_shape: token_embedded_data
+    clarity: structured
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: null
+    low_risk:
+      eligible: true
+      max_relative_change: "0.5"
+      dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    evidence: *unreviewed_terms
+
+  - id: perplexity-api-pricing
+    provider: perplexity
+    channel: perplexity-api
+    catalog_channel: true
+    url: https://docs.perplexity.ai/docs/getting-started/pricing
+    parser: perplexity
+    source_shape: token_embedded_data
+    clarity: structured
+    dimensions: [input_per_mtok, output_per_mtok]
+    fingerprint: null
+    low_risk:
+      eligible: true
+      max_relative_change: "0.5"
+      dimensions: [input_per_mtok, output_per_mtok]
+    evidence: *unreviewed_terms
+
+  # The sources below start non-low-risk. Their discovery-only extractors
+  # record evidence for review and never produce applicable price rows.
+
+  - id: fireworks-api-pricing
+    provider: fireworks
+    channel: fireworks-api
+    catalog_channel: true
+    url: https://fireworks.ai/pricing
+    parser: fireworks
+    source_shape: token_table
+    clarity: semi_structured
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
+    evidence: *unreviewed_terms
+
+  - id: zai-api-pricing
+    provider: zai
+    channel: zai-api
+    catalog_channel: true
+    url: https://docs.z.ai/guides/overview/pricing
+    parser: zai
+    source_shape: token_table
+    clarity: structured
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
+    evidence: *unreviewed_terms
+
+  # One page prices both Bedrock channels: in-region on-demand rows and
+  # geographic cross-region inference rows. Prices depend on the selected
+  # region, provider tab and inference type.
+  - id: aws-bedrock-pricing
+    provider: aws
+    channel: aws-bedrock
+    catalog_channel: true
+    url: https://aws.amazon.com/bedrock/pricing/
+    parser: aws-bedrock
+    source_shape: token_option_dependent
+    clarity: option_dependent
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
+    evidence: *unreviewed_terms
+
+  - id: aws-bedrock-geo-pricing
+    provider: aws
+    channel: aws-bedrock-geo
+    catalog_channel: true
+    url: https://aws.amazon.com/bedrock/pricing/
+    parser: aws-bedrock
+    source_shape: token_option_dependent
+    clarity: option_dependent
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
+    evidence: *unreviewed_terms
+
+  # The catalog does not carry Azure Foundry yet. Prices depend on the
+  # deployment type (Global, Data Zone, Regional) and region.
+  - id: azure-foundry-pricing
+    provider: azure
+    channel: azure-foundry
+    catalog_channel: false
+    url: https://azure.microsoft.com/en-us/pricing/details/azure-openai/
+    parser: azure-foundry
+    source_shape: token_option_dependent
+    clarity: option_dependent
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
+    evidence: *unreviewed_terms
+
+  # NIM production use is licensed per GPU (NVIDIA AI Enterprise), per year
+  # or per GPU hour on cloud marketplaces. It is not token pricing, and no
+  # extractor derives token rates from it.
+  - id: nvidia-nim-pricing
+    provider: nvidia
+    channel: nvidia-ai-enterprise
+    catalog_channel: false
+    url: https://docs.api.nvidia.com/nim/docs/product
+    parser: nvidia
+    source_shape: gpu_hour_or_license
+    clarity: prose
+    dimensions: [gpu_hour_usd, license_per_gpu_year_usd]
+    fingerprint: null
+    low_risk: {eligible: false, max_relative_change: null, dimensions: []}
+    evidence: *unreviewed_terms

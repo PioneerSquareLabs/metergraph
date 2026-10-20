@@ -1,14 +1,18 @@
 """The public pricing source registry: its schema, its seeded entries, and
 their fixtures."""
 
+import re
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
+import yaml
 
-from metergraph_core import load_catalog_document
+from metergraph_core import load_catalog, load_catalog_document
 from metergraph_core.sources import (
     SOURCE_REGISTRY_SCHEMA_VERSION,
     SourceRegistryError,
+    load_source_registry,
     parse_source_registry,
     validate_source_registry,
 )
@@ -295,3 +299,139 @@ def test_validate_rejects_a_registry_only_channel_the_catalog_prices():
     entry = _not_low_risk(catalog_channel=False)
     with pytest.raises(SourceRegistryError, match="example-api-pricing: registry-only channel 'openai-api' is a catalog channel"):
         validate_source_registry(parse_source_registry(_registry(entry)), _catalog())
+
+
+# --- The bundled registry ----------------------------------------------------
+
+FIXTURES = Path(__file__).parent / "fixtures" / "sources"
+LOW_RISK_IDS = {
+    "openai-api-pricing",
+    "anthropic-api-pricing",
+    "google-api-pricing",
+    "deepseek-api-pricing",
+    "mistral-api-pricing",
+    "xai-api-pricing",
+    "perplexity-api-pricing",
+}
+
+
+def test_bundled_registry_validates_against_the_bundled_catalog():
+    validate_source_registry(load_source_registry(), load_catalog())
+
+
+def test_bundled_registry_covers_every_seeded_provider():
+    assert {source.provider for source in load_source_registry().sources} == {
+        "openai",
+        "anthropic",
+        "google",
+        "deepseek",
+        "mistral",
+        "xai",
+        "perplexity",
+        "fireworks",
+        "zai",
+        "aws",
+        "azure",
+        "nvidia",
+    }
+
+
+def test_only_the_seven_proven_official_parsers_start_low_risk():
+    low_risk = load_source_registry().low_risk()
+    assert {source.id for source in low_risk} == LOW_RISK_IDS
+    assert {source.parser for source in low_risk} == {
+        "openai", "anthropic", "google", "deepseek", "mistral", "xai", "perplexity"
+    }
+
+
+def test_initial_low_risk_bound_is_a_fifty_percent_relative_change():
+    assert {
+        source.low_risk.max_relative_change for source in load_source_registry().low_risk()
+    } == {Decimal("0.5")}
+
+
+def test_low_risk_sources_read_the_pages_the_price_checker_reads():
+    check_prices = _load_check_prices()
+    registry = load_source_registry()
+    for source in registry.low_risk():
+        url, channel, _ = check_prices.PROVIDER_PAGES[source.parser]
+        assert (source.url, source.channel) == (url, channel)
+
+
+def test_aws_registers_both_bedrock_channels_on_one_page_and_not_low_risk():
+    bedrock = [s for s in load_source_registry().sources if s.provider == "aws"]
+    assert sorted(s.channel for s in bedrock) == ["aws-bedrock", "aws-bedrock-geo"]
+    assert len({s.url for s in bedrock}) == 1
+    assert not any(s.low_risk.eligible for s in bedrock)
+    assert all(s.catalog_channel for s in bedrock)
+
+
+def test_azure_and_nvidia_use_registry_only_channels():
+    registry = load_source_registry()
+    for provider in ("azure", "nvidia"):
+        [source] = [s for s in registry.sources if s.provider == provider]
+        assert source.catalog_channel is False
+        assert source.low_risk.eligible is False
+
+
+def test_fireworks_and_zai_start_without_low_risk_status():
+    registry = load_source_registry()
+    for provider in ("fireworks", "zai"):
+        [source] = [s for s in registry.sources if s.provider == provider]
+        assert source.low_risk.eligible is False
+        assert source.catalog_channel is True
+
+
+def test_nvidia_records_gpu_or_license_pricing_and_no_token_dimensions():
+    [nvidia] = [s for s in load_source_registry().sources if s.provider == "nvidia"]
+    assert nvidia.source_shape == "gpu_hour_or_license"
+    assert set(nvidia.dimensions) == {"gpu_hour_usd", "license_per_gpu_year_usd"}
+
+
+def test_every_source_has_exactly_one_fixture():
+    fixtures = sorted(path.name for path in FIXTURES.iterdir())
+    for source in load_source_registry().sources:
+        matching = [name for name in fixtures if name.split(".")[0] == source.id]
+        assert len(matching) == 1, (source.id, matching)
+
+
+def test_every_source_records_why_raw_content_is_not_kept():
+    for source in load_source_registry().sources:
+        if not (source.evidence.store_raw and source.evidence.redistribute_raw):
+            assert source.evidence.reason, source.id
+
+
+_CREDENTIAL = re.compile(r"token|secret|password|passwd|api[_-]?key|authorization|credential|bearer", re.I)
+
+
+def _keys(value):
+    if isinstance(value, dict):
+        for key, item in value.items():
+            yield key
+            yield from _keys(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _keys(item)
+
+
+def test_registry_carries_no_credential_fields_or_url_parameters():
+    from metergraph_core.sources import DEFAULT_REGISTRY_PATH
+
+    raw = yaml.safe_load(DEFAULT_REGISTRY_PATH.read_text())
+    assert not [key for key in _keys(raw) if _CREDENTIAL.search(str(key))]
+    for source in load_source_registry().sources:
+        assert "?" not in source.url and "@" not in source.url, source.url
+
+
+def _load_check_prices():
+    import importlib.util
+    import sys
+
+    script = Path(__file__).resolve().parents[2] / "scripts" / "check_prices.py"
+    if "check_prices" in sys.modules:
+        return sys.modules["check_prices"]
+    spec = importlib.util.spec_from_file_location("check_prices", script)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["check_prices"] = module
+    spec.loader.exec_module(module)
+    return module

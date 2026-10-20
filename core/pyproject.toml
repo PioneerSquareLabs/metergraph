@@ -20,4 +20,4 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-metergraph_core = ["data/models.yaml", "data/prices.yaml"]
+metergraph_core = ["data/models.yaml", "data/prices.yaml", "data/sources.yaml"]
