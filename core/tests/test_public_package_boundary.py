@@ -50,7 +50,7 @@ def test_the_source_registry_ships_as_package_data():
 
 PUBLIC_NAMES = [
     "CatalogDelta", "CatalogDeltaConflict", "CatalogDeltaError", "DeltaConflict",
-    "EvidencePolicy", "Escalation", "ExtractedRate", "Extraction", "LowRiskPolicy",
+    "Escalation", "ExtractedRate", "Extraction", "LowRiskPolicy",
     "Observation", "PRICING_DELTA_SCHEMA_VERSION", "PriceRowKey", "PriceSource",
     "RefreshResult", "SOURCE_REGISTRY_SCHEMA_VERSION", "SourceRegistry",
     "SourceRegistryError", "apply_catalog_delta", "discovery_evidence", "extract",

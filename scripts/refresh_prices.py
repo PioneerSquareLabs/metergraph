@@ -156,16 +156,14 @@ def evidence_paths(evidence_dir: Path, registry: SourceRegistry, contents: dict[
 
 
 def write_evidence(evidence_dir: Path, registry: SourceRegistry, contents: dict[str, str], document: dict, observed_on: date) -> None:
-    """One evidence file per fetched source. Raw content is kept only where
-    the registry's retention policy allows storing it."""
+    """One evidence file per fetched source, holding only fingerprints and
+    normalized facts; raw page content is never written."""
     evidence_dir.mkdir(parents=True, exist_ok=True)
     for source in registry.sources:
         content = contents.get(source.id)
         if content is None:
             continue
         evidence = discovery_evidence(source, content, document, observed_on=observed_on)
-        if source.evidence.store_raw:
-            evidence["raw_content"] = content
         (evidence_dir / f"{source.id}.json").write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n")
 
 

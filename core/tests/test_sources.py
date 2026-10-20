@@ -35,12 +35,6 @@ def _entry(**overrides):
             "max_relative_change": "0.5",
             "dimensions": ["input_per_mtok", "output_per_mtok"],
         },
-        "evidence": {
-            "store_raw": False,
-            "redistribute_raw": False,
-            "excerpt_chars": 0,
-            "reason": "Provider terms do not grant redistribution of page content.",
-        },
     }
     entry.update(overrides)
     return entry
@@ -73,8 +67,6 @@ def test_parse_reads_an_entry():
     assert source.low_risk.eligible is True
     assert source.low_risk.max_relative_change == Decimal("0.5")
     assert source.low_risk.dimensions == ("input_per_mtok", "output_per_mtok")
-    assert source.evidence.store_raw is False
-    assert source.evidence.reason.startswith("Provider terms")
 
 
 def test_get_rejects_an_unknown_source():
@@ -227,28 +219,11 @@ def test_two_providers_may_not_share_a_url():
         parse_source_registry(_registry(_entry(), other))
 
 
-@pytest.mark.parametrize(
-    ("evidence", "message"),
-    [
-        (None, "evidence must be a mapping"),
-        ({"store_raw": "no", "redistribute_raw": False, "excerpt_chars": 0, "reason": "x"}, "evidence.store_raw must be true or false"),
-        ({"store_raw": False, "redistribute_raw": True, "excerpt_chars": 0, "reason": "x"}, "raw content cannot be redistributed unless it may be stored"),
-        ({"store_raw": False, "redistribute_raw": False, "excerpt_chars": -1, "reason": "x"}, "evidence.excerpt_chars must be a non-negative integer"),
-        ({"store_raw": False, "redistribute_raw": False, "excerpt_chars": 0, "reason": " "}, "evidence needs a reason when raw content may not be stored or redistributed"),
-    ],
-)
-def test_evidence_retention_records_what_may_be_kept_and_why(evidence, message):
-    with pytest.raises(SourceRegistryError, match=message):
-        parse_source_registry(_registry(_entry(evidence=evidence)))
-
-
-def test_evidence_that_may_be_redistributed_needs_no_reason():
-    evidence = {"store_raw": True, "redistribute_raw": True, "excerpt_chars": 200}
-    source = parse_source_registry(_registry(_entry(evidence=evidence))).get(
-        "example-api-pricing"
-    )
-    assert source.evidence.redistribute_raw is True
-    assert source.evidence.reason is None
+@pytest.mark.parametrize("field", ["evidence", "store_raw", "excerpt_chars", "retention"])
+def test_a_source_entry_rejects_unknown_fields(field):
+    # Raw page content is never kept, so no entry configures retention.
+    with pytest.raises(SourceRegistryError, match=f"example-api-pricing: unknown field '{field}'"):
+        parse_source_registry(_registry(_entry(**{field: {}})))
 
 
 def _catalog():
@@ -407,12 +382,6 @@ def test_every_source_has_exactly_one_fixture():
     for source in load_source_registry().sources:
         matching = [name for name in fixtures if name.split(".")[0] == source.id]
         assert len(matching) == 1, (source.id, matching)
-
-
-def test_every_source_records_why_raw_content_is_not_kept():
-    for source in load_source_registry().sources:
-        if not (source.evidence.store_raw and source.evidence.redistribute_raw):
-            assert source.evidence.reason, source.id
 
 
 _CREDENTIAL = re.compile(r"token|secret|password|passwd|api[_-]?key|authorization|credential|bearer", re.I)

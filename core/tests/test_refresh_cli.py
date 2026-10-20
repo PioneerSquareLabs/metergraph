@@ -27,7 +27,7 @@ OPENAI_URL = "https://example.com/openai-pricing"
 ANTHROPIC_URL = "https://example.com/anthropic-pricing"
 
 
-def _source(source_id, parser, channel, url, *, store_raw=False):
+def _source(source_id, parser, channel, url):
     content = (FIXTURES / f"{source_id}.html").read_text()
     dimensions = ["input_per_mtok", "cache_read_per_mtok", "cache_write_5m_per_mtok", "output_per_mtok"]
     return {
@@ -42,12 +42,6 @@ def _source(source_id, parser, channel, url, *, store_raw=False):
         "dimensions": dimensions,
         "fingerprint": structural_fingerprint(parser, content),
         "low_risk": {"eligible": True, "max_relative_change": "0.5", "dimensions": dimensions},
-        "evidence": {
-            "store_raw": store_raw,
-            "redistribute_raw": False,
-            "excerpt_chars": 0,
-            "reason": "Synthetic test source.",
-        },
     }
 
 
@@ -431,25 +425,23 @@ def test_cli_never_writes_the_catalog(setup, capsys):
     assert hashlib.sha256(catalog.read_bytes()).hexdigest() == before
 
 
-def test_evidence_keeps_raw_content_only_where_the_registry_allows(setup, capsys):
+def test_evidence_files_never_contain_raw_page_content(setup, capsys):
     write, _, content, tmp_path = setup
     evidence_dir = tmp_path / "evidence"
-    argv = write(
-        sources=[
-            _source("openai-api-pricing", "openai", "openai-api", OPENAI_URL, store_raw=True),
-            _source("anthropic-api-pricing", "anthropic", "anthropic-api", ANTHROPIC_URL),
-        ]
-    )
-    refresh_prices.main(argv + ["--content-dir", str(content), "--evidence-dir", str(evidence_dir)])
+    refresh_prices.main(write() + ["--content-dir", str(content), "--evidence-dir", str(evidence_dir)])
     capsys.readouterr()
-    openai = json.loads((evidence_dir / "openai-api-pricing.json").read_text())
+    for source_id in ("openai-api-pricing", "anthropic-api-pricing"):
+        text = (evidence_dir / f"{source_id}.json").read_text()
+        evidence = json.loads(text)
+        assert not {"raw_content", "retention", "excerpt"} & set(evidence)
+        assert evidence["evidence"]["redacted"] is True
     anthropic = json.loads((evidence_dir / "anthropic-api-pricing.json").read_text())
-    assert openai["raw_content"] == (FIXTURES / "openai-api-pricing.html").read_text()
-    assert "raw_content" not in anthropic
     assert anthropic["fingerprint"] == structural_fingerprint(
         "anthropic", (FIXTURES / "anthropic-api-pricing.html").read_text()
     )
-    assert anthropic["retention"]["reason"] == "Synthetic test source."
+    # No page text survives: the fixture's table header and model labels.
+    text = (evidence_dir / "anthropic-api-pricing.json").read_text()
+    assert "Base tokens" not in text and "Claude Example" not in text
     assert sorted(p.name for p in evidence_dir.iterdir()) == [
         "anthropic-api-pricing.json",
         "openai-api-pricing.json",

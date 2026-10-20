@@ -3,13 +3,17 @@
 # One entry per official pricing source: the provider and catalog channel it
 # prices, its URL, the parser that reads it, the page's shape and clarity, the
 # catalog price columns it represents, its expected structural fingerprint,
-# whether automated low-risk refreshes may use it and within which bounds, and
-# what evidence from it may be kept.
+# and whether automated low-risk refreshes may use it and within which bounds.
 #
-# Refresh tools fetch only URLs listed here. A source becomes low-risk only
-# through a reviewed change to this file; nobody, including the provider,
-# marks their own source low-risk. Seeding a source does not make it
-# low-risk. See core/README.md for the review and contribution path.
+# Refresh tools fetch only URLs listed here, and never emit, store or
+# redistribute raw page content: their outputs hold only structural
+# fingerprints, normalized extracted values, candidates, operations and short
+# non-verbatim diagnostics.
+#
+# A source becomes low-risk only through a reviewed change to this file;
+# nobody, including the provider, marks their own source low-risk. Seeding a
+# source does not make it low-risk. See core/README.md for the review and
+# contribution path.
 #
 # `fingerprint: null` means the page structure has not been recorded, so a
 # low-risk refresh escalates instead of proposing changes.
@@ -29,14 +33,6 @@ sources:
       eligible: true
       max_relative_change: "0.5"
       dimensions: [input_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, output_per_mtok]
-    evidence: &unreviewed_terms
-      store_raw: false
-      redistribute_raw: false
-      excerpt_chars: 0
-      reason: >-
-        The provider's terms for storing or redistributing page content have
-        not been reviewed. Keep only the structural fingerprint and the
-        normalized values the extractor reads.
 
   - id: anthropic-api-pricing
     provider: anthropic
@@ -54,7 +50,6 @@ sources:
       eligible: true
       max_relative_change: "0.5"
       dimensions: [input_per_mtok, output_per_mtok, cache_write_5m_per_mtok, cache_read_per_mtok]
-    evidence: *unreviewed_terms
 
   - id: google-api-pricing
     provider: google
@@ -70,7 +65,6 @@ sources:
       eligible: true
       max_relative_change: "0.5"
       dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
-    evidence: *unreviewed_terms
 
   - id: deepseek-api-pricing
     provider: deepseek
@@ -87,7 +81,6 @@ sources:
     # longer parse. Promote once the parser and fingerprint are reviewed.
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
-    evidence: *unreviewed_terms
 
   - id: mistral-api-pricing
     provider: mistral
@@ -102,7 +95,6 @@ sources:
     # row by half, so the page's reading needs review before promotion.
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
-    evidence: *unreviewed_terms
 
   - id: xai-api-pricing
     provider: xai
@@ -118,7 +110,6 @@ sources:
       eligible: true
       max_relative_change: "0.5"
       dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
-    evidence: *unreviewed_terms
 
   - id: perplexity-api-pricing
     provider: perplexity
@@ -133,7 +124,6 @@ sources:
     # parser reads. Promote once the parser and fingerprint are reviewed.
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
-    evidence: *unreviewed_terms
 
   # The sources below start non-low-risk with discovery-only extractors that
   # record evidence for review and never produce applicable price rows.
@@ -149,7 +139,6 @@ sources:
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
-    evidence: *unreviewed_terms
 
   - id: zai-api-pricing
     provider: zai
@@ -162,7 +151,6 @@ sources:
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
-    evidence: *unreviewed_terms
 
   # One page prices both Bedrock channels: in-region on-demand rows and
   # geographic cross-region inference rows. Prices depend on the selected
@@ -178,7 +166,6 @@ sources:
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
-    evidence: *unreviewed_terms
 
   - id: aws-bedrock-geo-pricing
     provider: aws
@@ -191,7 +178,6 @@ sources:
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
-    evidence: *unreviewed_terms
 
   # The catalog does not carry Azure Foundry yet. Prices depend on the
   # deployment type (Global, Data Zone, Regional) and region.
@@ -206,7 +192,6 @@ sources:
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
-    evidence: *unreviewed_terms
 
   # NIM production use is licensed per GPU (NVIDIA AI Enterprise), per year
   # or per GPU hour on cloud marketplaces. It is not token pricing, and no
@@ -222,4 +207,3 @@ sources:
     dimensions: [gpu_hour_usd, license_per_gpu_year_usd]
     fingerprint: null
     low_risk: {eligible: false, max_relative_change: null, dimensions: []}
-    evidence: *unreviewed_terms

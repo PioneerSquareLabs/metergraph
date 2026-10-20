@@ -40,7 +40,6 @@ from .extractors import (
     Extraction,
     extract,
     page_match,
-    page_text,
     redact_evidence,
     regional_key,
 )
@@ -594,7 +593,8 @@ def discovery_evidence(
     the registry's, the normalized extraction, and -- where the parser yields
     rates -- each candidate value with the prior catalog value, the reason it
     needs review, and a proposed operation for each changed catalog row. It
-    is deterministic; its operations are proposals that need review."""
+    is deterministic, never includes raw page content, and its operations are
+    proposals that need review."""
     extraction = extract(source.parser, content)
     candidates: list[dict[str, Any]] = []
     operations: list[dict[str, Any]] = []
@@ -643,9 +643,6 @@ def discovery_evidence(
                 {"model_key": rate.model_key, "region": rate.region, "canonical_id": None, "reason": reason, "prior": None, "candidate": _rates_json(rate.rates, source.dimensions), "missing_dimensions": [], "invalid_dimensions": []}
             )
         candidates.sort(key=lambda c: (c["model_key"], c["region"]))
-    excerpt = None
-    if source.evidence.excerpt_chars:
-        excerpt = page_text(content).strip(" |")[: source.evidence.excerpt_chars]
     return {
         "source_id": source.id,
         "provider": source.provider,
@@ -662,18 +659,7 @@ def discovery_evidence(
         # Reviewable replace_price operations for changed catalog rows; new
         # models and regions stay evidence only. Dates are reported as text.
         "operations": _canonical_value(operations),
-        # Raw page cells and statements appear only where the registry
-        # allows storing raw content; otherwise only normalized facts.
-        "evidence": (
-            dict(copy.deepcopy(extraction.evidence), redacted=False)
-            if source.evidence.store_raw
-            else redact_evidence(extraction.evidence)
-        ),
-        "retention": {
-            "store_raw": source.evidence.store_raw,
-            "redistribute_raw": source.evidence.redistribute_raw,
-            "excerpt_chars": source.evidence.excerpt_chars,
-            "reason": source.evidence.reason,
-        },
-        "excerpt": excerpt,
+        # Raw page content is never emitted: extractor evidence is always
+        # reduced to normalized facts, with no page cell or sentence verbatim.
+        "evidence": redact_evidence(extraction.evidence),
     }

@@ -2,13 +2,13 @@
 
 Each entry names one official pricing source: the provider and catalog
 channel it prices, its URL, the parser that reads it, the shape and clarity
-of the page, the pricing dimensions it represents, whether automated
-low-risk refreshes may use it and within which bounds, and what evidence
-from it may be kept. The registry is reviewed data: a source becomes
-low-risk only through a reviewed change to this file.
+of the page, the pricing dimensions it represents, and whether automated
+low-risk refreshes may use it and within which bounds. The registry is
+reviewed data: a source becomes low-risk only through a reviewed change to
+this file.
 
 The registry never fetches anything. Refresh scripts fetch only the URLs it
-lists.
+lists, and never emit, store or redistribute raw page content from them.
 """
 
 from __future__ import annotations
@@ -46,6 +46,12 @@ SOURCE_SHAPES = (
 CLARITIES = ("structured", "semi_structured", "prose", "option_dependent")
 
 _ID = re.compile(r"[a-z0-9][a-z0-9-]*")
+_SOURCE_FIELDS = frozenset(
+    (
+        "id", "provider", "channel", "catalog_channel", "url", "parser",
+        "source_shape", "clarity", "dimensions", "fingerprint", "low_risk",
+    )
+)
 _FINGERPRINT = re.compile(r"sha256:[0-9a-f]{64}")
 _HTTPS_URL = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?(?:/\S*)?")
 
@@ -64,18 +70,6 @@ class LowRiskPolicy:
 
 
 @dataclass(frozen=True, slots=True)
-class EvidencePolicy:
-    # Whether the raw fetched content may be kept as private evidence.
-    store_raw: bool
-    # Whether the raw content may be published or redistributed.
-    redistribute_raw: bool
-    # The longest source excerpt evidence may quote.
-    excerpt_chars: int
-    # Why raw content may not be stored or redistributed, when it may not.
-    reason: str | None
-
-
-@dataclass(frozen=True, slots=True)
 class PriceSource:
     id: str
     provider: str
@@ -90,7 +84,6 @@ class PriceSource:
     # The expected structural fingerprint of the page; None until reviewed.
     fingerprint: str | None
     low_risk: LowRiskPolicy
-    evidence: EvidencePolicy
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,34 +149,6 @@ def _low_risk(raw: Any, label: str, dimensions: tuple[str, ...]) -> LowRiskPolic
     return LowRiskPolicy(True, parsed, tuple(allowed))
 
 
-def _evidence(raw: Any, label: str) -> EvidencePolicy:
-    if not isinstance(raw, Mapping):
-        raise SourceRegistryError(f"{label}: evidence must be a mapping")
-    store_raw = _boolean(
-        raw.get("store_raw"), f"{label}: evidence.store_raw must be true or false"
-    )
-    redistribute_raw = _boolean(
-        raw.get("redistribute_raw"),
-        f"{label}: evidence.redistribute_raw must be true or false",
-    )
-    if redistribute_raw and not store_raw:
-        raise SourceRegistryError(
-            f"{label}: raw content cannot be redistributed unless it may be stored"
-        )
-    excerpt_chars = raw.get("excerpt_chars")
-    if not isinstance(excerpt_chars, int) or isinstance(excerpt_chars, bool) or excerpt_chars < 0:
-        raise SourceRegistryError(
-            f"{label}: evidence.excerpt_chars must be a non-negative integer"
-        )
-    reason = _text(raw.get("reason"))
-    if reason is None and not (store_raw and redistribute_raw):
-        raise SourceRegistryError(
-            f"{label}: evidence needs a reason when raw content may not be "
-            "stored or redistributed"
-        )
-    return EvidencePolicy(store_raw, redistribute_raw, excerpt_chars, reason)
-
-
 def _source(raw: Any) -> PriceSource:
     if not isinstance(raw, Mapping):
         raise SourceRegistryError("source entry must be a mapping")
@@ -191,6 +156,9 @@ def _source(raw: Any) -> PriceSource:
     if not isinstance(source_id, str) or not _ID.fullmatch(source_id):
         raise SourceRegistryError(f"invalid source id {source_id!r}")
     label = source_id
+    for field in raw:
+        if field not in _SOURCE_FIELDS:
+            raise SourceRegistryError(f"{label}: unknown field {field!r}")
     provider = _text(raw.get("provider"))
     if provider is None:
         raise SourceRegistryError(f"{label}: needs provider")
@@ -257,7 +225,6 @@ def _source(raw: Any) -> PriceSource:
         dimensions=dimensions,
         fingerprint=fingerprint,
         low_risk=low_risk,
-        evidence=_evidence(raw.get("evidence"), label),
     )
 
 

@@ -29,10 +29,6 @@ def _fixture(source_id):
     return (FIXTURES / f"{source_id}.html").read_text()
 
 
-def _evidence_policy():
-    return {"store_raw": False, "redistribute_raw": False, "excerpt_chars": 0, "reason": "Synthetic test source."}
-
-
 def _openai():
     dimensions = ["input_per_mtok", "cache_read_per_mtok", "cache_write_5m_per_mtok", "output_per_mtok"]
     return {
@@ -40,7 +36,6 @@ def _openai():
         "url": OPENAI_URL, "parser": "openai", "source_shape": "token_embedded_data", "clarity": "structured",
         "dimensions": dimensions, "fingerprint": structural_fingerprint("openai", _fixture("openai-api-pricing")),
         "low_risk": {"eligible": True, "max_relative_change": "0.5", "dimensions": dimensions},
-        "evidence": _evidence_policy(),
     }
 
 
@@ -50,7 +45,6 @@ def _discovery_only(source_id, provider, channel, parser, url, **overrides):
         "url": url, "parser": parser, "source_shape": "token_table", "clarity": "semi_structured",
         "dimensions": ["input_per_mtok", "output_per_mtok"], "fingerprint": None,
         "low_risk": {"eligible": False, "max_relative_change": None, "dimensions": []},
-        "evidence": _evidence_policy(),
     }
     entry.update(overrides)
     return entry
@@ -206,8 +200,7 @@ def test_a_new_source_is_read_from_a_file(paths, capsys):
     [new_source] = output["new_sources"]
     assert new_source["requires_review"] is True
     assert new_source["label"] == "new-provider.html"
-    # A new source has no reviewed retention policy, so only normalized facts
-    # are reported, never its cells.
+    # Raw page content is never emitted: only normalized facts, never cells.
     assert new_source["evidence"] == {
         "kind": "tables",
         "redacted": True,

@@ -74,7 +74,6 @@ from .refresh import (
 )
 from .sources import (
     SOURCE_REGISTRY_SCHEMA_VERSION,
-    EvidencePolicy,
     LowRiskPolicy,
     PriceSource,
     SourceRegistry,
@@ -90,7 +89,6 @@ __all__ = [
     "CatalogDeltaError",
     "DeltaConflict",
     "Escalation",
-    "EvidencePolicy",
     "ExtractedRate",
     "Extraction",
     "LowRiskPolicy",

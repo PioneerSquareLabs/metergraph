@@ -269,9 +269,7 @@ catalog. Each entry records:
 - the catalog price columns it represents (`dimensions`);
 - the page's expected structural `fingerprint`;
 - `low_risk`: whether automated refreshes may use it, and for eligible sources
-  the largest relative change and the dimensions they may change;
-- `evidence`: whether raw page content may be stored or redistributed, how long
-  an excerpt may be quoted, and why raw content may not be kept.
+  the largest relative change and the dimensions they may change.
 
 To inspect the registered source for a provider:
 
@@ -310,6 +308,12 @@ Extractors never fetch. The package adds no browser or LLM dependency.
 Two repository scripts run the registry against live sources. Neither holds
 credentials, applies a delta, writes the catalog, publishes, or touches GitHub.
 
+Neither ever emits, stores or redistributes raw fetched page content. Their
+reports and evidence files hold only structural fingerprints, normalized
+extracted values (row labels as slugs, parsed amounts, numeric candidates),
+candidates, operations and short non-verbatim diagnostics. No output may name
+an input the run read.
+
 `scripts/refresh_prices.py` takes the registry and a current catalog document.
 For each low-risk source it fetches the registered URL, checks the page's
 fingerprint, extracts prices, checks invariants and bounds, and prints a JSON
@@ -326,7 +330,7 @@ an escalation, and 1 on error.
 `scripts/discover_prices.py` scans sources that are not low-risk, the sources
 behind a refresh report's escalations (`--escalations`), and new-source content
 from a file or stdin (`--new-source`, never a URL). It prints evidence for each:
-candidate and prior values, the reason for review, the retention policy, and a
+candidate and prior values, the reason for review, normalized page facts, and a
 proposed delta for changed catalog rows. An optional adapter
 (`--llm-adapter module:callable`) is called as
 `propose(source, content, current_rows)` and returns delta operations; its output

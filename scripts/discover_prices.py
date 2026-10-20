@@ -4,8 +4,9 @@ The script scans registry sources that are not low-risk (or those named with
 ``--sources``), the sources behind escalations from a refresh report
 (``--escalations``), and new-source content supplied from a file or stdin
 (``--new-source``). For each it emits deterministic evidence -- candidate
-values, prior catalog values, the reason review is needed, and the source's
-evidence-retention policy -- plus a proposed delta for changed catalog rows.
+values, prior catalog values, the reason review is needed, and normalized
+facts from the page -- plus a proposed delta for changed catalog rows. Raw
+page content is never emitted or stored.
 
 Registered sources are fetched only from their registered URLs, or read as
 ``<source-id>.*`` from ``--content-dir``. New-source content never comes
@@ -265,8 +266,7 @@ def discover(args: argparse.Namespace, inputs: list[Path]) -> dict[str, Any]:
             "requires_review": True,
             "label": label,
             "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
-            # No reviewed retention policy covers a new source, so report only
-            # normalized facts from it.
+            # Raw page content is never emitted: report only normalized facts.
             "evidence": redact_evidence(
                 {
                     "kind": "tables",

@@ -42,7 +42,6 @@ def _source(source_id, parser, channel, provider, *, low_risk=True, fingerprint=
             if low_risk
             else {"eligible": False, "max_relative_change": None, "dimensions": []}
         ),
-        "evidence": {"store_raw": False, "redistribute_raw": False, "excerpt_chars": 0, "reason": "Synthetic test source."},
     }
 
 
@@ -515,8 +514,8 @@ def test_discovery_evidence_lists_candidates_with_prior_values_and_reasons():
         {"model_key": "gpt-legacy", "region": "global", "canonical_id": None, "reason": "unknown_model", "prior": None, "candidate": {"input_per_mtok": "2.5", "cache_read_per_mtok": "1.25", "output_per_mtok": "10"}, "missing_dimensions": [], "invalid_dimensions": []},
         {"model_key": "gpt-x", "region": "global", "canonical_id": "example/gpt-x", "reason": "changed", "prior": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "9"}, "candidate": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "8"}, "missing_dimensions": [], "invalid_dimensions": []},
     ]
-    assert evidence["retention"] == {"store_raw": False, "redistribute_raw": False, "excerpt_chars": 0, "reason": "Synthetic test source."}
-    assert evidence["excerpt"] is None
+    # Raw page content is never emitted: no retention settings, no excerpt.
+    assert "retention" not in evidence and "excerpt" not in evidence
 
 
 def test_discovery_evidence_proposes_operations_only_for_changed_catalog_rows():
@@ -571,14 +570,6 @@ def test_discovery_evidence_for_gpu_licensing_carries_no_token_candidates():
     assert evidence["applicable"] is False
     assert evidence["candidates"] == []
     assert evidence["evidence"]["candidates"] == {"license_per_gpu_year_usd": "1000", "gpu_hour_usd": "0.50"}
-
-
-def test_discovery_evidence_quotes_only_the_permitted_excerpt():
-    entry = _openai_source(low_risk=False)
-    entry["evidence"] = {"store_raw": True, "redistribute_raw": False, "excerpt_chars": 12, "reason": "Excerpts only."}
-    source = _registry(entry).get("openai-api-pricing")
-    evidence = discovery_evidence(source, "<p>Prices changed on the page today.</p>", _document(), observed_on=OBSERVED_ON)
-    assert evidence["excerpt"] == "Prices chang"
 
 
 # --- Several aliases of one model on the page ----------------------------------------
@@ -828,16 +819,10 @@ DISCOVERY_ONLY = {
 }
 
 
-def _discovery_source(source_id, *, store_raw=False, excerpt_chars=0):
+def _discovery_source(source_id):
     parser, channel, shape, dimensions = DISCOVERY_ONLY[source_id]
     entry = _source(source_id, parser, channel, parser, low_risk=False, dimensions=dimensions)
     entry.update(source_shape=shape, catalog_channel=False)
-    entry["evidence"] = {
-        "store_raw": store_raw,
-        "redistribute_raw": False,
-        "excerpt_chars": excerpt_chars,
-        "reason": "Synthetic test source.",
-    }
     return _registry(entry).get(source_id)
 
 
@@ -891,30 +876,6 @@ def test_redacted_license_evidence_keeps_candidates_and_drops_statements():
         "statement_count": 1,
         "candidates": {"license_per_gpu_year_usd": "1000", "gpu_hour_usd": "0.50"},
     }
-
-
-def test_raw_evidence_is_kept_where_the_registry_allows_storing_it():
-    evidence = discovery_evidence(
-        _discovery_source("nvidia-nim-pricing", store_raw=True),
-        _fixture("nvidia-nim-pricing"),
-        _document(),
-        observed_on=OBSERVED_ON,
-    )
-    assert evidence["evidence"]["redacted"] is False
-    assert evidence["evidence"]["statements"] == [
-        "These licenses start at $1000 per GPU per year, or about $0.50 per GPU per hour in the cloud."
-    ]
-
-
-def test_a_permitted_excerpt_does_not_unredact_the_evidence():
-    evidence = discovery_evidence(
-        _discovery_source("zai-api-pricing", excerpt_chars=10),
-        _fixture("zai-api-pricing"),
-        _document(),
-        observed_on=OBSERVED_ON,
-    )
-    assert evidence["excerpt"] == "Text Model"
-    assert evidence["evidence"]["redacted"] is True
 
 
 # --- Dimensions that disappear and regional ambiguity -------------------------
