@@ -307,6 +307,8 @@ def test_deepseek_registers_its_trailing_slash_pricing_url():
     # rejects that redirect.
     source = load_source_registry().get("deepseek-api-pricing")
     assert source.url == "https://api-docs.deepseek.com/quick_start/pricing/"
+    url, channel, _ = _load_check_prices().PROVIDER_PAGES["deepseek"]
+    assert (url, channel) == (source.url, source.channel)
 
 
 def test_low_risk_sources_read_the_pages_the_price_checker_reads():
