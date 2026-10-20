@@ -406,13 +406,12 @@ def test_an_ambiguous_parse_escalates_the_row():
     assert _reasons(result) == [("openai-api-pricing", "ambiguous_parse", "example/gpt-x")]
 
 
-def test_a_duplicated_model_entry_escalates():
+def test_a_catalog_with_a_duplicated_model_entry_is_rejected():
     document = _document()
     duplicate = _model("example/gpt-x", "gpt-x-alt", dict(_row(input_per_mtok=1.0, output_per_mtok=1.0), channel="vercel-ai-gateway"), channel="vercel-ai-gateway")
     document["models"].append(duplicate)
-    load_catalog_document(document)  # a valid catalog, but two entries share an id
-    result = _plan(document)
-    assert _reasons(result) == [("openai-api-pricing", "duplicate_model_row", "example/gpt-x")]
+    with pytest.raises(ValueError, match="duplicate model entry 'example/gpt-x'"):
+        _plan(document)
 
 
 def test_the_delta_references_its_observations_and_evidence():

@@ -330,6 +330,51 @@ def test_bundled_price_ids_keep_their_published_dates():
     assert _price_ids(load_catalog()) == (expected, retrieval)
 
 
+# --- Dates ending in Z, and one entry per model ------------------------------------
+
+
+class _Python310Datetime(datetime):
+    """datetime whose fromisoformat, like Python 3.10's, rejects a Z suffix."""
+
+    @classmethod
+    def fromisoformat(cls, text):
+        if text[-1:] in ("Z", "z"):
+            raise ValueError(f"Invalid isoformat string: {text!r}")
+        return super().fromisoformat(text)
+
+
+@pytest.mark.parametrize("suffix", ["Z", "z"])
+def test_a_utc_z_suffix_parses_on_every_supported_python(monkeypatch, suffix):
+    monkeypatch.setattr(loader_module, "datetime", _Python310Datetime)
+    document = _price_id_document(f"2025-01-02T10:00:00{suffix}")
+    document["models"][0]["aliases"][0].update(
+        effective_from=f"2025-01-01T00:00:00{suffix}", source_url="https://example.com/aliases"
+    )
+    loaded = load_catalog_document(document)
+    assert _price_ids(loaded)[0] == ["example/model-a:openai-api:global:2025-01-02"]
+    found = loaded.lookup_price(model="model-a", provider="openai", at=datetime(2025, 1, 2, 10, tzinfo=timezone.utc))
+    assert found.price.effective_from == datetime(2025, 1, 2, 10, tzinfo=timezone.utc)
+
+
+def test_duplicate_model_entries_are_rejected():
+    document = _small_document()
+    duplicate = copy.deepcopy(document["models"][0])
+    duplicate["aliases"] = []
+    duplicate["prices"][0]["channel"] = "vercel-ai-gateway"
+    document["models"].append(duplicate)
+    with pytest.raises(CatalogError, match="duplicate model entry 'example/model-a'"):
+        load_catalog_document(document)
+
+
+def test_duplicate_model_entries_are_rejected_from_a_file_too(tmp_path):
+    document = _small_document()
+    document["models"].append({"canonical_id": "example/model-a"})
+    path = tmp_path / "prices.yaml"
+    path.write_text(yaml.safe_dump(document))
+    with pytest.raises(CatalogError, match="duplicate model entry 'example/model-a'"):
+        load_catalog(path)
+
+
 def test_both_loaders_build_through_one_construction_path(tmp_path, monkeypatch):
     calls = []
     real = loader_module._build_loaded_catalog

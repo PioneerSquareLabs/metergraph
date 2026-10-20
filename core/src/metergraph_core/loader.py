@@ -214,8 +214,12 @@ class LoadedCatalog:
 def _date(value: Any, *, field: str, model: str) -> datetime:
     if value is None:
         raise CatalogError(f"{model}: missing {field}")
+    text = str(value).strip()
+    # Python 3.10's parser rejects a trailing Z; read it as UTC everywhere.
+    if text[-1:] in ("Z", "z"):
+        text = text[:-1] + "+00:00"
     try:
-        parsed = datetime.fromisoformat(str(value))
+        parsed = datetime.fromisoformat(text)
     except ValueError as exc:
         raise CatalogError(f"{model}: invalid {field} {value!r}") from exc
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
@@ -285,10 +289,16 @@ def parse_catalog(
     currency, _ = _catalog_metadata(document)
     aliases: dict[tuple[str, str], list[Alias]] = {}
     prices: list[Price] = []
+    seen_models: set[str] = set()
     for entry in document["models"]:
         canonical = str(entry.get("canonical_id") or "")
         if not canonical:
             raise CatalogError("model entry missing canonical_id")
+        # One entry per model: its aliases and price windows are checked
+        # within that entry, so a second entry would escape those checks.
+        if canonical in seen_models:
+            raise CatalogError(f"duplicate model entry {canonical!r}")
+        seen_models.add(canonical)
         publisher = str(entry.get("publisher") or "").strip().lower() or None
         for alias in entry.get("aliases") or []:
             provider = str(alias.get("provider") or "").lower()
