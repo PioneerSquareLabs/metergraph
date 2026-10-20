@@ -24,7 +24,7 @@ sources:
     source_shape: token_embedded_data
     clarity: structured
     dimensions: [input_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, output_per_mtok]
-    fingerprint: null
+    fingerprint: sha256:7434c47c453d6f5ec373fee44911c235b5519170e3bc95817ab8e9f5d2f5aacf
     low_risk:
       eligible: true
       max_relative_change: "0.5"
@@ -49,7 +49,7 @@ sources:
     # The 5m column is the base cache-write rate the catalog stores in
     # cache_write_5m_per_mtok; the parser does not read the 1h column.
     dimensions: [input_per_mtok, output_per_mtok, cache_write_5m_per_mtok, cache_read_per_mtok]
-    fingerprint: null
+    fingerprint: sha256:194f4d2c8095cc3041c75fb13ecdd1a3cdcccebfcf3aee1add5abd3eba2d415c
     low_risk:
       eligible: true
       max_relative_change: "0.5"
@@ -65,7 +65,7 @@ sources:
     source_shape: token_table
     clarity: semi_structured
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
-    fingerprint: null
+    fingerprint: sha256:ce07b6f065f5dfd21a9f14a005c30de1f5802e3ba118dc1dbe088a124c84adbd
     low_risk:
       eligible: true
       max_relative_change: "0.5"
@@ -83,6 +83,8 @@ sources:
     # The page lists peak and off-peak rates; the catalog stores the peak rate
     # with an off-peak rule, and the parser reads the peak rows.
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    # Pending: the live page lists the models, but its peak rows no longer
+    # parse, so refreshes escalate until the parser is updated.
     fingerprint: null
     low_risk:
       eligible: true
@@ -99,6 +101,8 @@ sources:
     source_shape: token_model_card
     clarity: structured
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    # Pending: the live active (sale) price differs from the catalog row by
+    # the full 50 percent bound, so it needs review before automated refreshes.
     fingerprint: null
     low_risk:
       eligible: true
@@ -115,7 +119,7 @@ sources:
     source_shape: token_embedded_data
     clarity: structured
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
-    fingerprint: null
+    fingerprint: sha256:4232ee5c940b2d7c54f8aa893a7b9707486789aa820cb36912a1941155ce0ed8
     low_risk:
       eligible: true
       max_relative_change: "0.5"
@@ -131,6 +135,8 @@ sources:
     source_shape: token_embedded_data
     clarity: structured
     dimensions: [input_per_mtok, output_per_mtok]
+    # Pending: the live page no longer yields the pricing object the parser
+    # reads, so refreshes escalate until the parser is updated.
     fingerprint: null
     low_risk:
       eligible: true

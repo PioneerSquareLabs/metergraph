@@ -17,11 +17,13 @@ import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Mapping
 
 import yaml
 
 from .catalog_delta import RATE_FIELDS
+from .extractors import PARSERS
 from .loader import LoadedCatalog
 
 SOURCE_REGISTRY_SCHEMA_VERSION = 1
@@ -29,20 +31,9 @@ DEFAULT_REGISTRY_PATH = Path(__file__).parent / "data" / "sources.yaml"
 
 # Parser id -> whether its output can become catalog price rows. A parser
 # that emits no rows produces discovery evidence only.
-PARSER_EMITS_ROWS: Mapping[str, bool] = {
-    "openai": True,
-    "anthropic": True,
-    "google": True,
-    "deepseek": True,
-    "mistral": True,
-    "xai": True,
-    "perplexity": True,
-    "fireworks": False,
-    "zai": False,
-    "aws-bedrock": False,
-    "azure-foundry": False,
-    "nvidia": False,
-}
+PARSER_EMITS_ROWS: Mapping[str, bool] = MappingProxyType(
+    {parser_id: spec.emits_rows for parser_id, spec in PARSERS.items()}
+)
 TOKEN_DIMENSIONS = RATE_FIELDS
 NON_TOKEN_DIMENSIONS = ("gpu_hour_usd", "license_per_gpu_year_usd")
 SOURCE_SHAPES = (
