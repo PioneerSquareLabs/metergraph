@@ -310,11 +310,12 @@ def test_adapter_output_is_schema_validated_and_invalid_items_are_rejected_with_
     adapter = proposal["adapter"]
     assert adapter["name"] == "stub_pricing_adapter:propose"
     assert [op["key"]["channel"] for op in adapter["operations"]] == ["tables-api"]
-    assert [(r["index"], r["error"]) for r in adapter["rejected"]] == [
-        (1, "operation 0: price input_per_mtok must be a non-negative decimal string"),
-        (2, "an adapter may only propose rows on the source's channel tables-api"),
-        (3, "unknown operation field 'low_risk'"),
-        (4, "operation 0: must be a mapping"),
+    # Rejections carry stable codes only, never text derived from the item.
+    assert adapter["rejected"] == [
+        {"index": 1, "error": "invalid_operation"},
+        {"index": 2, "error": "wrong_channel"},
+        {"index": 3, "error": "unknown_field"},
+        {"index": 4, "error": "invalid_operation"},
     ]
     assert proposal["requires_review"] is True
     assert proposal["proposed_delta"] is None
@@ -330,18 +331,68 @@ def test_an_adapter_cannot_mark_anything_low_risk_or_applicable(paths, capsys, m
         assert proposal["requires_review"] is True
 
 
-def test_a_failing_adapter_is_reported_without_stopping_discovery(paths, capsys, monkeypatch):
-    spec = _adapter(paths["tmp"], monkeypatch, "def propose(source, content, rows):\n    raise RuntimeError('model unavailable')\n")
+def test_a_failing_adapter_is_reported_without_its_message(paths, capsys, monkeypatch):
+    # An adapter's message may quote the page, a prompt or a local path.
+    body = "def propose(source, content, rows):\n    raise RuntimeError('quoted page text at /private/prompt.txt')\n"
+    spec = _adapter(paths["tmp"], monkeypatch, body)
     output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec], capsys)
     adapter = _proposal(output, "table-source-pricing")["adapter"]
     assert adapter["operations"] == []
-    assert adapter["error"] == "RuntimeError: model unavailable"
+    assert (adapter["error"], adapter["error_type"]) == ("adapter_error", "RuntimeError")
+    assert "quoted page text" not in json.dumps(output) and "prompt.txt" not in json.dumps(output)
 
 
 def test_an_adapter_that_returns_a_non_list_is_reported(paths, capsys, monkeypatch):
     spec = _adapter(paths["tmp"], monkeypatch, "def propose(source, content, rows):\n    return {'op': 'add_price'}\n")
     output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec], capsys)
-    assert _proposal(output, "table-source-pricing")["adapter"]["error"] == "the adapter must return a list"
+    adapter = _proposal(output, "table-source-pricing")["adapter"]
+    assert (adapter["error"], adapter["error_type"]) == ("adapter_error", "invalid_result")
+
+
+LEAKING_ADAPTER = """
+def propose(source, content, current_rows):
+    return [
+        {"op": "copied page text", "key": {}, "expect": None},
+        {"op": "add_price", "key": {}, "expect": None, "quoted prompt": 1},
+    ]
+"""
+
+
+def test_rejected_adapter_items_never_echo_their_contents(paths, capsys, monkeypatch):
+    spec = _adapter(paths["tmp"], monkeypatch, LEAKING_ADAPTER)
+    output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec], capsys)
+    adapter = _proposal(output, "table-source-pricing")["adapter"]
+    assert adapter["rejected"] == [
+        {"index": 0, "error": "invalid_operation"},
+        {"index": 1, "error": "unknown_field"},
+    ]
+    text = json.dumps(output)
+    assert "copied page text" not in text and "quoted prompt" not in text
+
+
+DATED_ADAPTER = """
+import datetime
+
+def propose(source, content, current_rows):
+    day = datetime.date(2026, 10, 20)
+    key = {"canonical_id": "example/gpt-x", "channel": "tables-api", "region": "global", "effective_from": day}
+    price = {"channel": "tables-api", "region": "global", "effective_from": day,
+             "input_per_mtok": "0.9", "output_per_mtok": "0.9", "source_url": "https://example.com/tables-pricing"}
+    return [{"op": "add_price", "key": key, "expect": None, "price": price}]
+"""
+
+
+def test_adapter_operations_with_date_values_are_reported_as_json(paths, capsys, monkeypatch):
+    spec = _adapter(paths["tmp"], monkeypatch, DATED_ADAPTER)
+    report = paths["tmp"] / "discovery.json"
+    output = _run(
+        paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec, "--json", str(report)],
+        capsys,
+    )
+    [operation] = _proposal(output, "table-source-pricing")["adapter"]["operations"]
+    assert operation["key"]["effective_from"] == "2026-10-20"
+    assert operation["price"]["effective_from"] == "2026-10-20"
+    assert json.loads(report.read_text()) == output
 
 
 # --- The report never overwrites an input -----------------------------------------
@@ -407,6 +458,14 @@ def test_a_report_beside_the_inputs_is_written(paths, capsys):
     report = paths["tmp"] / "discovery.json"
     output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--json", str(report)], capsys)
     assert json.loads(report.read_text()) == output
+
+
+def test_an_adapter_failing_at_import_is_an_error_without_its_message(paths, capsys, monkeypatch):
+    spec = _adapter(paths["tmp"], monkeypatch, "raise ValueError('quoted prompt text')\n")
+    assert discover_prices.main(paths["base"] + ["--content-dir", str(paths["content"]), "--llm-adapter", spec]) == 1
+    err = capsys.readouterr().err
+    assert "cannot load adapter 'stub_pricing_adapter:propose': ValueError" in err
+    assert "quoted prompt text" not in err
 
 
 def test_an_unloadable_adapter_is_an_error(paths, capsys):

@@ -4,8 +4,8 @@ CatalogSnapshot."""
 import copy
 import hashlib
 import json
-from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from dataclasses import dataclass, replace
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType
@@ -223,10 +223,26 @@ def _date(value: Any, *, field: str, model: str) -> datetime:
 
 def _id_date(effective_from: datetime) -> date:
     """The date a price id names: the UTC date of its start. A date-only or
-    UTC start keeps its written date; an offset start uses its UTC date, so
-    two rows on one UTC date are detectable and rows on different UTC dates
-    never share an id."""
+    UTC start keeps its written date; an offset start uses its UTC date."""
     return effective_from.astimezone(timezone.utc).date()
+
+
+def _unique_ids(items: list) -> list:
+    """``items`` with ids made unique. An id names its row by the UTC date of
+    its start, which stays the id whenever it is unique; rows that would
+    share one also name their UTC start time, except a row starting at UTC
+    midnight, whose date alone already says when it starts."""
+    counts: dict[str, int] = {}
+    for item in items:
+        counts[item.id] = counts.get(item.id, 0) + 1
+    unique = []
+    for item in items:
+        start = item.effective_from.astimezone(timezone.utc)
+        if counts[item.id] > 1 and start.timetz().replace(tzinfo=None) != time(0):
+            moment = f"{start:%H:%M:%S}" + (f".{start:%f}" if start.microsecond else "")
+            item = replace(item, id=f"{item.id}T{moment}Z")
+        unique.append(item)
+    return unique
 
 
 def _price_region(value: Any, *, model: str) -> tuple[str, ...]:
@@ -389,7 +405,7 @@ def parse_catalog(
                     currency=currency,
                 )
             )
-    return version, {key: tuple(value) for key, value in aliases.items()}, prices
+    return version, {key: tuple(value) for key, value in aliases.items()}, _unique_ids(prices)
 
 
 def parse_retrieval(document: Any) -> list[RetrievalPrice]:
@@ -462,7 +478,7 @@ def parse_retrieval(document: Any) -> list[RetrievalPrice]:
                 source_url=str(entry["source_url"]).strip(),
             )
         )
-    return prices
+    return _unique_ids(prices)
 
 
 def parse_disputes(document: Any) -> list[Dispute]:

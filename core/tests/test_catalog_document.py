@@ -258,6 +258,62 @@ def test_a_retrieval_price_id_uses_the_utc_date_of_its_start():
     assert _price_ids(load_catalog_document(document))[1] == ["anthropic-api:web_search:global:2025-01-01"]
 
 
+def test_rows_starting_on_one_utc_date_keep_distinct_ids():
+    # 23:00 at -05:00 on 1 January is 04:00 UTC on 2 January; the next row
+    # starts at 10:00 UTC that day. The windows do not overlap.
+    loaded = load_catalog_document(_price_id_document("2025-01-01T23:00:00-05:00", "2025-01-02T10:00:00Z"))
+    assert _price_ids(loaded)[0] == [
+        "example/model-a:openai-api:global:2025-01-02T04:00:00Z",
+        "example/model-a:openai-api:global:2025-01-02T10:00:00Z",
+    ]
+
+
+def test_a_utc_midnight_row_keeps_its_date_id_beside_a_same_day_row():
+    loaded = load_catalog_document(_price_id_document("2025-01-02", "2025-01-02T06:30:00Z"))
+    assert _price_ids(loaded)[0] == [
+        "example/model-a:openai-api:global:2025-01-02",
+        "example/model-a:openai-api:global:2025-01-02T06:30:00Z",
+    ]
+
+
+def test_rows_starting_within_one_second_keep_distinct_ids():
+    loaded = load_catalog_document(_price_id_document("2025-01-02T10:00:00Z", "2025-01-02T10:00:00.5Z"))
+    assert _price_ids(loaded)[0] == [
+        "example/model-a:openai-api:global:2025-01-02T10:00:00.500000Z",
+        "example/model-a:openai-api:global:2025-01-02T10:00:00Z",
+    ]
+
+
+def test_same_utc_date_rows_on_other_channels_keep_date_ids():
+    document = _price_id_document("2025-01-02T10:00:00Z")
+    document["models"][0]["prices"].append(
+        dict(document["models"][0]["prices"][0], channel="vercel-ai-gateway", effective_from="2025-01-02T12:00:00Z")
+    )
+    assert _price_ids(load_catalog_document(document))[0] == [
+        "example/model-a:openai-api:global:2025-01-02",
+        "example/model-a:vercel-ai-gateway:global:2025-01-02",
+    ]
+
+
+def test_retrieval_rows_starting_on_one_utc_date_keep_distinct_ids():
+    document = _small_document()
+    base = {
+        "channel": "anthropic-api",
+        "operation": "web_search",
+        "unit": "completed_search",
+        "per_1k_usd": "10",
+        "source_url": "https://example.com/search",
+    }
+    document["retrieval"] = [
+        dict(base, effective_from="2025-01-01T23:00:00-05:00", effective_to="2025-01-02T10:00:00Z"),
+        dict(base, effective_from="2025-01-02T10:00:00Z"),
+    ]
+    assert _price_ids(load_catalog_document(document))[1] == [
+        "anthropic-api:web_search:global:2025-01-02T04:00:00Z",
+        "anthropic-api:web_search:global:2025-01-02T10:00:00Z",
+    ]
+
+
 def test_bundled_price_ids_keep_their_published_dates():
     # Every bundled start is a date or a UTC datetime, so each id's date is
     # the first ten characters of its effective_from as written.

@@ -984,6 +984,34 @@ def test_discovery_reports_an_invalid_current_rate_and_proposes_nothing(current,
     assert evidence["operations"] == []
 
 
+@pytest.mark.parametrize("carried", ["-1", "n/a", float("nan"), "Infinity"], ids=["negative", "unparsable", "nan", "infinite"])
+def test_discovery_proposes_nothing_when_a_carried_rate_is_invalid(carried):
+    # batch_input is outside the source's dimensions, so a replacement would
+    # copy it forward: invalid, it would break the delta or vanish from it.
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0, batch_input_per_mtok=carried))
+    load_catalog_document(document)
+    source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
+    evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
+    [candidate] = evidence["candidates"]
+    assert (candidate["reason"], candidate["invalid_dimensions"]) == ("invalid_current_rate", ["batch_input_per_mtok"])
+    assert evidence["operations"] == []
+
+
+def test_discovery_carries_a_zero_rate_outside_its_dimensions():
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0, batch_input_per_mtok=0.0))
+    source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
+    evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
+    [operation] = evidence["operations"]
+    assert operation["price"]["batch_input_per_mtok"] == "0"
+
+
+@pytest.mark.parametrize("carried", ["-1", "n/a", float("nan")], ids=["negative", "unparsable", "nan"])
+def test_a_refresh_never_copies_an_invalid_carried_rate(carried):
+    result = _plan(_with_gpt_x(**dict(GPT_X, output_per_mtok=9.0, batch_input_per_mtok=carried)))
+    assert result.delta["operations"] == []
+    assert [(e.reason, e.dimension) for e in result.escalations] == [("unrepresented_dimension", "batch_input_per_mtok")]
+
+
 def test_an_unparsable_current_rate_escalates_as_invalid_in_a_refresh():
     result = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok="not-a-rate")))
     assert result.delta["operations"] == []

@@ -242,6 +242,11 @@ effective_from)` on a model the catalog already has:
   start on a later UTC date than the row it replaces, for the same reason.
 - `close_price` sets `effective_to` on the open row without a replacement.
 
+A price id ends with the UTC date of its row's start. If two rows for one
+model, channel and region would still share an id (possible in a hand-edited
+catalog), each that does not start at UTC midnight also names its UTC start
+time, such as `2025-01-02T10:00:00Z`.
+
 New rates are decimal strings. `apply_catalog_delta(document, delta)` returns a
 new document and never changes either input. It checks every operation's
 precondition first; if any fails, `CatalogDeltaConflict.conflicts` names every
@@ -337,7 +342,8 @@ candidate and prior values, the reason for review, normalized page facts, and a
 proposed delta for changed catalog rows. An optional adapter
 (`--llm-adapter module:callable`) is called as
 `propose(source, content, current_rows)` and returns delta operations; its output
-is schema-validated and kept as review evidence. Everything discovery emits
+is schema-validated and kept as review evidence. Adapter failures and rejected
+items are reported with stable codes, never with the adapter's own text. Everything discovery emits
 requires review.
 
 Both read `<source-id>.*` files from `--content-dir` instead of fetching. The

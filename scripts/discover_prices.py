@@ -54,10 +54,11 @@ from metergraph_core.catalog_delta import (  # noqa: E402
     PRICING_DELTA_KIND,
     PRICING_DELTA_SCHEMA_VERSION,
     CatalogDeltaError,
+    DeltaOperation,
     parse_catalog_delta,
 )
 from metergraph_core.extractors import page_tables, redact_evidence  # noqa: E402
-from metergraph_core.loader import DEFAULT_CATALOG_PATH, load_catalog_document  # noqa: E402
+from metergraph_core.loader import DEFAULT_CATALOG_PATH, _canonical_value, load_catalog_document  # noqa: E402
 from metergraph_core.refresh import current_rows, discovery_evidence  # noqa: E402
 from metergraph_core.sources import (  # noqa: E402
     DEFAULT_REGISTRY_PATH,
@@ -80,8 +81,8 @@ def load_adapter(spec: str) -> Callable[..., Any]:
     module_name, _, attribute = spec.partition(":")
     try:
         adapter = getattr(importlib.import_module(module_name), attribute or "propose")
-    except (ImportError, AttributeError) as exc:
-        raise DiscoveryError(f"cannot load adapter {spec!r}: {exc}") from exc
+    except Exception as exc:  # importing runs adapter code; report its type only
+        raise DiscoveryError(f"cannot load adapter {spec!r}: {type(exc).__name__}") from None
     if not callable(adapter):
         raise DiscoveryError(f"cannot load adapter {spec!r}: not callable")
     return adapter
@@ -101,36 +102,54 @@ def _delta(operations: list, observations: list[str], evidence: list[dict]) -> d
     }
 
 
+def _operation_json(operation: DeltaOperation) -> dict[str, Any]:
+    """A validated operation in its parsed, JSON-native form: canonical dates
+    and no fields beyond the schema's."""
+    data: dict[str, Any] = {
+        "op": operation.op,
+        "key": {
+            "canonical_id": operation.key.canonical_id,
+            "channel": operation.key.channel,
+            "region": operation.key.region,
+            "effective_from": operation.key.effective_from,
+        },
+        "expect": _canonical_value(operation.expect),
+    }
+    if operation.price is not None:
+        data["price"] = _canonical_value(operation.price)
+    if operation.effective_to is not None:
+        data["effective_to"] = operation.effective_to
+    return data
+
+
 def run_adapter(adapter: Callable[..., Any], name: str, source: dict[str, Any], content: str, rows: list[dict]) -> dict[str, Any]:
     """Call the adapter and keep only schema-valid operations on the
-    source's channel. Every rejected item is reported with its reason."""
-    result: dict[str, Any] = {"name": name, "operations": [], "rejected": [], "error": None}
+    source's channel. Failures and rejections are reported with stable codes
+    only: an adapter's messages and rejected items may quote page content, a
+    prompt or a local path, so none of their text is emitted."""
+    result: dict[str, Any] = {"name": name, "operations": [], "rejected": [], "error": None, "error_type": None}
     try:
         proposed = adapter(copy.deepcopy(source), content, copy.deepcopy(rows))
     except Exception as exc:  # an adapter failure is evidence, not a crash
-        result["error"] = f"{type(exc).__name__}: {exc}"
+        result["error"], result["error_type"] = "adapter_error", type(exc).__name__
         return result
     if not isinstance(proposed, list):
-        result["error"] = "the adapter must return a list"
+        result["error"], result["error_type"] = "adapter_error", "invalid_result"
         return result
     for index, item in enumerate(proposed):
-        if isinstance(item, Mapping):
-            unknown = sorted(set(item) - _OPERATION_FIELDS)
-            if unknown:
-                result["rejected"].append({"index": index, "error": f"unknown operation field {unknown[0]!r}"})
-                continue
+        if isinstance(item, Mapping) and set(item) - _OPERATION_FIELDS:
+            result["rejected"].append({"index": index, "error": "unknown_field"})
+            continue
         try:
             [operation] = parse_catalog_delta(_delta([item], [], [])).operations
-        except CatalogDeltaError as exc:
-            result["rejected"].append({"index": index, "error": str(exc)})
+        except CatalogDeltaError:
+            result["rejected"].append({"index": index, "error": "invalid_operation"})
             continue
         channel = source.get("channel")
         if channel is not None and operation.key.channel != channel:
-            result["rejected"].append(
-                {"index": index, "error": f"an adapter may only propose rows on the source's channel {channel}"}
-            )
+            result["rejected"].append({"index": index, "error": "wrong_channel"})
             continue
-        result["operations"].append(copy.deepcopy(dict(item)))
+        result["operations"].append(_operation_json(operation))
     return result
 
 

@@ -154,6 +154,12 @@ def _valid_rate(value: Any) -> Decimal | None:
     return rate if rate is not None and rate.is_finite() and rate > 0 else None
 
 
+def _carryable(value: Any) -> bool:
+    """Whether a rate can be copied into a delta: finite and not negative."""
+    rate = _rate(value)
+    return rate is not None and rate.is_finite() and rate >= 0
+
+
 def _rate_text(value: Any) -> str:
     """A rate as evidence text: normalized when valid, else as written."""
     rate = _valid_rate(value)
@@ -611,6 +617,12 @@ def discovery_evidence(
             # A catalog rate that is not a positive finite number is shown as
             # written and blocks any proposed operation.
             invalid = [d for d in prior if _valid_rate(match.row[d]) is None]
+            # A replacement copies every other rate the row carries; one that
+            # is not a valid delta value would break the delta or be dropped.
+            invalid += [
+                f for f in RATE_FIELDS
+                if f not in source.dimensions and match.row.get(f) is not None and not _carryable(match.row[f])
+            ]
             differs = any(prior.get(d) != v for d, v in candidate.items())
             if differs or missing or invalid:
                 reason = "invalid_current_rate" if invalid else "changed" if differs else "missing_rate"
