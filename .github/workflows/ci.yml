@@ -84,7 +84,7 @@ jobs:
       - name: Check out latest MeterGraph SDK
         uses: actions/checkout@v4
         with:
-          repository: PioneerSquareLabs/metergraphsdk
+          repository: metergraph/metergraphsdk
           ref: main
           path: .latest-metergraphsdk
       - name: Pack latest TypeScript SDK

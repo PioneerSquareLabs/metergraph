@@ -1,0 +1,28 @@
+# Categories for GitHub's generated release notes. Releases are tagged per
+# package (core-v*, server-v*). Review generated notes for relevance before
+# publishing because the repository contains changes for multiple packages.
+changelog:
+  exclude:
+    labels:
+      - duplicate
+      - invalid
+      - wontfix
+  categories:
+    - title: Breaking changes
+      labels:
+        - breaking-change
+    - title: Features
+      labels:
+        - enhancement
+    - title: Pricing catalog
+      labels:
+        - pricing
+    - title: Fixes
+      labels:
+        - bug
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Other changes
+      labels:
+        - "*"

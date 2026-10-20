@@ -14,7 +14,7 @@ import sys
 PATTERNS = {
     "internal issue ID": re.compile(r"\b" + "MET" + r"-[0-9]+\b", re.I),
     "internal tracker URL": re.compile("linear.app/" + "metergraph", re.I),
-    "private repository reference": re.compile("PioneerSquareLabs/" + "metergraph-internal", re.I),
+    "private repository reference": re.compile("(PioneerSquareLabs|metergraph)/" + "metergraph-internal", re.I),
 }
 
 

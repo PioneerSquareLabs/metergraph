@@ -51,7 +51,7 @@ from metergraph_core.sources import (  # noqa: E402
     load_source_registry,
 )
 
-USER_AGENT = "metergraph-refresh-prices/1 (+https://github.com/PioneerSquareLabs/metergraph)"
+USER_AGENT = "metergraph-refresh-prices/1 (+https://github.com/metergraph/metergraph)"
 REPORT_SCHEMA_VERSION = 1
 
 
