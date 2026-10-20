@@ -80,6 +80,58 @@ prefix, the latter only onto an `aws-bedrock` alias. Geographic prefixes such as
 `LoadedCatalog.pricing_verified_at` records when the bundled catalog was last
 checked against its linked provider sources.
 
+### Direct lookup and usage cost
+
+`lookup_price` returns the price a call is billed at, and `calculate_cost`
+costs a call's usage at that price:
+
+```python
+from metergraph_core import ModelUsage
+
+found = catalog.lookup_price(
+    model="gpt-5.4-mini",
+    provider="openai",
+    at=datetime(2026, 8, 17, tzinfo=timezone.utc),
+)
+print(found.status, found.model_id, found.price.id, found.price.currency)
+
+result = catalog.calculate_cost(
+    model="gpt-5.4-mini",
+    provider="openai",
+    at=datetime(2026, 8, 17, tzinfo=timezone.utc),
+    usage=ModelUsage(input_tokens=1000, output_tokens=200, cache_read_tokens=500),
+)
+print(result.status, result.model_id, result.cost, result.currency)
+print(result.components.input, result.components.cache_read)
+```
+
+Both resolve exactly as `resolve_price` and `price` do, including
+effective-date windows and the Bedrock fallback, and cost through the same
+arithmetic. `model_id` is the resolved catalog ID, not the alias passed in, and
+`price` is the applied catalog row. An explicit `channel` is authoritative;
+without one, `provider` supplies its direct channel, and with neither the
+result is `unpriced` with `missing_dimensions=("channel",)`.
+
+Every `Price` states its `currency`, and `CostResult.currency` is the currency
+of the applied price. The bundled catalog is USD. `cost` and
+`components.input`, `output`, `cache_read`, `cache_write` and `request` are in
+that currency; the older `cost_usd` and `*_usd` names return the same values.
+
+A `ModelUsage` count left `None` is unknown, not zero. A missing input or
+output count keeps the subtotal that is known, marks the result `partial`, and
+lists `input_tokens` or `output_tokens` in `missing_dimensions`.
+
+`region` selects a regional price and overrides the `region` passed to
+`load_catalog`. When neither names a region:
+
+- if every region bills the model the same, the result is `priced`;
+- if a global price applies but some region bills differently, the global
+  price is returned as `partial` with `missing_dimensions=("region",)`;
+- if only specific regions price the model, the result is `unpriced` with
+  `missing_dimensions=("region",)`.
+
+A region the model is not sold in is `unpriced` with nothing missing.
+
 ## Model registry
 
 ```python
@@ -153,7 +205,9 @@ from metergraph_core import (
     LoadedCatalog,
     ModelRegistry,
     ModelRoute,
+    ModelUsage,
     Price,
+    PriceResult,
     ResolvedPrice,
     load_catalog,
     load_model_registry,
