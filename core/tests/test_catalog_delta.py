@@ -474,3 +474,47 @@ def test_an_empty_delta_returns_an_equal_copy():
     result = apply_catalog_delta(document, _delta())
     assert result == document
     assert result is not document
+
+
+# --- Mixed date and offset inputs --------------------------------------------
+
+
+def test_a_close_date_with_an_offset_is_compared_as_an_instant():
+    # 2026-01-01T00:30:00+02:00 is 2025-12-31T22:30Z, before the row starts.
+    with pytest.raises(CatalogDeltaError, match="effective_to must follow key effective_from"):
+        parse_catalog_delta(_delta(_close(effective_to="2026-01-01T00:30:00+02:00")))
+
+
+def test_a_naive_key_and_an_aware_close_date_parse():
+    [operation] = parse_catalog_delta(_delta(_close(effective_to="2026-10-20T12:00:00+00:00"))).operations
+    assert operation.effective_to == "2026-10-20T12:00:00+00:00"
+
+
+def test_dates_naming_the_same_instant_are_one_key():
+    with pytest.raises(CatalogDeltaError, match="operation 1: duplicate target"):
+        parse_catalog_delta(
+            _delta(
+                _replace(),
+                _close(key=_key(effective_from="2026-01-01T00:00:00+00:00")),
+            )
+        )
+
+
+def test_a_utc_midnight_key_matches_a_date_only_row():
+    operation = _close(key=_key(effective_from="2026-01-01T00:00:00Z"))
+    result = apply_catalog_delta(_document(), _delta(operation))
+    assert _rows(result, channel="openai-api", region="global")[1]["effective_to"] == "2026-10-20"
+
+
+@pytest.mark.parametrize("effective_from", ["2026-01-01T00:00:00+01:00", "2025-12-31T23:59:59-00:00"])
+def test_a_replacement_before_the_row_with_an_offset_is_a_conflict(effective_from):
+    operation = _replace(price=_new_price(effective_from=effective_from))
+    assert _conflicts(_document(), _delta(operation)) == [(0, "not_after_current")]
+
+
+def test_a_replacement_with_an_offset_after_the_row_applies():
+    operation = _replace(price=_new_price(effective_from="2026-10-20T00:00:00+00:00"))
+    result = apply_catalog_delta(_document(), _delta(operation))
+    rows = _rows(result, channel="openai-api", region="global")
+    assert rows[1]["effective_to"] == "2026-10-20"
+    assert rows[2]["effective_from"] == "2026-10-20"

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Mapping
 
@@ -103,17 +103,39 @@ class CatalogDelta:
     provenance: Mapping[str, Any]
 
 
+def _instant(value: Any) -> datetime | None:
+    """An ISO date or datetime as an aware UTC instant, or None when
+    ``value`` is not one. A value without an offset is UTC, as the catalog
+    loader reads it."""
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, date):
+        parsed = datetime(value.year, value.month, value.day)
+    elif isinstance(value, str) and value.strip():
+        text = value.strip()
+        if text[-1] in "Zz":
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def _iso_date(value: Any) -> str | None:
-    """A date as its ISO string, or None when ``value`` is not one."""
-    if isinstance(value, (date, datetime)):
-        return value.isoformat()
-    if not isinstance(value, str) or not value.strip():
+    """The canonical text of an effective date: ``YYYY-MM-DD`` for UTC
+    midnight, otherwise the UTC ISO datetime. Two spellings of one instant
+    get one text, so they name one row. None when ``value`` is not a date."""
+    instant = _instant(value)
+    if instant is None:
         return None
-    try:
-        datetime.fromisoformat(value.strip())
-    except ValueError:
-        return None
-    return value.strip()
+    if instant.time() == time(0):
+        return instant.date().isoformat()
+    return instant.isoformat()
 
 
 def _text(value: Any) -> str | None:
@@ -201,9 +223,7 @@ def _parse_operation(index: int, raw: Any) -> DeltaOperation:
         effective_to = _iso_date(raw.get("effective_to"))
         if effective_to is None:
             raise CatalogDeltaError(f"{label}: invalid effective_to")
-        if datetime.fromisoformat(effective_to) <= datetime.fromisoformat(
-            key.effective_from
-        ):
+        if _instant(effective_to) <= _instant(key.effective_from):
             raise CatalogDeltaError(
                 f"{label}: effective_to must follow key effective_from"
             )
@@ -311,9 +331,9 @@ def _precondition(document: Mapping[str, Any], operation: DeltaOperation) -> str
         return "row_not_open"
     if _canonical_json(row) != _canonical_json(operation.expect):
         return "expect_mismatch"
-    if operation.op == "replace_price" and datetime.fromisoformat(
+    if operation.op == "replace_price" and _instant(
         operation.price["effective_from"]
-    ) <= datetime.fromisoformat(operation.key.effective_from):
+    ) <= _instant(operation.key.effective_from):
         return "not_after_current"
     return None
 
