@@ -347,7 +347,12 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert len(from_document.content_hash) == 64, from_document.content_hash
         sources = load_source_registry()
         validate_source_registry(sources, loaded)
-        assert len(sources.low_risk()) == 4, sources.low_risk()
+        low_risk = sorted(source.id for source in sources.low_risk())
+        assert low_risk == [
+            "anthropic-api-pricing",
+            "google-api-pricing",
+            "xai-api-pricing",
+        ], low_risk
         assert len(sources.sources) == 14, len(sources.sources)
         assert sources.get("google-vertex-ai-pricing").low_risk.eligible is False
         [model] = [
