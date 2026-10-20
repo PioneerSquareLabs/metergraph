@@ -149,7 +149,15 @@ def run_adapter(adapter: Callable[..., Any], name: str, source: dict[str, Any], 
         if channel is not None and operation.key.channel != channel:
             result["rejected"].append({"index": index, "error": "wrong_channel"})
             continue
-        result["operations"].append(_operation_json(operation))
+        # The schema allows any mapping in expect and rules; only an
+        # operation that encodes as strict JSON can enter the report.
+        data = _operation_json(operation)
+        try:
+            json.dumps(data, allow_nan=False)
+        except (TypeError, ValueError):
+            result["rejected"].append({"index": index, "error": "invalid_operation"})
+            continue
+        result["operations"].append(data)
     return result
 
 

@@ -382,6 +382,40 @@ def propose(source, content, current_rows):
 """
 
 
+NON_JSON_ADAPTER = """
+ROW = {"channel": "tables-api", "region": "global", "effective_from": "2026-10-20",
+       "input_per_mtok": "0.9", "output_per_mtok": "0.9", "source_url": "https://example.com/tables-pricing"}
+KEY = {"canonical_id": "example/gpt-x", "channel": "tables-api", "region": "global", "effective_from": "2026-10-20"}
+
+def propose(source, content, current_rows):
+    old = dict(KEY, effective_from="2026-01-01")
+    return [
+        {"op": "add_price", "key": KEY, "expect": None, "price": dict(ROW, rules={"tiers": {1, 2}})},
+        {"op": "close_price", "key": old, "expect": {"rules": {"tags": {"a"}}}, "effective_to": "2026-10-20"},
+        {"op": "close_price", "key": old, "expect": {"input_per_mtok": float("nan")}, "effective_to": "2026-10-20"},
+        {"op": "add_price", "key": KEY, "expect": None, "price": ROW},
+    ]
+"""
+
+
+def test_adapter_operations_that_are_not_json_are_rejected(paths, capsys, monkeypatch):
+    # The schema allows any mapping in expect and rules; the report must not.
+    spec = _adapter(paths["tmp"], monkeypatch, NON_JSON_ADAPTER)
+    report = paths["tmp"] / "discovery.json"
+    output = _run(
+        paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "table-source-pricing", "--llm-adapter", spec, "--json", str(report)],
+        capsys,
+    )
+    adapter = _proposal(output, "table-source-pricing")["adapter"]
+    assert adapter["rejected"] == [
+        {"index": 0, "error": "invalid_operation"},
+        {"index": 1, "error": "invalid_operation"},
+        {"index": 2, "error": "invalid_operation"},
+    ]
+    assert [op["op"] for op in adapter["operations"]] == ["add_price"]
+    assert json.loads(report.read_text()) == output
+
+
 def test_adapter_operations_with_date_values_are_reported_as_json(paths, capsys, monkeypatch):
     spec = _adapter(paths["tmp"], monkeypatch, DATED_ADAPTER)
     report = paths["tmp"] / "discovery.json"

@@ -341,9 +341,10 @@ from a file or stdin (`--new-source`, never a URL). It prints evidence for each:
 candidate and prior values, the reason for review, normalized page facts, and a
 proposed delta for changed catalog rows. An optional adapter
 (`--llm-adapter module:callable`) is called as
-`propose(source, content, current_rows)` and returns delta operations; its output
-is schema-validated and kept as review evidence. Adapter failures and rejected
-items are reported with stable codes, never with the adapter's own text. Everything discovery emits
+`propose(source, content, current_rows)` and returns delta operations. Its
+output is kept as review evidence only after it passes schema validation and
+encodes as strict JSON. Adapter failures and rejected items are reported with
+stable codes, never with the adapter's own text. Everything discovery emits
 requires review.
 
 Both read `<source-id>.*` files from `--content-dir` instead of fetching. The
@@ -422,9 +423,11 @@ from metergraph_core import (
 The two manually maintained public datasets live under
 `src/metergraph_core/data/`. Update `models.yaml` when model identity, display,
 routing, or managed candidate policy changes. Update `prices.yaml` when rates
-or billing rules change. `sources.yaml` changes through reviewed pull requests
-as described in [Provider review and contributions](#provider-review-and-contributions). Price corrections close or add effective windows;
-they never rewrite historical prices in place. Either data change increments
+or billing rules change. `sources.yaml` changes through reviewed pull requests,
+as described in
+[Provider review and contributions](#provider-review-and-contributions). Price
+corrections close or add effective windows; they never rewrite historical
+prices in place. Either data change increments
 its own declared version and produces a patch release of `metergraph-core`.
 Software and data versions remain separate because they have different
 lifecycles.
