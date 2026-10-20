@@ -412,6 +412,22 @@ def page_match(
 _AMOUNT = re.compile(r"\$[0-9][0-9,]*\.?[0-9]*")
 
 
+# The rendered text tables name, under a "Short context" / "Long context"
+# header, the columns the embedded cells fill by position.
+_OPENAI_COLUMNS = ("Input", "Cached input", "Cache writes", "Output")
+
+
+def _openai_column_orders(content: str) -> list[list[str]]:
+    """The order of the rate columns in each rendered text table, so a
+    reorder that keeps every row's width still changes the fingerprint."""
+    orders = {
+        tuple(cell for cell in rows_[1] if cell in _OPENAI_COLUMNS)
+        for rows_ in page_tables(content)
+        if len(rows_) > 1 and "Short context" in rows_[0]
+    }
+    return sorted(list(order) for order in orders)
+
+
 def _openai_features(content: str) -> Any:
     text = html.unescape(content)
     rows = OPENAI_ROW.findall(_openai_section(text))
@@ -420,6 +436,7 @@ def _openai_features(content: str) -> Any:
         "batch_label": '[0,"batch"]' in text,
         "text_section": bool(_openai_sections(text)),
         "row_widths": sorted({len(OPENAI_CELL.findall(cells)) for _, cells in rows}),
+        "column_order": _openai_column_orders(content),
     }
 
 

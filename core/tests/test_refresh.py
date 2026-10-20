@@ -272,6 +272,14 @@ def test_a_mismatched_fingerprint_escalates():
     assert result.observations[0].fingerprint == structural_fingerprint("openai", _fixture("openai-api-pricing"))
 
 
+def test_reordered_openai_columns_block_a_low_risk_refresh():
+    page = _fixture("openai-api-pricing")
+    reordered = page.replace("<th>Cached input</th>", "\0").replace("<th>Cache writes</th>", "<th>Cached input</th>").replace("\0", "<th>Cache writes</th>")
+    result = _plan(_with_gpt_x(**dict(GPT_X, output_per_mtok=9.0)), contents={"openai-api-pricing": reordered})
+    assert result.delta["operations"] == []
+    assert [e.reason for e in result.escalations] == ["fingerprint_mismatch"]
+
+
 def test_missing_content_for_a_low_risk_source_is_observed_and_escalated():
     result = _plan(contents={})
     assert [e.reason for e in result.escalations] == ["content_missing"]

@@ -174,6 +174,33 @@ def test_fingerprint_changes_with_parser_relevant_structure(parser):
     assert structural_fingerprint(parser, restructure(base)) != structural_fingerprint(parser, base)
 
 
+def _swap(text, first, second):
+    return text.replace(first, "\0").replace(second, first).replace("\0", second)
+
+
+def test_openai_fingerprint_changes_when_same_width_columns_are_reordered():
+    # The embedded cells fill columns by position, so swapping two column
+    # labels changes what each cell means without changing any row width.
+    base = _fixture("openai-api-pricing")
+    reordered = _swap(base, "<th>Cached input</th>", "<th>Cache writes</th>")
+    assert reordered != base
+    assert structural_fingerprint("openai", reordered) != structural_fingerprint("openai", base)
+
+
+def test_openai_fingerprint_changes_when_the_column_header_disappears():
+    base = _fixture("openai-api-pricing")
+    without = base.replace("<th>Short context</th>", "<th>Context</th>")
+    assert structural_fingerprint("openai", without) != structural_fingerprint("openai", base)
+
+
+def test_openai_fingerprint_ignores_labels_outside_the_text_table_columns():
+    base = _fixture("openai-api-pricing")
+    other_table = base.replace(
+        "<script>", "<table><tr><th>Model</th><th>Price per minute</th></tr></table><script>"
+    )
+    assert structural_fingerprint("openai", other_table) == structural_fingerprint("openai", base)
+
+
 def test_extraction_carries_the_structural_fingerprint():
     content = _fixture("anthropic-api-pricing")
     fingerprint = structural_fingerprint("anthropic", content)

@@ -1,5 +1,11 @@
 <!doctype html>
 <!-- Synthetic fixture: the pricing tables are embedded as escaped data, an
 image table also labelled standard precedes the text table, and the text
-table carries a cache-write column on newer models. -->
-<html><body><script>self.__next_f.push([1,"[0,&quot;standard&quot;][1,[[0,&quot;Image&quot;],[0,5],[0,1.25],[0,&quot;-&quot;]]][0,&quot;batch&quot;][0,&quot;standard&quot;][1,[[0,&quot;gpt-x&quot;],[0,2],[0,0.2],[0,2.5],[0,8]]][1,[[0,&quot;gpt-x-mini&quot;],[0,0.4],[0,0.04],[0,1.6]]][1,[[0,&quot;gpt-legacy (legacy)&quot;],[0,2.5],[0,1.25],[0,10]]][0,&quot;batch&quot;][1,[[0,&quot;gpt-x&quot;],[0,1],[0,0.1],[0,1.25],[0,4]]]"])</script></body></html>
+table carries a cache-write column on newer models. The rendered text table's
+two-level header names the columns the embedded cells fill in order. -->
+<html><body>
+<table>
+<tr><th></th><th>Short context</th><th>Long context</th></tr>
+<tr><th>Model</th><th>Input</th><th>Cached input</th><th>Cache writes</th><th>Output</th><th>Input</th><th>Cached input</th><th>Cache writes</th><th>Output</th></tr>
+</table>
+<script>self.__next_f.push([1,"[0,&quot;standard&quot;][1,[[0,&quot;Image&quot;],[0,5],[0,1.25],[0,&quot;-&quot;]]][0,&quot;batch&quot;][0,&quot;standard&quot;][1,[[0,&quot;gpt-x&quot;],[0,2],[0,0.2],[0,2.5],[0,8]]][1,[[0,&quot;gpt-x-mini&quot;],[0,0.4],[0,0.04],[0,1.6]]][1,[[0,&quot;gpt-legacy (legacy)&quot;],[0,2.5],[0,1.25],[0,10]]][0,&quot;batch&quot;][1,[[0,&quot;gpt-x&quot;],[0,1],[0,0.1],[0,1.25],[0,4]]]"])</script></body></html>
