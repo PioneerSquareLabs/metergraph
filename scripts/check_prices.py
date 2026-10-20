@@ -168,6 +168,9 @@ class CatalogRow:
     source_url: str
     # (provider, alias) pairs the catalog carries for this model on this channel.
     aliases: tuple[tuple[str, str], ...]
+    # Lowercased names this channel defines as aliases only outside today's
+    # window; the canonical tail is not a fallback for them.
+    inactive_aliases: frozenset[str] = frozenset()
 
     # Quotes are keyed by model, channel and region.
     @property
@@ -200,12 +203,14 @@ def effective_rows(document: Mapping[str, Any], today: date) -> list[CatalogRow]
     for model in document.get("models") or []:
         canonical_id = str(model["canonical_id"])
         aliases_by_channel: dict[str, list[tuple[str, str]]] = {}
+        inactive_by_channel: dict[str, set[str]] = {}
         for alias in model.get("aliases") or []:
             starts = alias.get("effective_from")
             ends = alias.get("effective_to")
             if (starts is not None and _date(starts) > today) or (
                 ends is not None and _date(ends) <= today
             ):
+                inactive_by_channel.setdefault(str(alias["channel"]), set()).add(str(alias["alias"]).lower())
                 continue
             aliases_by_channel.setdefault(str(alias["channel"]), []).append(
                 (str(alias["provider"]), str(alias["alias"]))
@@ -234,6 +239,10 @@ def effective_rows(document: Mapping[str, Any], today: date) -> list[CatalogRow]
                     rates=rates,
                     source_url=str(price.get("source_url") or ""),
                     aliases=tuple(aliases_by_channel.get(channel, ())),
+                    inactive_aliases=frozenset(
+                        inactive_by_channel.get(channel, set())
+                        - {alias.lower() for _, alias in aliases_by_channel.get(channel, ())}
+                    ),
                 )
             )
     return rows
@@ -394,7 +403,9 @@ def _direct_aliases(row: CatalogRow) -> list[str]:
     """Model ids a provider-facing source might use, most specific first."""
     names = [alias for provider, alias in row.aliases if provider not in ALIAS_ONLY_PROVIDERS]
     tail = row.canonical_id.split("/", 1)[-1]
-    if tail not in names:
+    # The canonical tail is a fallback, except for a name the channel
+    # defines as an alias that is not in effect today.
+    if tail not in names and tail.lower() not in row.inactive_aliases:
         names.append(tail)
     return names
 
