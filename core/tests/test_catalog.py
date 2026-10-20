@@ -9,6 +9,7 @@ from metergraph_core import (
     counts_cache_read_in_input,
     direct_channel_for_provider,
     load_catalog,
+    normalize_provider,
     parse_catalog,
 )
 
@@ -26,7 +27,42 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-10-19"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-10-20"
+
+
+def test_openrouter_cache_reads_are_not_charged_as_fresh_input():
+    result = SNAPSHOT.cost(
+        provider="openrouter",
+        model="openai/gpt-4o-mini",
+        at=_at("2026-10-20"),
+        input_tokens=1_000,
+        output_tokens=0,
+        cache_read_tokens=1_000,
+    )
+
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.00007500")
+
+
+def test_current_catalog_prices_more_than_one_thousand_provider_model_pairs():
+    at = _at("2026-10-20")
+    pairs = {
+        (normalize_provider(alias["provider"]), alias["alias"])
+        for model in DOC["models"]
+        for alias in model.get("aliases") or []
+        if SNAPSHOT.cost(
+            provider=alias["provider"],
+            model=alias["alias"],
+            at=at,
+            input_tokens=1,
+            output_tokens=1,
+        ).status
+        == "priced"
+    }
+
+    assert len(pairs) == 1111
+    assert sum(provider == "vercel" for provider, _ in pairs) == 186
+    assert sum(provider == "openrouter" for provider, _ in pairs) == 212
 
 
 def test_resolve_price_by_deployment_identity_and_channel():
@@ -224,6 +260,22 @@ def test_mistral_large_4_launch_sale_and_standard_price_boundaries():
     assert restored.price.cache_read_per_mtok == Decimal("0.14")
     assert restored.price.batch_input_per_mtok == Decimal("0.68")
     assert restored.price.batch_output_per_mtok == Decimal("2.09")
+
+    gateway_sale = SNAPSHOT.resolve_price(
+        model="mistral/mistral-large-4",
+        channel="vercel-ai-gateway",
+        at=_at("2026-10-19"),
+    )
+    gateway_restored = SNAPSHOT.resolve_price(
+        model="mistral/mistral-large-4",
+        channel="vercel-ai-gateway",
+        at=_at("2026-10-20"),
+    )
+    assert gateway_sale is not None and gateway_restored is not None
+    assert gateway_sale.price.input_per_mtok == Decimal("0.68")
+    assert gateway_restored.price.input_per_mtok == Decimal("1.36")
+    assert gateway_restored.price.output_per_mtok == Decimal("4.18")
+    assert gateway_restored.price.cache_read_per_mtok == Decimal("0.14")
 
 
 def test_mythos_5_1_is_priced_for_direct_anthropic_access():

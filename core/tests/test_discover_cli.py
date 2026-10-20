@@ -127,6 +127,66 @@ def _proposal(output, source_id):
     return proposal
 
 
+def test_catalog_additions_select_delta_schema_version_two():
+    operation = {
+        "op": "add_model",
+        "key": {"canonical_id": "example/model-new"},
+        "expect": None,
+        "model": {
+            "canonical_id": "example/model-new",
+            "publisher": "example",
+            "aliases": [
+                {
+                    "provider": "openrouter",
+                    "alias": "example/model-new",
+                    "channel": "openrouter-api",
+                }
+            ],
+            "prices": [
+                {
+                    "channel": "openrouter-api",
+                    "region": "global",
+                    "effective_from": "2026-10-20",
+                    "input_per_mtok": "1",
+                    "output_per_mtok": "4",
+                    "source_url": "https://example.com/models",
+                }
+            ],
+        },
+    }
+    delta = discover_prices._delta([operation], ["observation"], [])
+
+    assert delta["schema_version"] == 2
+    assert discover_prices._operation_json(
+        discover_prices.parse_catalog_delta(delta).operations[0]
+    ) == operation
+
+
+def test_price_only_discovery_uses_catalog_delta_schema_version():
+    operation = {
+        "op": "add_price",
+        "key": {
+            "canonical_id": "example/model-a",
+            "channel": "openrouter-api",
+            "region": "global",
+            "effective_from": "2026-10-20",
+        },
+        "expect": None,
+        "price": {
+            "channel": "openrouter-api",
+            "region": "global",
+            "effective_from": "2026-10-20",
+            "input_per_mtok": "1",
+            "output_per_mtok": "4",
+            "source_url": "https://example.com/models",
+        },
+    }
+
+    delta = discover_prices._delta([operation], ["observation"], [])
+
+    assert delta["schema_version"] == 2
+
+
 def test_discovery_without_an_adapter_emits_deterministic_evidence(paths, capsys):
     argv = paths["base"] + ["--content-dir", str(paths["content"])]
     first = _run(argv, capsys)
@@ -206,7 +266,7 @@ def test_an_unparsable_catalog_rate_is_review_evidence_not_a_crash(paths, capsys
     assert proposal["proposed_delta"] is None
 
 
-def test_a_new_model_is_evidence_and_never_an_operation(paths, capsys):
+def test_a_new_model_from_an_unstructured_source_stays_evidence(paths, capsys):
     report = _escalation_report(paths["tmp"], reason="unknown_model")
     output = _run(paths["base"] + ["--content-dir", str(paths["content"]), "--sources", "", "--escalations", str(report)], capsys)
     proposal = _proposal(output, "openai-api-pricing")

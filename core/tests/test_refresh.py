@@ -2,6 +2,7 @@
 content. Nothing here fetches or applies a delta."""
 
 import copy
+import json
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -416,7 +417,7 @@ def test_a_catalog_with_a_duplicated_model_entry_is_rejected():
 
 def test_the_delta_references_its_observations_and_evidence():
     result = _plan(_with_gpt_x(**dict(GPT_X, output_per_mtok=9.0)))
-    assert result.delta["schema_version"] == 1
+    assert result.delta["schema_version"] == 2
     assert result.delta["kind"] == "pricing_delta"
     assert result.delta["provenance"]["observations"] == ["openai-api-pricing@2026-10-20"]
     assert result.delta["provenance"]["evidence"] == [
@@ -536,6 +537,588 @@ def test_discovery_evidence_proposes_no_operation_for_a_row_starting_that_day():
     evidence = discovery_evidence(source, _fixture("openai-api-pricing"), document, observed_on=OBSERVED_ON)
     assert evidence["operations"] == []
     assert [c["reason"] for c in evidence["candidates"]] == ["changed"]
+
+
+def _gateway_source(provider="openrouter", parser="openrouter-json"):
+    return _registry(
+        _source(
+            "gateway-models",
+            parser,
+            f"{provider}-api" if provider == "openrouter" else "vercel-ai-gateway",
+            provider,
+            low_risk=False,
+            fingerprint=None,
+            url=f"https://example.com/{provider}/models",
+        )
+    ).get("gateway-models")
+
+
+def _openrouter_page(*models):
+    return json.dumps({"data": list(models)})
+
+
+def _openrouter_model(model_id="example/model-new"):
+    return {
+        "id": model_id,
+        "architecture": {"output_modalities": ["text"]},
+        "pricing": {"prompt": "0.000001", "completion": "0.000004"},
+    }
+
+
+def test_gateway_discovery_proposes_a_complete_new_model():
+    source = _gateway_source()
+    evidence = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model()),
+        _document(),
+        observed_on=OBSERVED_ON,
+    )
+
+    assert evidence["operations"] == [
+        {
+            "op": "add_model",
+            "key": {"canonical_id": "example/model-new"},
+            "expect": None,
+            "model": {
+                "canonical_id": "example/model-new",
+                "publisher": "example",
+                "aliases": [
+                    {
+                        "provider": "openrouter",
+                        "alias": "example/model-new",
+                        "channel": "openrouter-api",
+                        "rules": {
+                            "input_includes_cache_read": True,
+                            "input_includes_cache_write": True,
+                        },
+                    }
+                ],
+                "prices": [
+                    {
+                        "channel": "openrouter-api",
+                        "region": "global",
+                        "effective_from": "2026-10-20",
+                        "input_per_mtok": "1",
+                        "output_per_mtok": "4",
+                        "rules": {"varies_by_provider": True},
+                        "source_url": "https://example.com/openrouter/models",
+                    }
+                ],
+            },
+        }
+    ]
+
+
+def test_gateway_discovery_adds_an_exact_alias_and_channel_price():
+    source = _gateway_source()
+    document = _document(
+        _model(
+            "example/model-new",
+            "model-new",
+            _row(input_per_mtok=2, output_per_mtok=8),
+        )
+    )
+
+    operations = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model()),
+        document,
+        observed_on=OBSERVED_ON,
+    )["operations"]
+    assert [operation["op"] for operation in operations] == ["add_alias", "add_price"]
+
+    delta = {
+        "schema_version": 2,
+        "kind": "pricing_delta",
+        "provenance": {"observations": ["gateway-models@2026-10-20"]},
+        "operations": operations,
+    }
+    updated = apply_catalog_delta(document, delta)
+    repeated = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model()),
+        updated,
+        observed_on=OBSERVED_ON,
+    )
+    assert repeated["operations"] == []
+
+
+def test_gateway_alias_reuses_existing_channel_rules():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        {
+            "canonical_id": "example/model-new",
+            "publisher": "example",
+            "aliases": [
+                {
+                    "provider": "example",
+                    "alias": "example/model-new",
+                    "channel": "vercel-ai-gateway",
+                    "rules": {"input_includes_cache_read": False},
+                }
+            ],
+            "prices": [
+                {
+                    "channel": "vercel-ai-gateway",
+                    "region": "global",
+                    "effective_from": "2026-01-01",
+                    "input_per_mtok": 1,
+                    "output_per_mtok": 4,
+                    "source_url": "https://example.com/models",
+                }
+            ],
+        }
+    )
+    page = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "example/model-new",
+                    "owned_by": "example",
+                    "type": "language",
+                    "pricing": {"input": "0.000001", "output": "0.000004"},
+                }
+            ]
+        }
+    )
+
+    [operation] = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+    assert operation["op"] == "add_alias"
+    assert operation["alias"]["rules"] == {"input_includes_cache_read": False}
+    apply_catalog_delta(
+        document,
+        {
+            "schema_version": 2,
+            "kind": "pricing_delta",
+            "provenance": {"observations": ["gateway@2026-10-20"]},
+            "operations": [operation],
+        },
+    )
+
+
+def test_gateway_discovery_replaces_a_changed_exact_route():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        _model(
+            "example/model-new",
+            "example/model-new",
+            {
+                "channel": "vercel-ai-gateway",
+                "region": "global",
+                "effective_from": "2026-01-01",
+                "input_per_mtok": 0.5,
+                "output_per_mtok": 2,
+                "source_url": "https://example.com/models",
+            },
+            channel="vercel-ai-gateway",
+            provider="vercel",
+        )
+    )
+    page = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "example/model-new",
+                    "owned_by": "example",
+                    "type": "language",
+                    "pricing": {"input": "0.000001", "output": "0.000004"},
+                }
+            ]
+        }
+    )
+
+    [operation] = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+    assert operation["op"] == "replace_price"
+    assert operation["price"]["input_per_mtok"] == "1"
+    assert operation["price"]["output_per_mtok"] == "4"
+
+
+def test_gateway_discovery_reports_exclusion_counts_without_raw_rows():
+    source = _gateway_source()
+    evidence = discovery_evidence(
+        source,
+        _openrouter_page(
+            _openrouter_model("example/model-new:free"),
+            _openrouter_model("example/model-new"),
+        ),
+        _document(),
+        observed_on=OBSERVED_ON,
+    )
+
+    assert evidence["exclusions"] == {"free_route": 1}
+    assert "model-new:free" not in json.dumps(evidence)
+
+
+def test_gateway_discovery_maps_reviewed_publisher_prefixes():
+    source = _gateway_source()
+    document = _document(
+        _model(
+            "zai/glm-5.1",
+            "glm-5.1",
+            _row(input_per_mtok=1, output_per_mtok=4),
+        )
+    )
+    page = _openrouter_page(_openrouter_model("z-ai/glm-5.1"))
+
+    operations = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+    assert [operation["op"] for operation in operations] == [
+        "add_alias",
+        "add_price",
+    ]
+    assert {operation["key"]["canonical_id"] for operation in operations} == {
+        "zai/glm-5.1"
+    }
+
+
+def test_gateway_discovery_matches_a_same_publisher_short_alias():
+    source = _gateway_source()
+    document = _document(
+        {
+            "canonical_id": "openai/gpt-4o",
+            "publisher": "openai",
+            "aliases": [
+                {
+                    "provider": "openai",
+                    "alias": "gpt-4o-2024-08-06",
+                    "channel": "openai-api",
+                }
+            ],
+            "prices": [
+                _row(input_per_mtok=1, output_per_mtok=4)
+            ],
+        }
+    )
+    page = _openrouter_page(
+        _openrouter_model("openai/gpt-4o-2024-08-06")
+    )
+
+    operations = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+    assert [operation["op"] for operation in operations] == [
+        "add_alias",
+        "add_price",
+    ]
+    assert {operation["key"]["canonical_id"] for operation in operations} == {
+        "openai/gpt-4o"
+    }
+
+
+def test_gateway_discovery_inherits_existing_channel_alias_rules():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        {
+            "canonical_id": "deepseek/deepseek-v4.1-flash",
+            "publisher": "deepseek",
+            "aliases": [
+                {
+                    "provider": "deepseek",
+                    "alias": "deepseek-v4-flash-vision-exp",
+                    "channel": "deepseek-api",
+                },
+                {
+                    "provider": "deepseek",
+                    "alias": "deepseek/deepseek-v4.1-flash",
+                    "channel": "vercel-ai-gateway",
+                    "rules": {"input_includes_cache_read": True},
+                }
+            ],
+            "prices": [
+                {
+                    "channel": "vercel-ai-gateway",
+                    "region": "global",
+                    "effective_from": "2026-01-01",
+                    "input_per_mtok": 1,
+                    "output_per_mtok": 4,
+                    "source_url": "https://example.com/models",
+                }
+            ],
+        }
+    )
+
+    operations = discovery_evidence(
+        source,
+        json.dumps(
+            {
+                "data": [
+                    {
+                        "id": "deepseek/deepseek-v4-flash-vision-exp",
+                        "owned_by": "deepseek",
+                        "type": "language",
+                        "pricing": {"input": "0.000001", "output": "0.000004"},
+                    }
+                ]
+            }
+        ),
+        document,
+        observed_on=OBSERVED_ON,
+    )["operations"]
+
+    alias = next(
+        operation["alias"]
+        for operation in operations
+        if operation["op"] == "add_alias"
+    )
+    assert alias["rules"] == {"input_includes_cache_read": True}
+
+
+def test_gateway_discovery_rejects_a_new_alias_with_a_different_channel_price():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        {
+            "canonical_id": "deepseek/deepseek-v4.1-flash",
+            "publisher": "deepseek",
+            "aliases": [
+                {
+                    "provider": "deepseek",
+                    "alias": "deepseek-v4-flash-vision-exp",
+                    "channel": "deepseek-api",
+                },
+                {
+                    "provider": "deepseek",
+                    "alias": "deepseek/deepseek-v4.1-flash",
+                    "channel": "vercel-ai-gateway",
+                },
+            ],
+            "prices": [
+                {
+                    "channel": "vercel-ai-gateway",
+                    "region": "global",
+                    "effective_from": "2026-01-01",
+                    "input_per_mtok": 1,
+                    "output_per_mtok": 4,
+                    "source_url": "https://example.com/models",
+                }
+            ],
+        }
+    )
+    page = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "deepseek/deepseek-v4-flash-vision-exp",
+                    "owned_by": "deepseek",
+                    "type": "language",
+                    "pricing": {"input": "0.000002", "output": "0.000004"},
+                }
+            ]
+        }
+    )
+
+    evidence = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )
+
+    assert evidence["operations"] == []
+    assert evidence["identity_exclusions"] == [
+        {
+            "model_key": "deepseek/deepseek-v4-flash-vision-exp",
+            "reason": "channel_price_conflict",
+            "candidates": ["deepseek/deepseek-v4.1-flash"],
+        }
+    ]
+
+
+def test_gateway_discovery_allows_a_direct_identity_price_change():
+    source = _gateway_source(provider="vercel", parser="vercel-gateway-json")
+    document = _document(
+        _model(
+            "example/model-new",
+            "example/model-new",
+            {
+                "channel": "vercel-ai-gateway",
+                "region": "global",
+                "effective_from": "2026-01-01",
+                "input_per_mtok": 0.5,
+                "output_per_mtok": 2,
+                "source_url": "https://example.com/models",
+            },
+            channel="vercel-ai-gateway",
+            provider="example",
+        )
+    )
+    page = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "example/model-new",
+                    "owned_by": "example",
+                    "type": "language",
+                    "pricing": {"input": "0.000001", "output": "0.000004"},
+                }
+            ]
+        }
+    )
+
+    operations = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )["operations"]
+
+    assert sorted(operation["op"] for operation in operations) == [
+        "add_alias",
+        "replace_price",
+    ]
+
+
+def test_gateway_discovery_reports_near_identity_instead_of_adding_a_model():
+    source = _gateway_source()
+    document = _document(
+        _model(
+            "mistral/mistral-medium-3.5",
+            "mistral-medium-3.5",
+            _row(input_per_mtok=1, output_per_mtok=4),
+        )
+    )
+    page = _openrouter_page(
+        _openrouter_model("mistralai/mistral-medium-3-5")
+    )
+
+    evidence = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )
+    assert evidence["operations"] == []
+    assert evidence["identity_exclusions"] == [
+        {
+            "model_key": "mistralai/mistral-medium-3-5",
+            "reason": "ambiguous_identity",
+            "candidates": ["mistral/mistral-medium-3.5"],
+        }
+    ]
+
+
+def test_gateway_discovery_reports_colliding_operations():
+    source = _gateway_source()
+    document = _document(
+        {
+            "canonical_id": "example/model",
+            "publisher": "example",
+            "aliases": [
+                {
+                    "provider": "example",
+                    "alias": "one",
+                    "channel": "example-api",
+                },
+                {
+                    "provider": "example",
+                    "alias": "two",
+                    "channel": "example-api",
+                },
+            ],
+            "prices": [_row(input_per_mtok=1, output_per_mtok=4)],
+        }
+    )
+    page = _openrouter_page(
+        _openrouter_model("example/one"),
+        _openrouter_model("example/two"),
+    )
+
+    evidence = discovery_evidence(
+        source, page, document, observed_on=OBSERVED_ON
+    )
+    assert sorted(operation["op"] for operation in evidence["operations"]) == [
+        "add_alias",
+        "add_alias",
+        "add_price",
+    ]
+    assert evidence["operation_collisions"] == [
+        {
+            "canonical_id": "example/model",
+            "operation": "add_price",
+            "reason": "identical_operation_deduplicated",
+            "candidate_count": 2,
+        }
+    ]
+
+
+def test_gateway_discovery_blocks_conflicting_operations():
+    source = _gateway_source()
+    document = _document(
+        {
+            "canonical_id": "example/model",
+            "publisher": "example",
+            "aliases": [
+                {"provider": "example", "alias": "one", "channel": "example-api"},
+                {"provider": "example", "alias": "two", "channel": "example-api"},
+            ],
+            "prices": [_row(input_per_mtok=1, output_per_mtok=4)],
+        }
+    )
+    second = _openrouter_model("example/two")
+    second["pricing"]["prompt"] = "0.000002"
+
+    evidence = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model("example/one"), second),
+        document,
+        observed_on=OBSERVED_ON,
+    )
+
+    assert evidence["operations"] == []
+    assert evidence["operation_collisions"] == [
+        {
+            "canonical_id": "example/model",
+            "operation": "add_price",
+            "reason": "conflicting_operation",
+            "candidate_count": 2,
+        }
+    ]
+
+
+def test_gateway_discovery_blocks_operations_on_a_fingerprint_change():
+    source = _registry(
+        _source(
+            "gateway-models",
+            "openrouter-json",
+            "openrouter-api",
+            "openrouter",
+            low_risk=False,
+            fingerprint="sha256:" + "0" * 64,
+            url="https://example.com/openrouter/models",
+        )
+    ).get("gateway-models")
+
+    evidence = discovery_evidence(
+        source,
+        _openrouter_page(_openrouter_model()),
+        _document(),
+        observed_on=OBSERVED_ON,
+    )
+    assert evidence["fingerprint_matches"] is False
+    assert evidence["operations"] == []
+    assert evidence["operations_blocked_reason"] == "fingerprint_mismatch"
+
+
+def test_gateway_discovery_accepts_a_zero_rate_on_one_paid_dimension():
+    source = _gateway_source()
+    page = _openrouter_page(
+        {
+            "id": "scaledown/input-only",
+            "architecture": {"output_modalities": ["text"]},
+            "pricing": {"prompt": "0.00000004", "completion": "0"},
+        }
+    )
+    initial = discovery_evidence(
+        source, page, _document(), observed_on=OBSERVED_ON
+    )
+    delta = {
+        "schema_version": 2,
+        "kind": "pricing_delta",
+        "provenance": {"observations": ["gateway-models@2026-10-20"]},
+        "operations": initial["operations"],
+    }
+    updated = apply_catalog_delta(_document(), delta)
+
+    repeated = discovery_evidence(
+        source, page, updated, observed_on=OBSERVED_ON
+    )
+    assert repeated["operations"] == []
+    assert repeated["candidates"] == []
 
 
 def test_discovery_evidence_for_gpu_licensing_carries_no_token_candidates():

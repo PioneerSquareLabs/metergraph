@@ -1,16 +1,13 @@
 """Deterministic extraction from supplied source content: rates, structural
 fingerprints, and discovery-only evidence. Nothing here fetches."""
 
+import json
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
 
-from metergraph_core.extractors import (
-    ExtractedRate,
-    extract,
-    structural_fingerprint,
-)
+from metergraph_core.extractors import ExtractedRate, extract, structural_fingerprint
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sources"
 # Generic synthetic pages for the discovery parsers, standing for no
@@ -87,6 +84,248 @@ def test_extracted_rates_are_immutable():
     assert isinstance(rate, ExtractedRate)
     with pytest.raises(TypeError):
         rate.rates["input_per_mtok"] = D("0")
+
+
+def test_vercel_gateway_json_extracts_paid_language_rates_and_rules():
+    content = json.dumps(
+        {
+            "object": "list",
+            "data": [
+                {
+                    "id": "openai/gpt-example",
+                    "type": "language",
+                    "owned_by": "openai",
+                    "pricing": {
+                        "input": "0.000002",
+                        "output": "0.000008",
+                        "input_cache_read": "0.0000002",
+                        "input_cache_write": "0.0000025",
+                        "varies_by_provider": True,
+                    },
+                },
+                {
+                    "id": "openai/image-example",
+                    "type": "image",
+                    "owned_by": "openai",
+                    "pricing": {"input": "0.000001", "output": "0.000004"},
+                },
+                {
+                    "id": "reflection/free-example",
+                    "type": "language",
+                    "owned_by": "reflection",
+                    "pricing": {"input": "0", "output": "0"},
+                },
+                {
+                    "id": "scaledown/input-only",
+                    "type": "language",
+                    "owned_by": "scaledown",
+                    "pricing": {"input": "0.00000005", "output": "0"},
+                },
+                {
+                    "id": "openai/tiered-example",
+                    "type": "language",
+                    "owned_by": "openai",
+                    "pricing": {
+                        "input": "0.000001",
+                        "output": "0.000004",
+                        "input_tiers": [{"min": 0, "cost": "0.000001"}],
+                    },
+                },
+                {
+                    "id": "openai/search-example",
+                    "type": "language",
+                    "owned_by": "openai",
+                    "pricing": {
+                        "input": "0.000001",
+                        "output": "0.000004",
+                        "web_search": "0.01",
+                    },
+                },
+                {
+                    "id": "openai/unknown-pricing-example",
+                    "type": "language",
+                    "owned_by": "openai",
+                    "pricing": {
+                        "input": "0.000001",
+                        "output": "0.000004",
+                        "future_tier": [{"min": 1}],
+                    },
+                },
+            ],
+        }
+    )
+
+    result = extract("vercel-gateway-json", content)
+
+    assert _rates(result) == {
+        ("openai/gpt-example", "global"): {
+            "input_per_mtok": D("2"),
+            "output_per_mtok": D("8"),
+            "cache_read_per_mtok": D("0.2"),
+            "cache_write_5m_per_mtok": D("2.5"),
+        },
+        ("scaledown/input-only", "global"): {
+            "input_per_mtok": D("0.05"),
+            "output_per_mtok": D("0"),
+        },
+    }
+    [rate] = [row for row in result.rates if row.model_key == "openai/gpt-example"]
+    assert dict(rate.meta) == {
+        "publisher": "openai",
+        "alias_rules": {
+            "input_includes_cache_read": True,
+            "input_includes_cache_write": True,
+        },
+        "price_rules": {"varies_by_provider": True},
+    }
+    assert [(item.model_key, item.reason) for item in result.exclusions] == [
+        ("openai/image-example", "not_language"),
+        ("openai/search-example", "unsupported_charge"),
+        ("openai/tiered-example", "conditional_price"),
+        ("openai/unknown-pricing-example", "unknown_pricing_field"),
+        ("reflection/free-example", "non_positive_token_price"),
+    ]
+
+
+def test_openrouter_json_keeps_only_static_complete_token_prices():
+    content = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "example/model-a",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {
+                        "prompt": "0.00000125",
+                        "completion": "0.0000045",
+                        "input_cache_read": "0.000000125",
+                        "input_cache_write_1h": "0.00000025",
+                        "request": "0.002",
+                    },
+                },
+                {
+                    "id": "example/model-free:free",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {"prompt": "0", "completion": "0"},
+                },
+                {
+                    "id": "~example/model-latest",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {"prompt": "0.000001", "completion": "0.000004"},
+                },
+                {
+                    "id": "scaledown/input-only",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {"prompt": "0.00000004", "completion": "0"},
+                },
+                {
+                    "id": "example/model-dynamic",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {
+                        "prompt": "0.000001",
+                        "completion": "0.000004",
+                        "overrides": [{"utc_days": ["monday"]}],
+                    },
+                },
+                {
+                    "id": "example/model-image",
+                    "architecture": {"output_modalities": ["image"]},
+                    "pricing": {"prompt": "0.000001", "completion": "0.000004"},
+                },
+                {
+                    "id": "example/model-extra-charge",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {
+                        "prompt": "0.000001",
+                        "completion": "0.000004",
+                        "image": "0.001",
+                    },
+                },
+                {
+                    "id": "example/model-audio-output",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {
+                        "prompt": "0.000001",
+                        "completion": "0.000004",
+                        "audio_output": "0.001",
+                    },
+                },
+                {
+                    "id": "example/model-unknown-pricing",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {
+                        "prompt": "0.000001",
+                        "completion": "0.000004",
+                        "future_surcharge": "0.001",
+                    },
+                },
+            ]
+        }
+    )
+
+    result = extract("openrouter-json", content)
+
+    assert _rates(result) == {
+        ("example/model-a", "global"): {
+            "input_per_mtok": D("1.25"),
+            "output_per_mtok": D("4.5"),
+            "cache_read_per_mtok": D("0.125"),
+            "cache_write_1h_per_mtok": D("0.25"),
+            "request_fee_per_1k_usd": D("2"),
+        },
+        ("scaledown/input-only", "global"): {
+            "input_per_mtok": D("0.04"),
+            "output_per_mtok": D("0"),
+        },
+    }
+    [rate] = [row for row in result.rates if row.model_key == "example/model-a"]
+    assert dict(rate.meta) == {
+        "publisher": "example",
+        "alias_rules": {
+            "input_includes_cache_read": True,
+            "input_includes_cache_write": True,
+        },
+        "price_rules": {"varies_by_provider": True},
+    }
+    assert [(item.model_key, item.reason) for item in result.exclusions] == [
+        ("example/model-audio-output", "unsupported_charge"),
+        ("example/model-dynamic", "conditional_price"),
+        ("example/model-extra-charge", "unsupported_charge"),
+        ("example/model-free:free", "free_route"),
+        ("example/model-image", "non_text_output"),
+        ("example/model-unknown-pricing", "unknown_pricing_field"),
+        ("~example/model-latest", "floating_route"),
+    ]
+
+
+@pytest.mark.parametrize("parser", ["vercel-gateway-json", "openrouter-json"])
+def test_gateway_json_fingerprint_tracks_shape_not_values_or_models(parser):
+    base = json.dumps(
+        {
+            "data": [
+                {
+                    "id": "example/model-a",
+                    "type": "language",
+                    "owned_by": "example",
+                    "architecture": {"output_modalities": ["text"]},
+                    "pricing": {"input": "0.1", "output": "0.2", "prompt": "0.1", "completion": "0.2"},
+                }
+            ]
+        }
+    )
+    changed_values = base.replace("model-a", "model-b").replace("0.1", "0.3")
+    changed_shape = base.replace('"pricing":', '"new_field": true, "pricing":')
+
+    assert structural_fingerprint(parser, changed_values) == structural_fingerprint(parser, base)
+    assert structural_fingerprint(parser, changed_shape) != structural_fingerprint(parser, base)
+
+
+@pytest.mark.parametrize("parser", ["vercel-gateway-json", "openrouter-json"])
+def test_invalid_gateway_json_is_reported_without_rates(parser):
+    result = extract(parser, "not json")
+
+    assert result.applicable is False
+    assert result.rates == ()
+    assert result.evidence == {"kind": "gateway_models", "valid_json": False}
 
 
 # Each low-risk parser's fixture with a price changed, with a model added, and

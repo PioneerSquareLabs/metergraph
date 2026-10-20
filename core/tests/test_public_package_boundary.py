@@ -49,9 +49,9 @@ def test_the_source_registry_ships_as_package_data():
 
 
 PUBLIC_NAMES = [
-    "CatalogDelta", "CatalogDeltaConflict", "CatalogDeltaError", "DeltaConflict",
+    "CATALOG_DELTA_SCHEMA_VERSION", "CatalogDelta", "CatalogDeltaConflict", "CatalogDeltaError", "DeltaConflict",
     "Escalation", "ExtractedRate", "Extraction", "LowRiskPolicy",
-    "Observation", "PRICING_DELTA_SCHEMA_VERSION", "PriceRowKey", "PriceSource",
+    "Observation", "PriceRowKey", "PriceSource",
     "RefreshResult", "SOURCE_REGISTRY_SCHEMA_VERSION", "SourceRegistry",
     "SourceRegistryError", "apply_catalog_delta", "discovery_evidence", "extract",
     "load_catalog_document", "load_source_registry", "parse_catalog_delta",
@@ -66,7 +66,13 @@ def test_the_new_public_api_is_exported(name):
     assert getattr(metergraph_core, name) is not None
 
 
-@pytest.mark.parametrize("script", ["refresh_prices.py", "discover_prices.py"])
+def test_obsolete_pricing_delta_schema_constant_is_not_public():
+    assert not hasattr(metergraph_core, "PRICING_DELTA_SCHEMA_VERSION")
+
+
+@pytest.mark.parametrize(
+    "script", ["refresh_prices.py", "discover_prices.py", "apply_price_delta.py"]
+)
 def test_public_refresh_scripts_read_no_environment_or_credentials(script):
     tree = ast.parse((REPOSITORY / "scripts" / script).read_text())
     names = {node.attr for node in ast.walk(tree) if isinstance(node, ast.Attribute)}

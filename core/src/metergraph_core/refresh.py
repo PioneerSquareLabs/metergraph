@@ -26,8 +26,8 @@ from decimal import Decimal
 from typing import Any, Iterable, Mapping
 
 from .catalog_delta import (
+    CATALOG_DELTA_SCHEMA_VERSION,
     PRICING_DELTA_KIND,
-    PRICING_DELTA_SCHEMA_VERSION,
     RATE_FIELDS,
     PriceRowKey,
     _instant,
@@ -561,7 +561,7 @@ def plan_low_risk_refresh(
         if observation.fingerprint is not None:
             evidence.append({"source_id": source.id, "url": source.url, "fingerprint": observation.fingerprint})
     delta = {
-        "schema_version": PRICING_DELTA_SCHEMA_VERSION,
+        "schema_version": CATALOG_DELTA_SCHEMA_VERSION,
         "kind": PRICING_DELTA_KIND,
         "provenance": {
             "generator": "metergraph-core low-risk refresh",
@@ -587,6 +587,300 @@ def _rates_json(rates: Mapping[str, Any], dimensions: Iterable[str]) -> dict[str
     }
 
 
+def _gateway_alias(source: PriceSource, rate: ExtractedRate) -> dict[str, Any]:
+    alias = {
+        "provider": source.provider,
+        "alias": rate.model_key,
+        "channel": source.channel,
+    }
+    rules = dict(rate.meta.get("alias_rules") or {})
+    if rules:
+        alias["rules"] = rules
+    return alias
+
+
+def _gateway_price(
+    source: PriceSource, rate: ExtractedRate, observed_on: date
+) -> dict[str, Any]:
+    price: dict[str, Any] = {
+        "channel": source.channel,
+        "region": rate.region,
+        "effective_from": observed_on.isoformat(),
+    }
+    for field in RATE_FIELDS:
+        if field in rate.rates:
+            price[field] = _money(rate.rates[field])
+    rules = dict(rate.meta.get("price_rules") or {})
+    if rules:
+        price["rules"] = rules
+    price["source_url"] = source.url
+    return price
+
+
+# Reviewed gateway spellings for publishers the catalog already names.
+_GATEWAY_PUBLISHER_PREFIXES = {
+    "mistralai": "mistral",
+    "qwen": "alibaba",
+    "z-ai": "zai",
+}
+
+
+def _catalog_gateway_identity(model_key: str) -> str:
+    prefix, separator, suffix = model_key.strip().lower().partition("/")
+    if not separator:
+        return model_key.strip().lower()
+    return f"{_GATEWAY_PUBLISHER_PREFIXES.get(prefix, prefix)}/{suffix}"
+
+
+def _catalog_publisher(provider: Any) -> str:
+    value = str(provider or "").strip().lower()
+    return _GATEWAY_PUBLISHER_PREFIXES.get(value, value)
+
+
+def _identity_shape(model_key: str) -> tuple[str, str]:
+    prefix, _, suffix = _catalog_gateway_identity(model_key).partition("/")
+    return prefix, "".join(character for character in suffix if character.isalnum())
+
+
+def _exact_models(
+    document: Mapping[str, Any], model_key: str
+) -> list[Mapping[str, Any]]:
+    publisher, _, _ = _catalog_gateway_identity(model_key).partition("/")
+    wanted = {
+        model_key.strip().lower(),
+        _catalog_gateway_identity(model_key),
+    }
+    found: list[Mapping[str, Any]] = []
+    for entry in document.get("models") or []:
+        if not isinstance(entry, Mapping):
+            continue
+        names = {str(entry.get("canonical_id") or "").strip().lower()}
+        names.update(
+            str(alias.get("alias") or "").strip().lower()
+            for alias in entry.get("aliases") or []
+            if isinstance(alias, Mapping)
+        )
+        names.update(
+            f"{publisher}/{str(alias.get('alias') or '').strip().lower()}"
+            for alias in entry.get("aliases") or []
+            if isinstance(alias, Mapping)
+            and _catalog_publisher(alias.get("provider")) == publisher
+        )
+        if wanted & names:
+            found.append(entry)
+    return found
+
+
+def _near_models(
+    document: Mapping[str, Any], model_key: str
+) -> list[Mapping[str, Any]]:
+    wanted = _identity_shape(model_key)
+    found = []
+    for entry in document.get("models") or []:
+        if not isinstance(entry, Mapping):
+            continue
+        shapes = {_identity_shape(str(entry.get("canonical_id") or ""))}
+        shapes.update(
+            _identity_shape(
+                f"{_catalog_publisher(alias.get('provider'))}/"
+                f"{str(alias.get('alias') or '').strip().lower()}"
+            )
+            for alias in entry.get("aliases") or []
+            if isinstance(alias, Mapping)
+        )
+        if wanted in shapes:
+            found.append(entry)
+    return found
+
+
+def _gateway_additions(
+    source: PriceSource,
+    extraction: Extraction,
+    document: Mapping[str, Any],
+    observed_on: date,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Reviewed additive operations for exact gateway model identities."""
+    operations: list[dict[str, Any]] = []
+    identity_exclusions: list[dict[str, Any]] = []
+    for rate in extraction.rates:
+        matches = _exact_models(document, rate.model_key)
+        if not matches:
+            near = _near_models(document, rate.model_key)
+            if near:
+                identity_exclusions.append(
+                    {
+                        "model_key": rate.model_key,
+                        "reason": "ambiguous_identity",
+                        "candidates": sorted(
+                            str(entry["canonical_id"]) for entry in near
+                        ),
+                    }
+                )
+                continue
+            canonical_id = _catalog_gateway_identity(rate.model_key)
+            publisher = str(
+                rate.meta.get("publisher") or canonical_id.split("/", 1)[0]
+            ).strip().lower()
+            publisher = _GATEWAY_PUBLISHER_PREFIXES.get(publisher, publisher)
+            operations.append(
+                {
+                    "op": "add_model",
+                    "key": {"canonical_id": canonical_id},
+                    "expect": None,
+                    "model": {
+                        "canonical_id": canonical_id,
+                        "publisher": publisher,
+                        "aliases": [_gateway_alias(source, rate)],
+                        "prices": [_gateway_price(source, rate, observed_on)],
+                    },
+                }
+            )
+            continue
+        if len(matches) != 1:
+            identity_exclusions.append(
+                {
+                    "model_key": rate.model_key,
+                    "reason": "ambiguous_identity",
+                    "candidates": sorted(
+                        str(entry["canonical_id"]) for entry in matches
+                    ),
+                }
+            )
+            continue
+        entry = matches[0]
+        canonical_id = str(entry["canonical_id"])
+        raw_names = {canonical_id.strip().lower()}
+        raw_names.update(
+            str(current.get("alias") or "").strip().lower()
+            for current in entry.get("aliases") or []
+            if isinstance(current, Mapping)
+        )
+        derived_identity = not (
+            {
+                rate.model_key.strip().lower(),
+                _catalog_gateway_identity(rate.model_key),
+            }
+            & raw_names
+        )
+        alias = _gateway_alias(source, rate)
+        channel_aliases = [
+            current
+            for current in entry.get("aliases") or []
+            if isinstance(current, Mapping)
+            and current.get("channel") == source.channel
+        ]
+        if channel_aliases:
+            alias.pop("rules", None)
+            if channel_aliases[0].get("rules"):
+                alias["rules"] = copy.deepcopy(channel_aliases[0]["rules"])
+        has_alias = any(
+            isinstance(current, Mapping)
+            and str(current.get("provider") or "").strip().lower()
+            == source.provider.lower()
+            and str(current.get("alias") or "").strip().lower()
+            == rate.model_key.lower()
+            and current.get("channel") == source.channel
+            for current in entry.get("aliases") or []
+        )
+        active_channel_prices = [
+            row
+            for row in entry.get("prices") or []
+            if isinstance(row, Mapping)
+            and row.get("channel") == source.channel
+            and str(row.get("region") or "global") == rate.region
+            and _in_effect(row, observed_on, dated=True)
+        ]
+        candidate_rates = _rates_json(rate.rates, source.dimensions)
+        if (
+            not has_alias
+            and derived_identity
+            and active_channel_prices
+            and not any(
+                _rates_json(row, candidate_rates) == candidate_rates
+                for row in active_channel_prices
+            )
+        ):
+            identity_exclusions.append(
+                {
+                    "model_key": rate.model_key,
+                    "reason": "channel_price_conflict",
+                    "candidates": [canonical_id],
+                }
+            )
+            continue
+        if not has_alias:
+            operations.append(
+                {
+                    "op": "add_alias",
+                    "key": {
+                        "canonical_id": canonical_id,
+                        "provider": source.provider,
+                        "alias": rate.model_key,
+                        "channel": source.channel,
+                    },
+                    "expect": None,
+                    "alias": alias,
+                }
+            )
+        has_current_price = bool(active_channel_prices)
+        if not has_current_price:
+            operations.append(
+                {
+                    "op": "add_price",
+                    "key": {
+                        "canonical_id": canonical_id,
+                        "channel": source.channel,
+                        "region": rate.region,
+                        "effective_from": observed_on.isoformat(),
+                    },
+                    "expect": None,
+                    "price": _gateway_price(source, rate, observed_on),
+                }
+            )
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for operation in operations:
+        target = operation["op"], _canonical_json(operation["key"])
+        grouped.setdefault(target, []).append(operation)
+    retained: list[dict[str, Any]] = []
+    colliding_models: set[str] = set()
+    operation_collisions: list[dict[str, Any]] = []
+    for (operation_name, _), candidates in grouped.items():
+        if len(candidates) == 1:
+            retained.extend(candidates)
+            continue
+        canonical_id = str(candidates[0]["key"]["canonical_id"])
+        if len({_canonical_json(candidate) for candidate in candidates}) == 1:
+            retained.append(candidates[0])
+            operation_collisions.append(
+                {
+                    "canonical_id": canonical_id,
+                    "operation": operation_name,
+                    "reason": "identical_operation_deduplicated",
+                    "candidate_count": len(candidates),
+                }
+            )
+            continue
+        colliding_models.add(canonical_id)
+        operation_collisions.append(
+            {
+                "canonical_id": canonical_id,
+                "operation": operation_name,
+                "reason": "conflicting_operation",
+                "candidate_count": len(candidates),
+            }
+        )
+    operations = [
+        operation
+        for operation in retained
+        if operation["key"]["canonical_id"] not in colliding_models
+    ]
+    operation_collisions.sort(
+        key=lambda item: (item["canonical_id"], item["operation"])
+    )
+    identity_exclusions.sort(key=lambda item: item["model_key"])
+    return operations, identity_exclusions, operation_collisions
+
+
 def discovery_evidence(
     source: PriceSource,
     content: str,
@@ -603,6 +897,8 @@ def discovery_evidence(
     extraction = extract(source.parser, content)
     candidates: list[dict[str, Any]] = []
     operations: list[dict[str, Any]] = []
+    identity_exclusions: list[dict[str, Any]] = []
+    operation_collisions: list[dict[str, Any]] = []
     if extraction.applicable:
         matches, unclaimed = _match(source, extraction, document, observed_on)
         for match in matches:
@@ -615,7 +911,15 @@ def discovery_evidence(
             missing = [d for d in prior if d not in candidate]
             # A catalog rate that is not a positive finite number is shown as
             # written and blocks any proposed operation.
-            invalid = [d for d in prior if _valid_rate(match.row[d]) is None]
+            invalid = [
+                dimension
+                for dimension in prior
+                if _valid_rate(match.row[dimension]) is None
+                and not (
+                    _carryable(match.row[dimension])
+                    and _rate(candidate.get(dimension)) == 0
+                )
+            ]
             # A replacement copies every other rate the row carries; one that
             # is not a valid delta value would break the delta or be dropped.
             invalid += [
@@ -654,6 +958,33 @@ def discovery_evidence(
                 {"model_key": rate.model_key, "region": rate.region, "canonical_id": None, "reason": reason, "prior": None, "candidate": _rates_json(rate.rates, source.dimensions), "missing_dimensions": [], "invalid_dimensions": []}
             )
         candidates.sort(key=lambda c: (c["model_key"], c["region"]))
+        if source.parser in {"vercel-gateway-json", "openrouter-json"}:
+            additions, identity_exclusions, operation_collisions = _gateway_additions(
+                source, extraction, document, observed_on
+            )
+            additions_by_target = {
+                (operation["op"], _canonical_json(operation["key"])): operation
+                for operation in additions
+            }
+            existing = {
+                (operation["op"], _canonical_json(operation["key"]))
+                for operation in operations
+            }
+            operations.extend(
+                operation
+                for target, operation in additions_by_target.items()
+                if target not in existing
+            )
+    operations_blocked_reason = None
+    if (
+        source.fingerprint is not None
+        and extraction.fingerprint != source.fingerprint
+    ):
+        operations = []
+        operations_blocked_reason = "fingerprint_mismatch"
+    exclusions = dict(
+        sorted(Counter(item.reason for item in extraction.exclusions).items())
+    )
     return {
         "source_id": source.id,
         "provider": source.provider,
@@ -666,10 +997,14 @@ def discovery_evidence(
         "fingerprint_matches": extraction.fingerprint == source.fingerprint,
         "applicable": extraction.applicable,
         "ambiguities": list(extraction.ambiguities),
+        "exclusions": exclusions,
+        "identity_exclusions": identity_exclusions,
+        "operation_collisions": operation_collisions,
         "candidates": candidates,
-        # Reviewable replace_price operations for changed catalog rows; new
-        # models and regions stay evidence only. Dates are reported as text.
+        # Reviewable changes. Exact structured gateway identities may add
+        # models or aliases; other unknown models stay evidence only.
         "operations": _canonical_value(operations),
+        "operations_blocked_reason": operations_blocked_reason,
         # Raw page content is never emitted: extractor evidence is always
         # reduced to normalized facts, with no page cell or sentence verbatim.
         "evidence": redact_evidence(extraction.evidence),

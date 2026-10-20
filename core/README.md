@@ -217,7 +217,7 @@ A pricing delta proposes changes to a catalog's price rows. It is a change
 artifact to review and apply, never a catalog to serve.
 
 ```yaml
-schema_version: 1
+schema_version: 2
 kind: pricing_delta
 provenance:
   observations: [openai-api-pricing@2026-10-20]
@@ -314,12 +314,12 @@ only the labels, headers and key paths that parser relies on, so a price change
 or a newly listed model keeps the fingerprint and a format change alters it.
 Extractors never fetch. The package adds no browser or LLM dependency.
 
-## Refresh and discovery scripts
+## Pricing maintenance scripts
 
-Two repository scripts run the registry against live sources. Neither holds
-credentials, applies a delta, writes the catalog, publishes, or touches GitHub.
+The repository scripts run the registry against live sources without credentials
+or GitHub access.
 
-Neither ever emits, stores or redistributes raw fetched page content. Their
+The fetch-capable scripts never emit, store or redistribute raw page content. Their
 reports and evidence files hold only structural fingerprints, normalized
 extracted values (row labels as slugs, parsed amounts, numeric candidates),
 candidates, operations and short non-verbatim diagnostics. No output may name
@@ -342,7 +342,7 @@ an escalation, and 1 on error.
 behind a refresh report's escalations (`--escalations`), and new-source content
 from a file or stdin (`--new-source`, never a URL). It prints evidence for each:
 candidate and prior values, the reason for review, normalized page facts, and a
-proposed delta for changed catalog rows. An optional adapter
+proposed delta for supported catalog changes. An optional adapter
 (`--llm-adapter module:callable`) is called as
 `propose(source, content, current_rows)` and returns delta operations. Its
 output is kept as review evidence only after it passes schema validation and
@@ -350,7 +350,20 @@ encodes as strict JSON. Adapter failures and rejected items are reported with
 stable codes, never with the adapter's own text. Everything discovery emits
 requires review.
 
-Both read `<source-id>.*` files from `--content-dir` instead of fetching. The
+For structured gateway feeds, discovery also proposes `add_model` and
+`add_alias` operations when an exact model identity is safe to extend. Free,
+conditional, tiered, regional and unsupported-charge rows remain exclusions.
+After review, `scripts/apply_price_delta.py --reviewed` writes additive operations
+to a new catalog path while preserving existing comments. It rejects in-place
+writes and history-changing operations, then verifies the rendered catalog
+against the pure delta result.
+
+Apply overlapping gateway sources sequentially. Run discovery for the next
+source against the prior candidate so a shared new model becomes an alias and
+price on one canonical entry instead of a conflicting second `add_model`.
+
+The fetch-capable scripts read `<source-id>.*` files from `--content-dir` instead
+of fetching. The
 tests use one synthetic fixture per low-risk source, plus OpenAI's, in
 `tests/fixtures/sources/`, reproducing only the structure its parser reads;
 the generic discovery parsers are tested on small inline synthetic pages.

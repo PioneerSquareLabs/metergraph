@@ -1,9 +1,9 @@
-"""Pricing deltas: proposed changes to the price rows of a catalog document.
+"""Pricing deltas: proposed changes to a catalog document.
 
 A delta never serves prices. It names each target row by its identity
 ``(canonical_id, channel, region, effective_from)``, carries the row's
 expected current state as a precondition, and carries the new
-effective-dated value. Schema version 1 covers price rows on models the
+effective-dated value. The current schema supports price rows on models the
 catalog already has:
 
 - ``add_price`` appends a row; ``expect`` is null because no such row may
@@ -11,6 +11,11 @@ catalog already has:
 - ``replace_price`` closes the open row at the new row's ``effective_from``
   and appends the new row. History is never rewritten.
 - ``close_price`` closes the open row without a replacement.
+
+It also supports reviewed catalog expansion:
+
+- ``add_model`` appends one complete model entry.
+- ``add_alias`` appends one alias to an existing model.
 
 ``provenance`` references the observations and evidence the delta came
 from.
@@ -26,9 +31,11 @@ from typing import Any, Mapping
 
 from .loader import CatalogError, _canonical_json, load_catalog_document
 
-PRICING_DELTA_SCHEMA_VERSION = 1
+CATALOG_DELTA_SCHEMA_VERSION = 2
 PRICING_DELTA_KIND = "pricing_delta"
-OPERATIONS = ("add_price", "replace_price", "close_price")
+PRICE_OPERATIONS = ("add_price", "replace_price", "close_price")
+CATALOG_OPERATIONS = ("add_model", "add_alias")
+OPERATIONS = PRICE_OPERATIONS + CATALOG_OPERATIONS
 
 RATE_FIELDS = (
     "input_per_mtok",
@@ -59,12 +66,28 @@ class PriceRowKey:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelKey:
+    canonical_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class AliasKey:
+    canonical_id: str
+    provider: str
+    alias: str
+    channel: str
+
+
+OperationKey = PriceRowKey | ModelKey | AliasKey
+
+
+@dataclass(frozen=True, slots=True)
 class DeltaConflict:
     """One operation whose precondition does not hold against the document."""
 
     index: int
     op: str
-    key: PriceRowKey
+    key: OperationKey
     reason: str
     detail: str = ""
 
@@ -75,8 +98,7 @@ class CatalogDeltaConflict(CatalogDeltaError):
     def __init__(self, conflicts: tuple[DeltaConflict, ...]) -> None:
         self.conflicts = conflicts
         summary = "; ".join(
-            f"operation {c.index} {c.op} {c.key.canonical_id} "
-            f"{c.key.channel}/{c.key.region}@{c.key.effective_from}: {c.reason}"
+            f"operation {c.index} {c.op} {_key_label(c.key)}: {c.reason}"
             + (f" ({c.detail})" if c.detail else "")
             for c in conflicts
         )
@@ -87,13 +109,17 @@ class CatalogDeltaConflict(CatalogDeltaError):
 class DeltaOperation:
     index: int
     op: str
-    key: PriceRowKey
+    key: OperationKey
     # The exact current row for replace/close; None for add.
     expect: Mapping[str, Any] | None
     # The new row for add/replace; None for close.
     price: Mapping[str, Any] | None
     # The closing date for close_price.
     effective_to: str | None
+    # The complete entry for add_model.
+    model: Mapping[str, Any] | None = None
+    # The alias row for add_alias.
+    alias: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,6 +187,31 @@ def _parse_key(raw: Any, label: str) -> PriceRowKey:
     )
 
 
+def _parse_model_key(raw: Any, label: str) -> ModelKey:
+    if not isinstance(raw, Mapping):
+        raise CatalogDeltaError(f"{label}: key must be a mapping")
+    if set(raw) != {"canonical_id"} or _text(raw.get("canonical_id")) is None:
+        raise CatalogDeltaError(f"{label}: add_model key needs only canonical_id")
+    return ModelKey(_text(raw["canonical_id"]))
+
+
+def _parse_alias_key(raw: Any, label: str) -> AliasKey:
+    if not isinstance(raw, Mapping):
+        raise CatalogDeltaError(f"{label}: key must be a mapping")
+    fields = ("canonical_id", "provider", "alias", "channel")
+    for field in fields:
+        if _text(raw.get(field)) is None:
+            raise CatalogDeltaError(f"{label}: key needs {field}")
+    if set(raw) != set(fields):
+        raise CatalogDeltaError(f"{label}: add_alias key has unknown fields")
+    return AliasKey(
+        _text(raw["canonical_id"]),
+        _text(raw["provider"]).lower(),
+        _text(raw["alias"]).lower(),
+        _text(raw["channel"]),
+    )
+
+
 def _decimal_string(value: Any) -> bool:
     if not isinstance(value, str):
         return False
@@ -206,6 +257,62 @@ def _parse_price(raw: Any, key: PriceRowKey, label: str, *, same_date: bool) -> 
     return price
 
 
+def _probe_document(model: Mapping[str, Any]) -> None:
+    load_catalog_document(
+        {
+            "version": "probe",
+            "currency": "USD",
+            "pricing_verified_at": "2026-10-20",
+            "models": [copy.deepcopy(dict(model))],
+        }
+    )
+
+
+def _parse_model(raw: Any, key: ModelKey, label: str) -> dict[str, Any]:
+    if not isinstance(raw, Mapping):
+        raise CatalogDeltaError(f"{label}: invalid model: entry must be a mapping")
+    model = copy.deepcopy(dict(raw))
+    if _text(model.get("canonical_id")) != key.canonical_id:
+        raise CatalogDeltaError(f"{label}: model canonical_id must match key")
+    if _text(model.get("publisher")) is None:
+        raise CatalogDeltaError(f"{label}: invalid model: entry needs publisher")
+    if not isinstance(model.get("aliases"), list) or not model["aliases"]:
+        raise CatalogDeltaError(f"{label}: invalid model: entry needs aliases")
+    if not isinstance(model.get("prices"), list) or not model["prices"]:
+        raise CatalogDeltaError(f"{label}: invalid model: entry needs prices")
+    try:
+        _probe_document(model)
+    except CatalogError as exc:
+        raise CatalogDeltaError(f"{label}: invalid model: {exc}") from exc
+    return model
+
+
+def _parse_alias(raw: Any, key: AliasKey, label: str) -> dict[str, Any]:
+    if not isinstance(raw, Mapping):
+        raise CatalogDeltaError(f"{label}: alias must be a mapping")
+    alias = copy.deepcopy(dict(raw))
+    for field in ("provider", "alias", "channel"):
+        value = _text(alias.get(field))
+        if value is None:
+            raise CatalogDeltaError(f"{label}: alias needs {field}")
+        normalized = value.lower() if field in ("provider", "alias") else value
+        if normalized != getattr(key, field):
+            raise CatalogDeltaError(f"{label}: alias {field} must match key")
+        alias[field] = normalized
+    try:
+        _probe_document(
+            {
+                "canonical_id": key.canonical_id,
+                "publisher": "probe",
+                "aliases": [alias],
+                "prices": [],
+            }
+        )
+    except CatalogError as exc:
+        raise CatalogDeltaError(f"{label}: invalid alias: {exc}") from exc
+    return alias
+
+
 def _parse_operation(index: int, raw: Any) -> DeltaOperation:
     label = f"operation {index}"
     if not isinstance(raw, Mapping):
@@ -213,16 +320,31 @@ def _parse_operation(index: int, raw: Any) -> DeltaOperation:
     op = raw.get("op")
     if op not in OPERATIONS:
         raise CatalogDeltaError(f"{label}: unknown op {op!r}")
-    key = _parse_key(raw.get("key"), label)
+    if op == "add_model":
+        key: OperationKey = _parse_model_key(raw.get("key"), label)
+    elif op == "add_alias":
+        key = _parse_alias_key(raw.get("key"), label)
+    else:
+        key = _parse_key(raw.get("key"), label)
     expect = raw.get("expect")
-    if op == "add_price":
+    if op in ("add_price", "add_model", "add_alias"):
         if "expect" not in raw or expect is not None:
-            raise CatalogDeltaError(f"{label}: add_price expect must be null")
+            raise CatalogDeltaError(f"{label}: {op} expect must be null")
     elif not isinstance(expect, Mapping):
         raise CatalogDeltaError(f"{label}: {op} expect must be the full current row")
     price = None
     effective_to = None
-    if op == "close_price":
+    model = None
+    alias = None
+    if op == "add_model":
+        if "price" in raw or "alias" in raw or "effective_to" in raw:
+            raise CatalogDeltaError(f"{label}: add_model takes only model")
+        model = _parse_model(raw.get("model"), key, label)
+    elif op == "add_alias":
+        if "price" in raw or "model" in raw or "effective_to" in raw:
+            raise CatalogDeltaError(f"{label}: add_alias takes only alias")
+        alias = _parse_alias(raw.get("alias"), key, label)
+    elif op == "close_price":
         if "price" in raw:
             raise CatalogDeltaError(f"{label}: close_price takes no price")
         effective_to = _iso_date(raw.get("effective_to"))
@@ -243,16 +365,18 @@ def _parse_operation(index: int, raw: Any) -> DeltaOperation:
         expect=copy.deepcopy(dict(expect)) if expect is not None else None,
         price=price,
         effective_to=effective_to,
+        model=model,
+        alias=alias,
     )
 
 
 def parse_catalog_delta(delta_document: Mapping[str, Any]) -> CatalogDelta:
-    """Validate a delta document against schema version 1 without applying
+    """Validate a delta document without applying
     it. Raises :class:`CatalogDeltaError` naming the first malformed part."""
     if not isinstance(delta_document, Mapping):
         raise CatalogDeltaError("delta document must be a mapping")
     version = delta_document.get("schema_version")
-    if version != PRICING_DELTA_SCHEMA_VERSION:
+    if version != CATALOG_DELTA_SCHEMA_VERSION:
         raise CatalogDeltaError(f"unsupported delta schema_version {version}")
     if delta_document.get("kind") != PRICING_DELTA_KIND:
         raise CatalogDeltaError(f"delta kind must be {PRICING_DELTA_KIND}")
@@ -267,12 +391,14 @@ def parse_catalog_delta(delta_document: Mapping[str, Any]) -> CatalogDelta:
     if not isinstance(raw_operations, list):
         raise CatalogDeltaError("delta operations must be a list")
     operations: list[DeltaOperation] = []
-    seen: set[PriceRowKey] = set()
+    seen: set[tuple[str, OperationKey]] = set()
     for index, raw in enumerate(raw_operations):
         operation = _parse_operation(index, raw)
-        if operation.key in seen:
+        family = "price" if operation.op in PRICE_OPERATIONS else operation.op
+        target = (family, operation.key)
+        if target in seen:
             raise CatalogDeltaError(f"operation {index}: duplicate target")
-        seen.add(operation.key)
+        seen.add(target)
         operations.append(operation)
     return CatalogDelta(
         schema_version=version,
@@ -322,8 +448,66 @@ def _locate(
     return models[0], rows, None
 
 
+def _model_indexes(document: Mapping[str, Any], canonical_id: str) -> list[int]:
+    return [
+        index
+        for index, entry in enumerate(document.get("models") or [])
+        if isinstance(entry, Mapping) and entry.get("canonical_id") == canonical_id
+    ]
+
+
+def _aliases(document: Mapping[str, Any]):
+    for entry in document.get("models") or []:
+        if not isinstance(entry, Mapping):
+            continue
+        canonical_id = str(entry.get("canonical_id") or "")
+        for alias in entry.get("aliases") or []:
+            if not isinstance(alias, Mapping):
+                continue
+            provider = _text(alias.get("provider"))
+            name = _text(alias.get("alias"))
+            if provider and name:
+                yield canonical_id, provider.lower(), name.lower()
+
+
+def _key_label(key: OperationKey) -> str:
+    if isinstance(key, PriceRowKey):
+        return f"{key.canonical_id} {key.channel}/{key.region}@{key.effective_from}"
+    if isinstance(key, AliasKey):
+        return f"{key.canonical_id} {key.provider}:{key.alias}@{key.channel}"
+    return key.canonical_id
+
+
 def _precondition(document: Mapping[str, Any], operation: DeltaOperation) -> str | None:
     """Why ``operation`` does not apply to ``document``, or None when it does."""
+    if operation.op == "add_model":
+        key = operation.key
+        if _model_indexes(document, key.canonical_id):
+            return "model_exists"
+        known = {(provider, name) for _, provider, name in _aliases(document)}
+        for alias in operation.model.get("aliases") or []:
+            pair = (
+                str(alias.get("provider") or "").strip().lower(),
+                str(alias.get("alias") or "").strip().lower(),
+            )
+            if pair in known:
+                return "alias_taken"
+        return None
+    if operation.op == "add_alias":
+        key = operation.key
+        models = _model_indexes(document, key.canonical_id)
+        if not models:
+            return "unknown_model"
+        if len(models) > 1:
+            return "duplicate_model"
+        for canonical_id, provider, name in _aliases(document):
+            if (provider, name) == (key.provider, key.alias):
+                return (
+                    "alias_exists"
+                    if canonical_id == key.canonical_id
+                    else "alias_conflict"
+                )
+        return None
     model_index, rows, reason = _locate(document, operation)
     if reason is not None:
         return reason
@@ -389,6 +573,17 @@ def apply_catalog_delta(
 
     result = copy.deepcopy(dict(document))
     for operation in delta.operations:
+        if operation.op == "add_model":
+            result.setdefault("models", []).append(
+                copy.deepcopy(dict(operation.model))
+            )
+            continue
+        if operation.op == "add_alias":
+            [model_index] = _model_indexes(result, operation.key.canonical_id)
+            result["models"][model_index].setdefault("aliases", []).append(
+                copy.deepcopy(dict(operation.alias))
+            )
+            continue
         model_index, rows, _ = _locate(result, operation)
         prices = result["models"][model_index].setdefault("prices", [])
         if operation.op == "add_price":

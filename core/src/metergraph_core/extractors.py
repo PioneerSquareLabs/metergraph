@@ -24,7 +24,8 @@ import hashlib
 import html
 import json
 import re
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, field
 from decimal import Decimal
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
@@ -48,6 +49,16 @@ class ExtractedRate:
     region: str
     # Catalog price column -> rate per million tokens.
     rates: Mapping[str, Decimal]
+    # Source-specific normalized facts needed to build a catalog entry.
+    meta: Mapping[str, Any] = field(
+        default_factory=lambda: MappingProxyType({})
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractionExclusion:
+    model_key: str
+    reason: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -62,6 +73,8 @@ class Extraction:
     evidence: dict[str, Any]
     # Model keys the page gives two different candidate values.
     ambiguities: tuple[str, ...] = ()
+    # Source rows intentionally omitted from applicable rates.
+    exclusions: tuple[ExtractionExclusion, ...] = ()
 
 
 # --- Shared page helpers ------------------------------------------------------
@@ -385,6 +398,8 @@ def parse_perplexity(html_text: str, *, duplicates: list[str] | None = None) -> 
 
 def page_key(parser_id: str, name: str) -> str:
     """A catalog alias in the spelling the provider page uses."""
+    if parser_id in {"vercel-gateway-json", "openrouter-json"}:
+        return name.strip().lower()
     name = name.lower().split("/")[-1]
     if parser_id == "google":
         name = name.removeprefix("models/")
@@ -495,6 +510,339 @@ def _perplexity_features(content: str) -> Any:
         "sonar_models": isinstance(models, list),
         "model_keys": sorted({key for model in models or [] if isinstance(model, dict) for key in model}),
     }
+
+
+# --- Gateway JSON catalogs ---------------------------------------------------
+
+
+def _json_document(content: str) -> Mapping[str, Any] | None:
+    try:
+        document = json.loads(content)
+    except (TypeError, ValueError):
+        return None
+    return document if isinstance(document, Mapping) else None
+
+
+def _shape(value: Any, prefix: str, paths: set[tuple[str, str]]) -> None:
+    if isinstance(value, Mapping):
+        paths.add((prefix, "object"))
+        for key, child in value.items():
+            _shape(child, f"{prefix}.{key}" if prefix else str(key), paths)
+    elif isinstance(value, list):
+        paths.add((prefix, "array"))
+        for child in value:
+            _shape(child, f"{prefix}[]", paths)
+    else:
+        paths.add((prefix, type(value).__name__))
+
+
+def _gateway_json_features(content: str) -> Any:
+    document = _json_document(content)
+    data = document.get("data") if document is not None else None
+    if not isinstance(data, list):
+        return {"valid": False}
+    paths: set[tuple[str, str]] = set()
+    for item in data:
+        if isinstance(item, Mapping):
+            _shape(item, "data[]", paths)
+    return {"valid": True, "paths": sorted([list(path) for path in paths])}
+
+
+_PER_MILLION = Decimal("1000000")
+_PER_THOUSAND = Decimal("1000")
+
+
+def _rate(value: Any, multiplier: Decimal = _PER_MILLION) -> Decimal | None:
+    parsed = _decimal(value)
+    if parsed is None or not parsed.is_finite():
+        return None
+    return parsed * multiplier
+
+
+def _positive(value: Any) -> bool:
+    parsed = _decimal(value)
+    return parsed is not None and parsed.is_finite() and parsed > 0
+
+
+def _priced_token_pair(input_rate: Any, output_rate: Any) -> bool:
+    values = (_decimal(input_rate), _decimal(output_rate))
+    return (
+        all(value is not None and value.is_finite() and value >= 0 for value in values)
+        and any(value > 0 for value in values)
+    )
+
+
+def _configured(value: Any) -> bool:
+    return value not in (None, False, "", "0", 0, (), [], {})
+
+
+def _model_id(item: Mapping[str, Any]) -> str | None:
+    value = item.get("id")
+    if not isinstance(value, str) or not value.strip() or "/" not in value:
+        return None
+    return value.strip().lower()
+
+
+def _meta(
+    publisher: str,
+    *,
+    alias_rules: Mapping[str, Any] | None = None,
+    price_rules: Mapping[str, Any] | None = None,
+) -> Mapping[str, Any]:
+    return MappingProxyType(
+        {
+            "publisher": publisher,
+            "alias_rules": MappingProxyType(dict(alias_rules or {})),
+            "price_rules": MappingProxyType(dict(price_rules or {})),
+        }
+    )
+
+
+def _gateway_evidence(
+    valid: bool,
+    rates: list[ExtractedRate],
+    exclusions: list[ExtractionExclusion],
+) -> dict[str, Any]:
+    if not valid:
+        return {"kind": "gateway_models", "valid_json": False}
+    return {
+        "kind": "gateway_models",
+        "valid_json": True,
+        "included": len(rates),
+        "excluded": dict(sorted(Counter(item.reason for item in exclusions).items())),
+    }
+
+
+_VERCEL_PRICING_FIELDS = frozenset(
+    {
+        "input",
+        "output",
+        "input_cache_read",
+        "input_cache_write",
+        "varies_by_provider",
+        "overrides",
+        "input_tiers",
+        "output_tiers",
+        "input_cache_read_tiers",
+        "input_cache_write_tiers",
+        "peak_pricing",
+        "regional",
+        "service_tiers",
+        "fast",
+        "audio_input_token_cost",
+        "image_dimension_quality_pricing",
+        "maps_search",
+        "web_search",
+    }
+)
+
+
+def _vercel_gateway_extract(content: str) -> tuple[
+    tuple[ExtractedRate, ...], bool, dict[str, Any], tuple[ExtractionExclusion, ...]
+]:
+    document = _json_document(content)
+    data = document.get("data") if document is not None else None
+    if not isinstance(data, list):
+        return (), False, _gateway_evidence(False, [], []), ()
+    rates: list[ExtractedRate] = []
+    exclusions: list[ExtractionExclusion] = []
+    for item in data:
+        if not isinstance(item, Mapping):
+            continue
+        model_id = _model_id(item)
+        if model_id is None:
+            exclusions.append(ExtractionExclusion("", "invalid_model_id"))
+            continue
+        if item.get("type") != "language":
+            exclusions.append(ExtractionExclusion(model_id, "not_language"))
+            continue
+        pricing = item.get("pricing")
+        if not isinstance(pricing, Mapping) or not _priced_token_pair(
+            pricing.get("input"), pricing.get("output")
+        ):
+            exclusions.append(
+                ExtractionExclusion(model_id, "non_positive_token_price")
+            )
+            continue
+        if set(pricing) - _VERCEL_PRICING_FIELDS:
+            exclusions.append(
+                ExtractionExclusion(model_id, "unknown_pricing_field")
+            )
+            continue
+        if pricing.get("overrides"):
+            exclusions.append(ExtractionExclusion(model_id, "conditional_price"))
+            continue
+        conditional = (
+            "input_tiers",
+            "output_tiers",
+            "input_cache_read_tiers",
+            "input_cache_write_tiers",
+            "peak_pricing",
+            "regional",
+            "service_tiers",
+            "fast",
+        )
+        if any(_configured(pricing.get(field)) for field in conditional):
+            exclusions.append(ExtractionExclusion(model_id, "conditional_price"))
+            continue
+        unsupported = (
+            "audio_input_token_cost",
+            "image_dimension_quality_pricing",
+            "maps_search",
+            "web_search",
+        )
+        if any(_configured(pricing.get(field)) for field in unsupported):
+            exclusions.append(ExtractionExclusion(model_id, "unsupported_charge"))
+            continue
+        columns = {
+            "input_per_mtok": _rate(pricing.get("input")),
+            "output_per_mtok": _rate(pricing.get("output")),
+            "cache_read_per_mtok": _rate(pricing.get("input_cache_read")),
+            "cache_write_5m_per_mtok": _rate(pricing.get("input_cache_write")),
+        }
+        publisher = str(item.get("owned_by") or model_id.split("/", 1)[0]).lower()
+        price_rules = (
+            {"varies_by_provider": True}
+            if pricing.get("varies_by_provider") is True
+            else {}
+        )
+        rates.append(
+            ExtractedRate(
+                model_id,
+                "global",
+                MappingProxyType({key: value for key, value in columns.items() if value is not None}),
+                _meta(
+                    publisher,
+                    alias_rules={
+                        "input_includes_cache_read": True,
+                        "input_includes_cache_write": True,
+                    },
+                    price_rules=price_rules,
+                ),
+            )
+        )
+    rates.sort(key=lambda row: (row.model_key, row.region))
+    exclusions.sort(key=lambda row: (row.model_key, row.reason))
+    return (
+        tuple(rates),
+        True,
+        _gateway_evidence(True, rates, exclusions),
+        tuple(exclusions),
+    )
+
+
+_OPENROUTER_UNSUPPORTED_CHARGES = (
+    "audio",
+    "audio_output",
+    "image",
+    "image_output",
+    "input_audio_cache",
+    "internal_reasoning",
+    "web_search",
+)
+
+_OPENROUTER_PRICING_FIELDS = frozenset(
+    {
+        "prompt",
+        "completion",
+        "request",
+        "input_cache_read",
+        "input_cache_write",
+        "input_cache_write_1h",
+        "overrides",
+        *_OPENROUTER_UNSUPPORTED_CHARGES,
+    }
+)
+
+
+def _openrouter_extract(content: str) -> tuple[
+    tuple[ExtractedRate, ...], bool, dict[str, Any], tuple[ExtractionExclusion, ...]
+]:
+    document = _json_document(content)
+    data = document.get("data") if document is not None else None
+    if not isinstance(data, list):
+        return (), False, _gateway_evidence(False, [], []), ()
+    rates: list[ExtractedRate] = []
+    exclusions: list[ExtractionExclusion] = []
+    for item in data:
+        if not isinstance(item, Mapping):
+            continue
+        model_id = _model_id(item)
+        if model_id is None:
+            exclusions.append(ExtractionExclusion("", "invalid_model_id"))
+            continue
+        if model_id.endswith(":free"):
+            exclusions.append(ExtractionExclusion(model_id, "free_route"))
+            continue
+        if model_id.startswith("~"):
+            exclusions.append(ExtractionExclusion(model_id, "floating_route"))
+            continue
+        if model_id.startswith("openrouter/"):
+            exclusions.append(ExtractionExclusion(model_id, "router"))
+            continue
+        if ":" in model_id:
+            exclusions.append(ExtractionExclusion(model_id, "unsupported_variant"))
+            continue
+        modalities = (item.get("architecture") or {}).get("output_modalities")
+        if not isinstance(modalities, list) or "text" not in modalities:
+            exclusions.append(ExtractionExclusion(model_id, "non_text_output"))
+            continue
+        pricing = item.get("pricing")
+        if not isinstance(pricing, Mapping) or not _priced_token_pair(
+            pricing.get("prompt"), pricing.get("completion")
+        ):
+            exclusions.append(
+                ExtractionExclusion(model_id, "non_positive_token_price")
+            )
+            continue
+        if set(pricing) - _OPENROUTER_PRICING_FIELDS:
+            exclusions.append(
+                ExtractionExclusion(model_id, "unknown_pricing_field")
+            )
+            continue
+        if pricing.get("overrides"):
+            exclusions.append(ExtractionExclusion(model_id, "conditional_price"))
+            continue
+        if any(_positive(pricing.get(field)) for field in _OPENROUTER_UNSUPPORTED_CHARGES):
+            exclusions.append(ExtractionExclusion(model_id, "unsupported_charge"))
+            continue
+        columns = {
+            "input_per_mtok": _rate(pricing.get("prompt")),
+            "output_per_mtok": _rate(pricing.get("completion")),
+            "cache_read_per_mtok": _rate(pricing.get("input_cache_read")),
+            "cache_write_5m_per_mtok": _rate(pricing.get("input_cache_write")),
+            "cache_write_1h_per_mtok": _rate(
+                pricing.get("input_cache_write_1h")
+            ),
+            "request_fee_per_1k_usd": _rate(
+                pricing.get("request"), _PER_THOUSAND
+            ),
+        }
+        rates.append(
+            ExtractedRate(
+                model_id,
+                "global",
+                MappingProxyType({key: value for key, value in columns.items() if value is not None}),
+                _meta(
+                    model_id.split("/", 1)[0],
+                    # OpenRouter reports cache reads and writes inside the
+                    # prompt total as well as in prompt_tokens_details.
+                    alias_rules={
+                        "input_includes_cache_read": True,
+                        "input_includes_cache_write": True,
+                    },
+                    price_rules={"varies_by_provider": True},
+                ),
+            )
+        )
+    rates.sort(key=lambda row: (row.model_key, row.region))
+    exclusions.sort(key=lambda row: (row.model_key, row.reason))
+    return (
+        tuple(rates),
+        True,
+        _gateway_evidence(True, rates, exclusions),
+        tuple(exclusions),
+    )
 
 
 # --- Discovery-only evidence --------------------------------------------------
@@ -611,6 +959,15 @@ class ParserSpec:
     features: Callable[[str], Any]
     table: Callable[..., Table] | None = None
     evidence: Callable[[str], dict[str, Any]] | None = None
+    gateway: Callable[
+        [str],
+        tuple[
+            tuple[ExtractedRate, ...],
+            bool,
+            dict[str, Any],
+            tuple[ExtractionExclusion, ...],
+        ],
+    ] | None = None
 
 
 PARSERS: Mapping[str, ParserSpec] = MappingProxyType(
@@ -622,6 +979,12 @@ PARSERS: Mapping[str, ParserSpec] = MappingProxyType(
         "mistral": ParserSpec(True, _mistral_features, table=parse_mistral),
         "xai": ParserSpec(True, _xai_features, table=parse_xai),
         "perplexity": ParserSpec(True, _perplexity_features, table=parse_perplexity),
+        "vercel-gateway-json": ParserSpec(
+            True, _gateway_json_features, gateway=_vercel_gateway_extract
+        ),
+        "openrouter-json": ParserSpec(
+            True, _gateway_json_features, gateway=_openrouter_extract
+        ),
         # Generic discovery parsers: any page's tables, or GPU and license
         # pricing stated in prose. They describe no provider's layout.
         "html-tables": ParserSpec(False, _table_features, evidence=_table_evidence),
@@ -655,6 +1018,17 @@ def extract(parser_id: str, content: str) -> Extraction:
     supplied content."""
     spec = _spec(parser_id, content)
     fingerprint = structural_fingerprint(parser_id, content)
+    if spec.gateway is not None:
+        rates, applicable, evidence, exclusions = spec.gateway(content)
+        return Extraction(
+            parser_id,
+            fingerprint,
+            rates,
+            applicable,
+            evidence,
+            (),
+            exclusions,
+        )
     if spec.table is None:
         return Extraction(parser_id, fingerprint, (), False, spec.evidence(content))
     duplicates: list[str] = []

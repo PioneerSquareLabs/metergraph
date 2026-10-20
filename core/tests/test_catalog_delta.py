@@ -8,7 +8,7 @@ import pytest
 
 from metergraph_core import CatalogError, load_catalog_document
 from metergraph_core.catalog_delta import (
-    PRICING_DELTA_SCHEMA_VERSION,
+    CATALOG_DELTA_SCHEMA_VERSION,
     CatalogDeltaConflict,
     CatalogDeltaError,
     PriceRowKey,
@@ -85,7 +85,7 @@ def _close(**overrides):
 
 def _delta(*operations, **overrides):
     delta = {
-        "schema_version": PRICING_DELTA_SCHEMA_VERSION,
+        "schema_version": CATALOG_DELTA_SCHEMA_VERSION,
         "kind": "pricing_delta",
         "provenance": {
             "observations": ["observation:openai-api-pricing:2026-10-20"],
@@ -95,6 +95,60 @@ def _delta(*operations, **overrides):
     }
     delta.update(overrides)
     return delta
+
+
+def _add_model(**overrides):
+    canonical_id = overrides.pop("canonical_id", "example/model-b")
+    operation = {
+        "op": "add_model",
+        "key": {"canonical_id": canonical_id},
+        "expect": None,
+        "model": {
+            "canonical_id": canonical_id,
+            "publisher": "example",
+            "aliases": [
+                {
+                    "provider": "openrouter",
+                    "alias": canonical_id,
+                    "channel": "openrouter-api",
+                }
+            ],
+            "prices": [
+                {
+                    "channel": "openrouter-api",
+                    "region": "global",
+                    "effective_from": "2026-10-20",
+                    "input_per_mtok": "1",
+                    "output_per_mtok": "4",
+                    "source_url": "https://openrouter.ai/api/v1/models",
+                }
+            ],
+        },
+    }
+    operation.update(overrides)
+    return operation
+
+
+def _add_alias(**overrides):
+    alias = {
+        "provider": "openrouter",
+        "alias": "example/model-a",
+        "channel": "openrouter-api",
+    }
+    alias.update(overrides.pop("alias", {}))
+    operation = {
+        "op": "add_alias",
+        "key": {
+            "canonical_id": overrides.pop("canonical_id", "example/model-a"),
+            "provider": alias["provider"],
+            "alias": alias["alias"],
+            "channel": alias["channel"],
+        },
+        "expect": None,
+        "alias": alias,
+    }
+    operation.update(overrides)
+    return operation
 
 
 # --- Parsing -----------------------------------------------------------------
@@ -113,6 +167,38 @@ def test_parse_reads_each_operation_with_its_row_key():
     ]
 
 
+def test_parser_rejects_obsolete_schema_version_one():
+    with pytest.raises(CatalogDeltaError, match="unsupported delta schema_version 1"):
+        parse_catalog_delta(_delta(schema_version=1))
+
+
+def test_catalog_schema_parses_model_and_alias_keys():
+    parsed = parse_catalog_delta(_delta(_add_model(), _add_alias()))
+
+    assert parsed.operations[0].key.canonical_id == "example/model-b"
+    assert parsed.operations[0].model["publisher"] == "example"
+    assert (
+        parsed.operations[1].key.canonical_id,
+        parsed.operations[1].key.provider,
+        parsed.operations[1].key.alias,
+        parsed.operations[1].key.channel,
+    ) == ("example/model-a", "openrouter", "example/model-a", "openrouter-api")
+    assert parsed.operations[1].alias["provider"] == "openrouter"
+
+
+def test_add_model_requires_a_complete_valid_model_entry():
+    operation = _add_model(model={"canonical_id": "example/model-b"})
+    with pytest.raises(CatalogDeltaError, match="operation 0: invalid model"):
+        parse_catalog_delta(_delta(operation))
+
+
+def test_add_alias_identity_must_match_its_key():
+    operation = _add_alias()
+    operation["alias"] = dict(operation["alias"], alias="example/other")
+    with pytest.raises(CatalogDeltaError, match="operation 0: alias alias must match key"):
+        parse_catalog_delta(_delta(operation))
+
+
 def test_delta_errors_are_catalog_errors():
     assert issubclass(CatalogDeltaError, CatalogError)
 
@@ -121,7 +207,7 @@ def test_delta_errors_are_catalog_errors():
     ("delta", "message"),
     [
         (["not", "a", "mapping"], "delta document must be a mapping"),
-        (_delta(schema_version=2), "unsupported delta schema_version 2"),
+        (_delta(schema_version=3), "unsupported delta schema_version 3"),
         (_delta(kind="catalog"), "delta kind must be pricing_delta"),
         (_delta(operations="none"), "delta operations must be a list"),
         (_delta(provenance=None), "delta needs provenance"),
@@ -301,6 +387,39 @@ def test_add_price_appends_a_row_for_a_new_channel():
     assert len(result["models"][0]["prices"]) == 4
 
 
+def test_add_model_appends_a_complete_priceable_entry():
+    result = apply_catalog_delta(_document(), _delta(_add_model()))
+
+    added = result["models"][-1]
+    assert added == _add_model()["model"]
+    loaded = load_catalog_document(result)
+    found = loaded.lookup_price(
+        model="example/model-b",
+        provider="openrouter",
+        at=datetime(2026, 10, 20, tzinfo=timezone.utc),
+    )
+    assert found.status == "priced"
+    assert str(found.price.input_per_mtok) == "1"
+
+
+def test_add_alias_and_price_make_an_existing_model_priceable_on_a_new_channel():
+    price = _add(
+        key=_key(channel="openrouter-api", effective_from="2026-10-20"),
+        price=_new_price(channel="openrouter-api"),
+    )
+    result = apply_catalog_delta(
+        _document(), _delta(_add_alias(), price)
+    )
+
+    loaded = load_catalog_document(result)
+    found = loaded.lookup_price(
+        model="example/model-a",
+        provider="openrouter",
+        at=datetime(2026, 10, 20, tzinfo=timezone.utc),
+    )
+    assert found.status == "priced"
+
+
 def test_close_price_sets_only_effective_to():
     result = apply_catalog_delta(_document(), _delta(_close()))
     assert _rows(result, channel="openai-api", region="global")[1] == dict(
@@ -361,6 +480,83 @@ def test_an_unknown_model_is_a_conflict():
     assert _conflicts(_document(), _delta(_add(key=_new_model_key()))) == [
         (0, "unknown_model")
     ]
+
+
+def test_adding_an_existing_model_is_a_conflict():
+    operation = _add_model(canonical_id="example/model-a")
+    operation["model"]["canonical_id"] = "example/model-a"
+    assert _conflicts(_document(), _delta(operation)) == [
+        (0, "model_exists")
+    ]
+
+
+def test_adding_an_alias_to_an_unknown_model_is_a_conflict():
+    assert _conflicts(
+        _document(),
+        _delta(_add_alias(canonical_id="example/missing")),
+    ) == [(0, "unknown_model")]
+
+
+def test_adding_an_existing_alias_is_a_conflict():
+    operation = _add_alias(
+        alias={
+            "provider": "vercel",
+            "alias": "example/model-a",
+            "channel": "vercel-ai-gateway",
+        }
+    )
+    assert _conflicts(_document(), _delta(operation)) == [
+        (0, "alias_exists")
+    ]
+
+
+def test_adding_an_alias_owned_by_another_model_is_a_conflict():
+    document = _document()
+    document["models"].append(
+        {
+            "canonical_id": "example/model-b",
+            "publisher": "example",
+            "aliases": [
+                {
+                    "provider": "openrouter",
+                    "alias": "example/shared",
+                    "channel": "openrouter-api",
+                }
+            ],
+            "prices": [
+                {
+                    "channel": "openrouter-api",
+                    "region": "global",
+                    "effective_from": "2026-01-01",
+                    "input_per_mtok": 1,
+                    "output_per_mtok": 4,
+                    "source_url": "https://example.com/pricing",
+                }
+            ],
+        }
+    )
+    operation = _add_alias(alias={"alias": "example/shared"})
+    assert _conflicts(document, _delta(operation)) == [
+        (0, "alias_conflict")
+    ]
+
+
+def test_catalog_addition_conflicts_are_atomic():
+    document = _document()
+    before = copy.deepcopy(document)
+    delta = _delta(
+        _add_model(),
+        _add_alias(
+            alias={
+                "provider": "vercel",
+                "alias": "example/model-a",
+                "channel": "vercel-ai-gateway",
+            }
+        ),
+    )
+
+    assert _conflicts(document, delta) == [(1, "alias_exists")]
+    assert document == before
 
 
 def test_a_missing_row_is_a_conflict():
