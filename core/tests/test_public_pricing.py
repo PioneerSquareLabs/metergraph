@@ -14,15 +14,21 @@ the assertions never depend on the shipped price list.
 """
 
 import textwrap
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 import pytest
 
+import metergraph_core
 from metergraph_core import (
+    CatalogSnapshot,
+    ModelUsage,
+    PriceResult,
     direct_channel_for_provider,
     load_catalog,
     normalize_provider,
+    parse_catalog,
 )
 
 
@@ -201,6 +207,363 @@ def test_price_missing_token_count_is_partial_not_zero(tmp_path):
     assert "missing_input_tokens" in priced.reasons
     # Output still priced by core; input contributes nothing knowable.
     assert priced.cost_usd == Decimal("0.00200000")
+
+
+# Direct lookup and usage cost: `lookup_price` and `calculate_cost` resolve the
+# same way `price` does and share its arithmetic, but report the resolved
+# catalog id, the applied price, its currency, and which inputs were missing.
+
+_REGIONAL_CATALOG = textwrap.dedent(
+    """
+    version: "test-public-regional-1"
+    currency: USD
+    pricing_verified_at: "2026-08-01"
+    models:
+      - canonical_id: acme/varies-x
+        aliases:
+          - {provider: openai, alias: varies-x, channel: openai-api}
+        prices:
+          - channel: openai-api
+            region: global
+            effective_from: "2026-01-01"
+            input_per_mtok: 1.0
+            output_per_mtok: 2.0
+            source_url: https://example.test/varies-global
+          - channel: openai-api
+            region: us-east-1
+            effective_from: "2026-01-01"
+            input_per_mtok: 1.1
+            output_per_mtok: 2.2
+            source_url: https://example.test/varies-us-east-1
+      - canonical_id: acme/uniform-x
+        aliases:
+          - {provider: openai, alias: uniform-x, channel: openai-api}
+        prices:
+          - channel: openai-api
+            region: global
+            effective_from: "2026-01-01"
+            input_per_mtok: 1.0
+            output_per_mtok: 2.0
+            source_url: https://example.test/uniform-global
+          - channel: openai-api
+            region: us-east-1
+            effective_from: "2026-01-01"
+            input_per_mtok: 1.0
+            output_per_mtok: 2.0
+            source_url: https://example.test/uniform-us-east-1
+      - canonical_id: acme/pinned-x
+        aliases:
+          - provider: openai
+            alias: pinned-x
+            channel: openai-api
+            price_region: us-east-1
+        prices:
+          - channel: openai-api
+            region: us-east-1
+            effective_from: "2026-01-01"
+            input_per_mtok: 4.0
+            output_per_mtok: 8.0
+            source_url: https://example.test/pinned-us-east-1
+    """
+)
+
+
+def _regional_catalog(tmp_path, **kwargs):
+    path = tmp_path / "regional-prices.yaml"
+    path.write_text(_REGIONAL_CATALOG)
+    return load_catalog(path, **kwargs)
+
+
+def test_lookup_price_returns_the_resolved_catalog_id_and_applied_price(tmp_path):
+    catalog = _catalog(tmp_path)
+    found = catalog.lookup_price(model="gpt-x", channel="openai-api", at=_AT)
+    assert isinstance(found, PriceResult)
+    assert found.status == "priced"
+    # The stable catalog id, never the alias the caller sent.
+    assert found.model_id == "openai/gpt-x"
+    assert found.price.id == "openai/gpt-x:openai-api:global:2026-01-01"
+    assert found.price.input_per_mtok == Decimal("2.0")
+    assert found.effective_at == _AT
+    assert found.missing_dimensions == ()
+
+
+def test_lookup_price_keeps_effective_dates_and_bedrock_fallback(tmp_path):
+    catalog = _catalog(tmp_path)
+    later = catalog.lookup_price(
+        model="gpt-x", channel="openai-api", at=date(2026, 7, 1)
+    )
+    assert later.price.id == "openai/gpt-x:openai-api:global:2026-06-01"
+    assert later.effective_at == datetime(2026, 7, 1, tzinfo=timezone.utc)
+    versioned = catalog.lookup_price(
+        model="claude-x-bedrock-v1:0", channel="aws-bedrock", at=_AT
+    )
+    assert versioned.status == "priced"
+    assert versioned.model_id == "anthropic/claude-x"
+
+
+def test_lookup_price_carries_the_price_currency(tmp_path):
+    found = _catalog(tmp_path).lookup_price(
+        model="gpt-x", channel="openai-api", at=_AT
+    )
+    assert found.price.currency == "USD"
+
+
+def test_lookup_price_derives_the_direct_channel_from_provider(tmp_path):
+    catalog = _catalog(tmp_path)
+    direct = catalog.lookup_price(model="openai/gpt-x", provider="openai", at=_AT)
+    assert direct.status == "priced"
+    assert direct.price.pricing_channel == "openai-api"
+    # Provider spellings fold through the same alias map as everywhere else.
+    google = catalog.lookup_price(model="gem-x", provider="gemini", at=_AT)
+    assert google.price.pricing_channel == "google-api"
+
+
+def test_lookup_price_explicit_channel_beats_the_provider_channel(tmp_path):
+    found = _catalog(tmp_path).lookup_price(
+        model="openai/gpt-x", provider="openai", channel="vercel-ai-gateway", at=_AT
+    )
+    assert found.price.pricing_channel == "vercel-ai-gateway"
+    assert found.price.input_per_mtok == Decimal("3.0")
+
+
+def test_lookup_price_without_a_channel_is_unpriced_and_says_so(tmp_path):
+    catalog = _catalog(tmp_path)
+    for found in (
+        catalog.lookup_price(model="gpt-x", at=_AT),
+        catalog.lookup_price(model="gpt-x", provider="no-such-provider", at=_AT),
+    ):
+        assert found.status == "unpriced"
+        assert found.price is None
+        assert found.missing_dimensions == ("channel",)
+
+
+def test_lookup_price_unknown_model_is_unpriced(tmp_path):
+    found = _catalog(tmp_path).lookup_price(
+        model="not-a-model", channel="openai-api", at=_AT
+    )
+    assert found.status == "unpriced"
+    assert found.model_id is None
+    assert found.price is None
+    assert found.missing_dimensions == ()
+
+
+def test_lookup_price_explicit_region_resolves_that_region(tmp_path):
+    catalog = _regional_catalog(tmp_path)
+    found = catalog.lookup_price(
+        model="varies-x", channel="openai-api", at=_AT, region="us-east-1"
+    )
+    assert found.status == "priced"
+    assert found.price.region == "us-east-1"
+    assert found.missing_dimensions == ()
+    pinned = catalog.lookup_price(
+        model="pinned-x", channel="openai-api", at=_AT, region="us-east-1"
+    )
+    assert pinned.status == "priced"
+    assert pinned.model_id == "acme/pinned-x"
+    # A region the model is not sold in is simply unpriced: nothing is missing.
+    unserved = catalog.lookup_price(
+        model="pinned-x", channel="openai-api", at=_AT, region="eu-west-1"
+    )
+    assert unserved.status == "unpriced"
+    assert unserved.missing_dimensions == ()
+
+
+def test_lookup_price_query_region_overrides_the_load_default(tmp_path):
+    catalog = _regional_catalog(tmp_path, region="us-east-1")
+    # Omitted, the load-time region still applies as it always has.
+    default = catalog.lookup_price(model="varies-x", channel="openai-api", at=_AT)
+    assert default.status == "priced"
+    assert default.price.region == "us-east-1"
+    stated = catalog.lookup_price(
+        model="varies-x", channel="openai-api", at=_AT, region="global"
+    )
+    assert stated.status == "priced"
+    assert stated.price.region == "global"
+
+
+def test_lookup_price_omitted_region_with_differing_regional_prices_is_partial(
+    tmp_path,
+):
+    found = _regional_catalog(tmp_path).lookup_price(
+        model="varies-x", channel="openai-api", at=_AT
+    )
+    assert found.status == "partial"
+    assert found.model_id == "acme/varies-x"
+    assert found.price.region == "global"
+    assert found.missing_dimensions == ("region",)
+
+
+def test_lookup_price_omitted_region_with_equal_regional_prices_is_priced(tmp_path):
+    found = _regional_catalog(tmp_path).lookup_price(
+        model="uniform-x", channel="openai-api", at=_AT
+    )
+    assert found.status == "priced"
+    assert found.price.region == "global"
+    assert found.missing_dimensions == ()
+
+
+def test_lookup_price_omitted_region_without_a_default_is_unpriced(tmp_path):
+    found = _regional_catalog(tmp_path).lookup_price(
+        model="pinned-x", channel="openai-api", at=_AT
+    )
+    assert found.status == "unpriced"
+    assert found.price is None
+    assert found.missing_dimensions == ("region",)
+
+
+def test_model_usage_defaults_to_unknown_counts_and_no_batch():
+    usage = ModelUsage()
+    assert (
+        usage.input_tokens,
+        usage.output_tokens,
+        usage.cache_read_tokens,
+        usage.cache_write_tokens,
+        usage.cache_write_5m_tokens,
+        usage.cache_write_1h_tokens,
+        usage.batch,
+    ) == (None, None, None, None, None, None, False)
+
+
+def test_calculate_cost_matches_the_existing_price_entry_point(tmp_path):
+    catalog = _catalog(tmp_path)
+    result = catalog.calculate_cost(
+        model="gpt-x",
+        channel="openai-api",
+        at=_AT,
+        usage=ModelUsage(input_tokens=1000, output_tokens=500),
+    )
+    existing = catalog.price(
+        model="gpt-x", channel="openai-api", at=_AT,
+        input_tokens=1000, output_tokens=500,
+    )
+    assert result.status == existing.status == "priced"
+    assert result.model_id == result.canonical_model == "openai/gpt-x"
+    assert result.cost == result.cost_usd == existing.cost_usd == Decimal("0.00400000")
+    assert result.currency == "USD"
+    assert result.price == catalog.lookup_price(
+        model="gpt-x", channel="openai-api", at=_AT
+    ).price
+    assert result.price_id == result.price.id
+    assert result.effective_at == _AT
+    assert result.missing_dimensions == ()
+    components = result.components
+    assert (
+        components.input,
+        components.output,
+        components.cache_read,
+        components.cache_write,
+        components.request,
+    ) == (
+        components.input_usd,
+        components.output_usd,
+        components.cache_read_usd,
+        components.cache_write_usd,
+        components.request_usd,
+    )
+    assert components == existing.components
+
+
+def test_calculate_cost_reports_the_price_currency(tmp_path):
+    catalog = _catalog(tmp_path)
+    _, aliases, prices = parse_catalog(catalog.document)
+    euro = replace(
+        catalog,
+        snapshot=CatalogSnapshot(
+            aliases,
+            [replace(price, currency="EUR") for price in prices],
+            region="global",
+        ),
+    )
+    result = euro.calculate_cost(
+        model="gpt-x",
+        channel="openai-api",
+        at=_AT,
+        usage=ModelUsage(input_tokens=1000, output_tokens=500),
+    )
+    assert result.currency == "EUR"
+    assert result.price.currency == "EUR"
+    assert result.cost == Decimal("0.00400000")
+
+
+def test_calculate_cost_carries_a_missing_region_into_the_cost(tmp_path):
+    catalog = _regional_catalog(tmp_path)
+    usage = ModelUsage(input_tokens=1000, output_tokens=500)
+    global_default = catalog.calculate_cost(
+        model="varies-x", channel="openai-api", at=_AT, usage=usage
+    )
+    assert global_default.status == "partial"
+    assert global_default.missing_dimensions == ("region",)
+    assert global_default.price.region == "global"
+    # (1000 * 1.0 + 500 * 2.0) / 1e6 at the global rate.
+    assert global_default.cost == Decimal("0.00200000")
+    no_default = catalog.calculate_cost(
+        model="pinned-x", channel="openai-api", at=_AT, usage=usage
+    )
+    assert no_default.status == "unpriced"
+    assert no_default.cost is None
+    assert no_default.missing_dimensions == ("region",)
+
+
+def test_calculate_cost_keeps_the_known_subtotal_when_usage_is_incomplete(tmp_path):
+    catalog = _catalog(tmp_path)
+    output_only = catalog.calculate_cost(
+        model="gpt-x", channel="openai-api", at=_AT,
+        usage=ModelUsage(output_tokens=500),
+    )
+    assert output_only.status == "partial"
+    # 500 * 4.0 / 1e6: the output subtotal survives the missing input.
+    assert output_only.cost == Decimal("0.00200000")
+    assert output_only.missing_dimensions == ("input_tokens",)
+    nothing = catalog.calculate_cost(
+        model="gpt-x", channel="openai-api", at=_AT, usage=ModelUsage()
+    )
+    assert nothing.status == "partial"
+    assert nothing.cost == Decimal("0E-8")
+    assert nothing.missing_dimensions == ("input_tokens", "output_tokens")
+    regional = _regional_catalog(tmp_path).calculate_cost(
+        model="varies-x", channel="openai-api", at=_AT,
+        usage=ModelUsage(input_tokens=1000),
+    )
+    assert regional.missing_dimensions == ("region", "output_tokens")
+
+
+def test_calculate_cost_unknown_model_is_unpriced(tmp_path):
+    result = _catalog(tmp_path).calculate_cost(
+        model="not-a-model", channel="openai-api", at=_AT,
+        usage=ModelUsage(input_tokens=1000, output_tokens=500),
+    )
+    assert result.status == "unpriced"
+    assert result.model_id is None
+    assert result.cost is None
+    assert result.price is None
+    assert result.reasons
+
+
+def test_pricing_interface_keeps_the_existing_entry_points(tmp_path):
+    catalog = _catalog(tmp_path)
+    via_provider = catalog.snapshot.cost(
+        provider="openai", model="gpt-x", at=_AT,
+        input_tokens=1000, output_tokens=500,
+    )
+    assert via_provider.canonical_model == "openai/gpt-x"
+    assert via_provider.cost_usd == Decimal("0.00400000")
+    assert via_provider.components.input_usd == Decimal("0.00200000")
+    assert via_provider.components.output_usd == Decimal("0.00200000")
+    resolved = catalog.snapshot.resolve_price(
+        model="gpt-x", channel="openai-api", at=_AT
+    )
+    assert resolved.canonical_model == "openai/gpt-x"
+    assert resolved.price.id == "openai/gpt-x:openai-api:global:2026-01-01"
+    regional = _regional_catalog(tmp_path, region="us-east-1").price(
+        model="varies-x", channel="openai-api", at=_AT,
+        input_tokens=1000, output_tokens=500,
+    )
+    assert regional.status == "priced"
+    assert regional.price_id == "acme/varies-x:openai-api:us-east-1:2026-01-01"
+
+
+def test_pricing_interface_types_are_exported():
+    assert {"ModelUsage", "PriceResult"} <= set(metergraph_core.__all__)
 
 
 def test_canonical_model_id_resolves_provider_qualified_aliases(tmp_path):

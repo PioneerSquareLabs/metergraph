@@ -212,6 +212,9 @@ class Price:
     # A fixed fee charged once per call on top of tokens, in USD per 1,000
     # calls: a gateway billing a model's built-in search per request.
     request_fee_per_1k_usd: Decimal | None = None
+    # The currency every rate on this row is stated in. The `_usd` names on
+    # rates and results predate it and are kept for existing callers.
+    currency: str = "USD"
 
 
 @dataclass(frozen=True, slots=True)
@@ -220,13 +223,35 @@ class CostComponents:
     ``cost_usd`` exactly: each is quantized and the rounding residue lands in
     the input part, so a consumer that stores them can rebuild the total
     without a second rounding. ``request_usd`` is a per-call fee, zero on
-    every row that has none."""
+    every row that has none. Each part is in the applied price's currency;
+    ``input``, ``output``, ``cache_read``, ``cache_write`` and ``request``
+    name the same values without implying USD."""
 
     input_usd: Decimal
     output_usd: Decimal
     cache_read_usd: Decimal
     cache_write_usd: Decimal
     request_usd: Decimal = Decimal("0")
+
+    @property
+    def input(self) -> Decimal:
+        return self.input_usd
+
+    @property
+    def output(self) -> Decimal:
+        return self.output_usd
+
+    @property
+    def cache_read(self) -> Decimal:
+        return self.cache_read_usd
+
+    @property
+    def cache_write(self) -> Decimal:
+        return self.cache_write_usd
+
+    @property
+    def request(self) -> Decimal:
+        return self.request_usd
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,6 +266,53 @@ class CostResult:
     # The catalog's publisher for the priced model, for billing rules that
     # apply per publisher rather than per channel.
     publisher: str | None = None
+    # The applied price, its currency, and the time it was resolved at.
+    price: Price | None = None
+    currency: str | None = None
+    effective_at: datetime | None = None
+    # Inputs the caller did not supply that the figure depends on: "region",
+    # "channel", "input_tokens", "output_tokens".
+    missing_dimensions: tuple[str, ...] = ()
+
+    @property
+    def model_id(self) -> str | None:
+        """The resolved catalog model id; the same value as ``canonical_model``."""
+        return self.canonical_model
+
+    @property
+    def cost(self) -> Decimal | None:
+        """The total in ``currency``; the same value as ``cost_usd``."""
+        return self.cost_usd
+
+
+@dataclass(frozen=True, slots=True)
+class ModelUsage:
+    """Token usage for one model call. A count left ``None`` is unknown, not
+    zero: input and output turn the result partial, and cached counts bill as
+    nothing cached, as in :meth:`CatalogSnapshot.cost`."""
+
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    cache_read_tokens: int | None = None
+    cache_write_tokens: int | None = None
+    cache_write_5m_tokens: int | None = None
+    cache_write_1h_tokens: int | None = None
+    batch: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class PriceResult:
+    """The price a model call would be billed at.
+
+    ``status`` is ``priced``, ``partial`` (a price applies but depends on a
+    dimension listed in ``missing_dimensions``), or ``unpriced``. ``model_id``
+    is the resolved catalog id, not the alias the caller sent."""
+
+    status: str
+    model_id: str | None
+    price: Price | None
+    effective_at: datetime
+    missing_dimensions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,6 +322,26 @@ class ResolvedPrice:
     canonical_model: str
     price: Price
     rules: Mapping[str, Any]
+
+
+def _billed_terms(resolved: ResolvedPrice) -> tuple[Any, ...]:
+    """What a call is billed by: two resolutions with equal terms cost the
+    same for any usage, whichever region or source row they came from."""
+    price = resolved.price
+    return (
+        resolved.canonical_model,
+        price.pricing_channel,
+        price.currency,
+        price.input_per_mtok,
+        price.output_per_mtok,
+        price.cache_read_per_mtok,
+        price.cache_write_5m_per_mtok,
+        price.cache_write_1h_per_mtok,
+        price.batch_input_per_mtok,
+        price.batch_output_per_mtok,
+        price.request_fee_per_1k_usd,
+        resolved.rules,
+    )
 
 
 def _decimal(value: Any) -> Decimal | None:
@@ -351,9 +443,9 @@ def _price_tokens(
     batch: bool,
 ) -> tuple[Decimal, list[str], CostComponents]:
     """Cost a token usage against one already-selected price and its merged
-    rules. Shared by ``cost`` (provider+model entry) and ``price_deployment``
-    (model+channel entry) so both compute identically. Returns the total, the
-    reasons it is partial, and the split by driver."""
+    rules. Every token entry point reaches it through ``_cost_result`` so all
+    compute identically. Returns the total, the reasons it is partial, and the
+    split by driver."""
     reasons: list[str] = []
     input_count = _tokens(input_tokens)
     output_count = _tokens(output_tokens)
@@ -489,6 +581,48 @@ def _price_tokens(
     return cost, reasons, CostComponents(*parts)
 
 
+def _cost_result(
+    resolved: ResolvedPrice,
+    *,
+    at: datetime,
+    usage: ModelUsage,
+    missing: tuple[str, ...] = (),
+) -> CostResult:
+    """Cost ``usage`` against a resolved price. Every token entry point builds
+    its result here, so all of them compute and report identically."""
+    cost, reasons, components = _price_tokens(
+        resolved.price,
+        resolved.rules,
+        at=at,
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cache_read_tokens=usage.cache_read_tokens,
+        cache_write_tokens=usage.cache_write_tokens,
+        cache_write_5m_tokens=usage.cache_write_5m_tokens,
+        cache_write_1h_tokens=usage.cache_write_1h_tokens,
+        batch=usage.batch,
+    )
+    reasons = [f"missing_{dimension}" for dimension in missing] + reasons
+    missing += tuple(
+        dimension
+        for dimension in ("input_tokens", "output_tokens")
+        if f"missing_{dimension}" in reasons
+    )
+    return CostResult(
+        resolved.canonical_model,
+        resolved.price.id,
+        cost,
+        "partial" if reasons else "priced",
+        tuple(dict.fromkeys(reasons)),
+        components=components,
+        publisher=resolved.price.publisher,
+        price=resolved.price,
+        currency=resolved.price.currency,
+        effective_at=at,
+        missing_dimensions=missing,
+    )
+
+
 class CatalogSnapshot:
     def __init__(
         self,
@@ -532,8 +666,20 @@ class CatalogSnapshot:
             )
         for candidates in self._prices.values():
             candidates.sort(key=lambda price: price.effective_from, reverse=True)
+        # Every named region a price or pin exists for: the regions an omitted
+        # query region could have meant.
+        self._regions = tuple(sorted(
+            {price.region.lower() for price in prices}.union(
+                region
+                for candidates in self._aliases.values()
+                for alias in candidates
+                for region in alias.price_region
+            ) - {"*", _GLOBAL_REGION}
+        ))
 
-    def _alias_for(self, candidates: tuple[Alias, ...], at: datetime) -> Alias | None:
+    def _alias_for(
+        self, candidates: tuple[Alias, ...], at: datetime, region: str | None = None
+    ) -> Alias | None:
         when = _coerce_datetime(at)
         effective = [
             alias
@@ -542,29 +688,31 @@ class CatalogSnapshot:
             and (alias.effective_to is None or when < alias.effective_to)
         ]
         # Regional pins constrain availability; global pins match everywhere.
-        for region in dict.fromkeys((self._region, _GLOBAL_REGION)):
+        for pinned in dict.fromkeys((region or self._region, _GLOBAL_REGION)):
             for alias in effective:
-                if region in alias.price_region:
+                if pinned in alias.price_region:
                     return alias
         for alias in effective:
             if not alias.price_region:
                 return alias
         return None
 
-    def _price_regions(self, alias: Alias) -> tuple[str, ...]:
+    def _price_regions(self, alias: Alias, region: str) -> tuple[str, ...]:
         if not alias.price_region:
-            return tuple(dict.fromkeys((self._region, "*", _GLOBAL_REGION)))
-        for region in (self._region, _GLOBAL_REGION):
-            if region in alias.price_region:
-                return (region,)
+            return tuple(dict.fromkeys((region, "*", _GLOBAL_REGION)))
+        for candidate in (region, _GLOBAL_REGION):
+            if candidate in alias.price_region:
+                return (candidate,)
         return ()
 
-    def _price_for(self, alias: Alias, at: datetime) -> Price | None:
+    def _price_for(
+        self, alias: Alias, at: datetime, region: str | None = None
+    ) -> Price | None:
         at = at if at.tzinfo else at.replace(tzinfo=timezone.utc)
         candidates = self._prices.get((alias.model_id, alias.pricing_channel), [])
-        for region in self._price_regions(alias):
+        for scope in self._price_regions(alias, region or self._region):
             for price in candidates:
-                if price.region.lower() != region:
+                if price.region.lower() != scope:
                     continue
                 if price.effective_from <= at and (
                     price.effective_to is None or at < price.effective_to
@@ -611,25 +759,31 @@ class CatalogSnapshot:
         deployment channel before making a provider call. It never falls back
         to pricing from a different channel.
         """
+        return self._resolve(model=model, channel=channel, at=at)
 
+    def _resolve(
+        self, *, model: Any, channel: Any, at: Any, region: str | None = None
+    ) -> ResolvedPrice | None:
+        """``resolve_price`` in ``region``, or the snapshot's region when
+        ``None``."""
         model_key = str(model or "").strip().lower()
         channel_key = str(channel or "").strip().lower()
         when = _coerce_datetime(at)
         candidates = self._deployment_aliases.get((model_key, channel_key), ())
-        alias = self._alias_for(candidates, when)
+        alias = self._alias_for(candidates, when, region)
         if alias is None and channel_key in _BEDROCK_CHANNELS:
             for candidate, dropped_global in _bedrock_fallback_ids(model_key):
                 if dropped_global and channel_key != _BEDROCK_CHANNEL:
                     continue
                 candidates = self._deployment_aliases.get((candidate, channel_key), ())
-                alias = self._alias_for(candidates, when)
+                alias = self._alias_for(candidates, when, region)
                 if alias is not None and dropped_global and _crosses_price_region(alias):
                     alias = None
                 if alias is not None:
                     break
         if alias is None:
             return None
-        price = self._price_for(alias, when)
+        price = self._price_for(alias, when, region)
         if price is None:
             return None
         return ResolvedPrice(
@@ -637,6 +791,41 @@ class CatalogSnapshot:
             price=price,
             rules=MappingProxyType({**price.rules, **alias.rules}),
         )
+
+    def _lookup(
+        self, *, model: Any, channel: Any, provider: Any, at: Any, region: Any
+    ) -> tuple[ResolvedPrice | None, tuple[str, ...]]:
+        """Resolve a model call for the public lookup and cost entry points,
+        with the dimensions the answer depends on but the caller left out.
+
+        An explicit channel wins; otherwise a provider names its direct
+        channel. An explicit region resolves that region. An omitted one uses
+        the snapshot's region, and when that is the default ``global`` it is
+        checked against every named region: a global price that some region
+        bills differently is returned with ``region`` missing, and a model only
+        some region prices is unpriced with ``region`` missing.
+        """
+        if channel is None or not str(channel).strip():
+            channel = direct_channel_for_provider(provider)
+            if channel is None:
+                return None, ("channel",)
+        stated = str(region or "").strip().lower() or None
+        resolved = self._resolve(model=model, channel=channel, at=at, region=stated)
+        if stated is not None or self._region != _GLOBAL_REGION:
+            return resolved, ()
+        regional = [
+            found
+            for found in (
+                self._resolve(model=model, channel=channel, at=at, region=name)
+                for name in self._regions
+            )
+            if found is not None
+        ]
+        if resolved is None:
+            return None, ("region",) if regional else ()
+        if any(_billed_terms(found) != _billed_terms(resolved) for found in regional):
+            return resolved, ("region",)
+        return resolved, ()
 
     def cost(
         self,
@@ -688,27 +877,18 @@ class CatalogSnapshot:
                 "unpriced",
                 ("no_effective_price",),
             )
-
-        cost, reasons, components = _price_tokens(
-            price,
-            {**price.rules, **alias.rules},
+        return _cost_result(
+            ResolvedPrice(alias.canonical_id, price, {**price.rules, **alias.rules}),
             at=when,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cache_read_tokens=cache_read_tokens,
-            cache_write_tokens=cache_write_tokens,
-            cache_write_5m_tokens=cache_write_5m_tokens,
-            cache_write_1h_tokens=cache_write_1h_tokens,
-            batch=batch,
-        )
-        return CostResult(
-            alias.canonical_id,
-            price.id,
-            cost,
-            "partial" if reasons else "priced",
-            tuple(dict.fromkeys(reasons)),
-            components=components,
-            publisher=price.publisher,
+            usage=ModelUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_write_tokens=cache_write_tokens,
+                cache_write_5m_tokens=cache_write_5m_tokens,
+                cache_write_1h_tokens=cache_write_1h_tokens,
+                batch=batch,
+            ),
         )
 
     def price_deployment(
@@ -739,24 +919,16 @@ class CatalogSnapshot:
         resolved = self.resolve_price(model=model, channel=channel, at=when)
         if resolved is None:
             return CostResult(None, None, None, "unpriced", ("unknown_deployment",))
-        cost, reasons, components = _price_tokens(
-            resolved.price,
-            resolved.rules,
+        return _cost_result(
+            resolved,
             at=when,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            cache_read_tokens=cache_read_tokens,
-            cache_write_tokens=cache_write_tokens,
-            cache_write_5m_tokens=cache_write_5m_tokens,
-            cache_write_1h_tokens=cache_write_1h_tokens,
-            batch=batch,
-        )
-        return CostResult(
-            resolved.canonical_model,
-            resolved.price.id,
-            cost,
-            "partial" if reasons else "priced",
-            tuple(dict.fromkeys(reasons)),
-            components=components,
-            publisher=resolved.price.publisher,
+            usage=ModelUsage(
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cache_read_tokens=cache_read_tokens,
+                cache_write_tokens=cache_write_tokens,
+                cache_write_5m_tokens=cache_write_5m_tokens,
+                cache_write_1h_tokens=cache_write_1h_tokens,
+                batch=batch,
+            ),
         )

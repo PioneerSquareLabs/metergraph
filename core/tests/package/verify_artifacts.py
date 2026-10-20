@@ -34,7 +34,7 @@ CORE_DIR = Path(__file__).resolve().parents[2]  # core/
 DIST_DIR = CORE_DIR / "dist"
 
 EXPECTED_NAME = "metergraph-core"
-EXPECTED_VERSION = "0.2.61"
+EXPECTED_VERSION = "0.2.62"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
@@ -212,6 +212,8 @@ def _verify_isolated_install(wheel: Path) -> None:
         import metergraph_core
         from metergraph_core import (
             CostResult,
+            ModelUsage,
+            PriceResult,
             RetrievalCostResult,
             load_catalog,
             load_model_registry,
@@ -272,6 +274,21 @@ def _verify_isolated_install(wheel: Path) -> None:
         assert result.price_id == {GOLDEN_PRICE_ID!r}, result.price_id
         assert str(result.cost_usd) == {GOLDEN_COST!r}, result.cost_usd
         assert result.status == "priced", result.status
+        found = loaded.lookup_price(
+            model="gpt-5.4-mini",
+            provider="openai",
+            at=datetime(2026, 8, 17, tzinfo=timezone.utc),
+        )
+        assert isinstance(found, PriceResult), found
+        assert found.price.id == {GOLDEN_PRICE_ID!r}, found
+        resolved_cost = loaded.calculate_cost(
+            model="gpt-5.4-mini",
+            provider="openai",
+            at=datetime(2026, 8, 17, tzinfo=timezone.utc),
+            usage=ModelUsage(input_tokens=100_000, output_tokens=100_000),
+        )
+        assert resolved_cost.cost == result.cost_usd, resolved_cost
+        assert resolved_cost.currency == "USD", resolved_cost
         retrieval = loaded.price_retrieval(
             channel="google-api",
             operation="google_search_grounding",

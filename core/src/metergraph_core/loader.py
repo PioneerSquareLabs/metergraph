@@ -13,7 +13,11 @@ from .catalog import (
     Alias,
     CatalogSnapshot,
     CostResult,
+    ModelUsage,
     Price,
+    PriceResult,
+    _coerce_datetime,
+    _cost_result,
     _decimal,
     _effective_windows_overlap,
     normalize_provider,
@@ -123,6 +127,65 @@ class LoadedCatalog:
             batch=batch,
         )
 
+    def lookup_price(
+        self,
+        *,
+        model: Any,
+        at: Any,
+        channel: Any = None,
+        provider: Any = None,
+        region: Any = None,
+    ) -> PriceResult:
+        """The price a call to ``model`` at ``at`` is billed at.
+
+        ``channel`` is authoritative; without one, ``provider`` supplies its
+        direct channel. ``region`` overrides the region the catalog was
+        loaded with. A result that depends on a dimension the caller left out
+        lists it in ``missing_dimensions``."""
+        when = _coerce_datetime(at)
+        resolved, missing = self.snapshot._lookup(
+            model=model, channel=channel, provider=provider, at=when, region=region
+        )
+        if resolved is None:
+            return PriceResult("unpriced", None, None, when, missing)
+        return PriceResult(
+            "partial" if missing else "priced",
+            resolved.canonical_model,
+            resolved.price,
+            when,
+            missing,
+        )
+
+    def calculate_cost(
+        self,
+        *,
+        model: Any,
+        usage: ModelUsage,
+        at: Any,
+        channel: Any = None,
+        provider: Any = None,
+        region: Any = None,
+    ) -> CostResult:
+        """Cost ``usage`` at the price :meth:`lookup_price` resolves. A
+        missing dimension, from the lookup or the usage, turns the result
+        ``partial`` and keeps the subtotal that is known."""
+        when = _coerce_datetime(at)
+        resolved, missing = self.snapshot._lookup(
+            model=model, channel=channel, provider=provider, at=when, region=region
+        )
+        if resolved is None:
+            reasons = tuple(f"missing_{dimension}" for dimension in missing)
+            return CostResult(
+                None,
+                None,
+                None,
+                "unpriced",
+                reasons or ("unknown_deployment",),
+                effective_at=when,
+                missing_dimensions=missing,
+            )
+        return _cost_result(resolved, at=when, usage=usage, missing=missing)
+
     def price_retrieval(
         self,
         *,
@@ -191,7 +254,7 @@ def parse_catalog(
     version = str(document.get("version") or "")
     if not version:
         raise CatalogError("prices document must have a version")
-    _catalog_metadata(document)
+    currency, _ = _catalog_metadata(document)
     aliases: dict[tuple[str, str], list[Alias]] = {}
     prices: list[Price] = []
     for entry in document["models"]:
@@ -311,6 +374,7 @@ def parse_catalog(
                     effective_to=effective_to,
                     source_url=str(price["source_url"]).strip(),
                     publisher=publisher,
+                    currency=currency,
                 )
             )
     return version, {key: tuple(value) for key, value in aliases.items()}, prices
