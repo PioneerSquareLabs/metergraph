@@ -5,12 +5,13 @@ Builds (or, with ``--no-build``, reuses) exactly one sdist and one wheel, then:
 
 1. checks the distribution name, version, and ``Requires-Python`` metadata;
 2. confirms each artifact ships the public modules and exactly one bundled
-   ``data/models.yaml`` and ``data/prices.yaml``;
+   ``data/models.yaml``, ``data/prices.yaml`` and ``data/sources.yaml``;
 3. rejects top-level test packages in the installed wheel;
 4. installs the wheel into a throwaway virtualenv that cannot see the source
    tree; and
-5. loads the bundled registry and catalog there and reproduces the golden
-   candidate field and price.
+5. loads the bundled registries and catalog there, reproduces the golden
+   candidate field and price, and exercises document loading, source registry
+   validation and delta application.
 
 Archive members are listed and read in memory only. This script never extracts
 untrusted archive paths onto disk.
@@ -34,7 +35,7 @@ CORE_DIR = Path(__file__).resolve().parents[2]  # core/
 DIST_DIR = CORE_DIR / "dist"
 
 EXPECTED_NAME = "metergraph-core"
-EXPECTED_VERSION = "0.3.0"
+EXPECTED_VERSION = "0.4.0"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
@@ -47,9 +48,13 @@ REQUIRED_MODULES = (
     "__init__.py",
     "billing.py",
     "catalog.py",
+    "catalog_delta.py",
+    "extractors.py",
     "loader.py",
     "models.py",
+    "refresh.py",
     "retrieval.py",
+    "sources.py",
 )
 
 
@@ -154,6 +159,12 @@ def _verify_wheel(wheel: Path) -> None:
             f"{wheel.name}: expected exactly one bundled registry, found "
             f"{registries}",
         )
+        sources = [n for n in names if n.endswith("data/sources.yaml")]
+        _require(
+            sources == ["metergraph_core/data/sources.yaml"],
+            f"{wheel.name}: expected exactly one bundled source registry, found "
+            f"{sources}",
+        )
 
 
 def _verify_sdist(sdist: Path) -> None:
@@ -195,6 +206,12 @@ def _verify_sdist(sdist: Path) -> None:
             len(registries) == 1,
             f"{sdist.name}: expected exactly one bundled registry, found "
             f"{registries}",
+        )
+        sources = [m for m in members if m.endswith("metergraph_core/data/sources.yaml")]
+        _require(
+            len(sources) == 1,
+            f"{sdist.name}: expected exactly one bundled source registry, found "
+            f"{sources}",
         )
 
 
@@ -318,6 +335,52 @@ def _verify_isolated_install(wheel: Path) -> None:
         )
         assert decision.cost_usd == Decimal("0.00482"), decision
         assert decision.cost_provenance == "gateway_reported", decision
+        from metergraph_core import (
+            apply_catalog_delta,
+            load_catalog_document,
+            load_source_registry,
+            validate_source_registry,
+        )
+
+        from_document = load_catalog_document(loaded.document)
+        assert from_document.version == loaded.version, from_document.version
+        assert len(from_document.content_hash) == 64, from_document.content_hash
+        sources = load_source_registry()
+        validate_source_registry(sources, loaded)
+        low_risk = sorted(source.id for source in sources.low_risk())
+        assert low_risk == [
+            "anthropic-api-pricing",
+            "google-api-pricing",
+            "xai-api-pricing",
+        ], low_risk
+        assert len(sources.sources) == 14, len(sources.sources)
+        assert sources.get("google-vertex-ai-pricing").low_risk.eligible is False
+        [model] = [
+            entry for entry in loaded.document["models"]
+            if entry["canonical_id"] == "openai/gpt-5.4-mini"
+        ]
+        [row] = [
+            price for price in model["prices"]
+            if price["channel"] == "openai-api" and price.get("effective_to") is None
+        ]
+        applied = apply_catalog_delta(loaded.document, {{
+            "schema_version": 1,
+            "kind": "pricing_delta",
+            "provenance": {{"observations": ["artifact-check"]}},
+            "operations": [{{
+                "op": "close_price",
+                "key": {{
+                    "canonical_id": "openai/gpt-5.4-mini",
+                    "channel": "openai-api",
+                    "region": row.get("region", "global"),
+                    "effective_from": str(row["effective_from"]),
+                }},
+                "expect": row,
+                "effective_to": "2099-01-01",
+            }}],
+        }})
+        assert applied["version"] == loaded.version
+        assert row.get("effective_to") is None
         print("GOLDEN", result.cost_usd)
         """
     )

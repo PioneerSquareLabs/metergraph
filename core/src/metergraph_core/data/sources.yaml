@@ -1,0 +1,196 @@
+# MeterGraph public pricing source registry.
+#
+# One entry per official pricing source: the provider and catalog channel it
+# prices, its URL, the parser that reads it, the price dimensions it
+# represents, its expected structural fingerprint, and whether automated
+# low-risk refreshes may use it and for which dimensions.
+#
+# Refresh tools fetch only URLs listed here, and never emit, store or
+# redistribute raw page content: their outputs hold only structural
+# fingerprints, normalized extracted values, candidates, operations and short
+# non-verbatim diagnostics.
+#
+# A source becomes low-risk only through a reviewed change to this file;
+# nobody, including the provider, marks their own source low-risk. Seeding a
+# source does not make it low-risk. See core/README.md for the review and
+# contribution path.
+#
+# `fingerprint: null` means the page structure has not been recorded, so a
+# low-risk refresh escalates instead of proposing changes.
+schema_version: 1
+sources:
+  - id: openai-api-pricing
+    provider: openai
+    channel: openai-api
+    catalog_channel: true
+    url: https://developers.openai.com/api/docs/pricing
+    parser: openai
+    dimensions: [input_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, output_per_mtok]
+    # Reviewed discovery only: the live pricing data no longer exposes the
+    # rendered column header the openai parser needs to verify its positional
+    # columns, so its rows cannot be trusted unreviewed.
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  - id: anthropic-api-pricing
+    provider: anthropic
+    channel: anthropic-api
+    catalog_channel: true
+    url: https://platform.claude.com/docs/en/about-claude/pricing
+    parser: anthropic
+    # The 5m column is the base cache-write rate the catalog stores in
+    # cache_write_5m_per_mtok; the parser does not read the 1h column.
+    dimensions: [input_per_mtok, output_per_mtok, cache_write_5m_per_mtok, cache_read_per_mtok]
+    fingerprint: sha256:194f4d2c8095cc3041c75fb13ecdd1a3cdcccebfcf3aee1add5abd3eba2d415c
+    low_risk:
+      eligible: true
+      dimensions: [input_per_mtok, output_per_mtok, cache_write_5m_per_mtok, cache_read_per_mtok]
+
+  - id: google-api-pricing
+    provider: google
+    channel: google-api
+    catalog_channel: true
+    url: https://ai.google.dev/gemini-api/docs/pricing
+    parser: google
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: sha256:ce07b6f065f5dfd21a9f14a005c30de1f5802e3ba118dc1dbe088a124c84adbd
+    low_risk:
+      eligible: true
+      dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+
+  - id: deepseek-api-pricing
+    provider: deepseek
+    channel: deepseek-api
+    catalog_channel: true
+    url: https://api-docs.deepseek.com/quick_start/pricing/
+    parser: html-tables
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    # Reviewed discovery only: the official deepseek parser no longer reads the
+    # live page's peak rows. Promote once it and a fingerprint are reviewed.
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  - id: mistral-api-pricing
+    provider: mistral
+    channel: mistral-api
+    catalog_channel: true
+    url: https://docs.mistral.ai/models/mistral-large
+    parser: html-tables
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    # Reviewed discovery only: the live page shows a temporary sale price, so
+    # the official mistral parser's reading needs review first.
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  - id: xai-api-pricing
+    provider: xai
+    channel: xai-api
+    catalog_channel: true
+    url: https://docs.x.ai/developers/models
+    parser: xai
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: sha256:4232ee5c940b2d7c54f8aa893a7b9707486789aa820cb36912a1941155ce0ed8
+    low_risk:
+      eligible: true
+      dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+
+  - id: perplexity-api-pricing
+    provider: perplexity
+    channel: perplexity-api
+    catalog_channel: true
+    url: https://docs.perplexity.ai/docs/getting-started/pricing
+    parser: html-tables
+    dimensions: [input_per_mtok, output_per_mtok]
+    # Reviewed discovery only: the live page no longer yields the pricing
+    # object the official perplexity parser reads.
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  # Every other source that is not low-risk is reviewed discovery only: a generic
+  # parser (html-tables or gpu-license-prose) records normalized evidence and
+  # never produces applicable price rows. A generic parser does not mean the
+  # page's layout is supported; the provider sources below have no parser of
+  # their own.
+
+  - id: fireworks-api-pricing
+    provider: fireworks
+    channel: fireworks-api
+    catalog_channel: true
+    url: https://fireworks.ai/pricing
+    parser: html-tables
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  - id: zai-api-pricing
+    provider: zai
+    channel: zai-api
+    catalog_channel: true
+    url: https://docs.z.ai/guides/overview/pricing
+    parser: html-tables
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  # Gemini and partner models on Vertex AI. Prices vary by model, context
+  # length, tier and processing mode; reviewed discovery only. The URL is the
+  # current destination of Google's Vertex AI generative pricing page
+  # (cloud.google.com/vertex-ai/generative-ai/pricing redirects here), so the
+  # allowlisted fetch needs no redirect.
+  - id: google-vertex-ai-pricing
+    provider: google
+    channel: google-vertex-ai
+    catalog_channel: true
+    url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
+    parser: html-tables
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  # One page prices both Bedrock channels: in-region on-demand rows and
+  # geographic cross-region inference rows. Prices depend on the selected
+  # region, provider tab and inference type.
+  - id: aws-bedrock-pricing
+    provider: aws
+    channel: aws-bedrock
+    catalog_channel: true
+    url: https://aws.amazon.com/bedrock/pricing/
+    parser: html-tables
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  - id: aws-bedrock-geo-pricing
+    provider: aws
+    channel: aws-bedrock-geo
+    catalog_channel: true
+    url: https://aws.amazon.com/bedrock/pricing/
+    parser: html-tables
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  # The catalog does not carry Azure Foundry yet. Prices depend on the
+  # deployment type (Global, Data Zone, Regional) and region.
+  - id: azure-foundry-pricing
+    provider: azure
+    channel: azure-foundry
+    catalog_channel: false
+    url: https://azure.microsoft.com/en-us/pricing/details/ai-foundry-models/aoai/
+    parser: html-tables
+    dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok, batch_input_per_mtok, batch_output_per_mtok]
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
+
+  # NIM production use is licensed per GPU (NVIDIA AI Enterprise), per year
+  # or per GPU hour on cloud marketplaces. It is not token pricing, and no
+  # extractor derives token rates from it.
+  - id: nvidia-nim-pricing
+    provider: nvidia
+    channel: nvidia-ai-enterprise
+    catalog_channel: false
+    url: https://docs.api.nvidia.com/nim/docs/product
+    parser: gpu-license-prose
+    dimensions: [gpu_hour_usd, license_per_gpu_year_usd]
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}

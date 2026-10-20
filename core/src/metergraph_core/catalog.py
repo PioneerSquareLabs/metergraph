@@ -145,6 +145,13 @@ def direct_channel_for_provider(provider: Any) -> str | None:
     return _DIRECT_CHANNEL_BY_PROVIDER.get(normalize_provider(provider))
 
 
+def _iso_text(value: Any) -> str:
+    """ISO text with a trailing Z or z written as +00:00, which Python
+    3.10's fromisoformat requires."""
+    text = str(value).strip()
+    return text[:-1] + "+00:00" if text[-1:] in ("Z", "z") else text
+
+
 def _coerce_datetime(at: Any) -> datetime:
     """Normalize an effective time to an aware UTC datetime. A bare ``date`` is
     anchored at UTC midnight; an ISO string is parsed. Prices resolve at a
@@ -153,7 +160,7 @@ def _coerce_datetime(at: Any) -> datetime:
         return at if at.tzinfo else at.replace(tzinfo=timezone.utc)
     if isinstance(at, date):
         return datetime(at.year, at.month, at.day, tzinfo=timezone.utc)
-    parsed = datetime.fromisoformat(str(at))
+    parsed = datetime.fromisoformat(_iso_text(at))
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 

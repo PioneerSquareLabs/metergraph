@@ -635,3 +635,42 @@ def test_the_providers_own_price_alone_forces_an_update():
     text = check_prices.render_markdown([finding], ["openai", "litellm"], TODAY, {"openai": ["gpt-y"]})
     assert "| openai/gpt-x | openai-api | input | 2.0 | openai 1.0 |" in text
     assert "- openai (1): `gpt-y`" in text
+
+
+# --- The canonical name as a fallback -------------------------------------------
+
+
+def _tail_alias_rows(alias, effective_from=None, effective_to=None, channel="anthropic-api"):
+    """anthropic/claude-opus-5 whose only alias is its own canonical tail."""
+    doc = _single_row_document("anthropic/claude-opus-5", "anthropic", alias, channel, 5, 25)
+    doc["models"][0]["prices"][0]["channel"] = "anthropic-api"
+    window = {k: v for k, v in (("effective_from", effective_from), ("effective_to", effective_to)) if v}
+    doc["models"][0]["aliases"][0].update(window)
+    return check_prices.effective_rows(doc, TODAY)
+
+
+@pytest.mark.parametrize(
+    ("alias", "effective_from", "effective_to"),
+    [
+        ("claude-opus-5", "2026-11-01", None),
+        ("claude-opus-5", "2026-01-01", "2026-10-01"),
+        ("Claude-Opus-5", "2026-01-01", "2026-10-01"),
+    ],
+    ids=["not-yet-effective", "expired", "expired-other-case"],
+)
+def test_an_inactive_alias_is_not_revived_by_the_canonical_tail(alias, effective_from, effective_to):
+    [row] = _tail_alias_rows(alias, effective_from, effective_to)
+    assert check_prices._direct_aliases(row) == []
+    assert _quotes("anthropic", _anthropic_page(), [row]) == {}
+
+
+def test_the_canonical_tail_is_the_fallback_without_an_alias_on_the_channel():
+    # The model's only alias is on the gateway channel, not anthropic-api.
+    [row] = _tail_alias_rows("claude-opus-5", channel="vercel-ai-gateway")
+    assert check_prices._direct_aliases(row) == ["claude-opus-5"]
+    assert _quotes("anthropic", _anthropic_page(), [row])[row].rates["input"] == Decimal("5")
+
+
+def test_an_active_alias_keeps_its_tail_spelling():
+    [row] = _tail_alias_rows("claude-opus-5", "2026-01-01", None)
+    assert check_prices._direct_aliases(row) == ["claude-opus-5"]

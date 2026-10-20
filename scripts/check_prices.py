@@ -27,7 +27,6 @@ source disagrees.
 from __future__ import annotations
 
 import argparse
-import html
 import json
 import re
 import sys
@@ -43,6 +42,12 @@ from urllib.request import Request, urlopen
 import yaml
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+# Run against the in-repository core, not whatever version is installed.
+_CORE_SOURCE = str(REPOSITORY_ROOT / "core" / "src")
+if _CORE_SOURCE not in sys.path:
+    sys.path.insert(0, _CORE_SOURCE)
+
+from metergraph_core import extractors  # noqa: E402
 DEFAULT_CATALOG_PATH = (
     REPOSITORY_ROOT / "core" / "src" / "metergraph_core" / "data" / "prices.yaml"
 )
@@ -137,7 +142,7 @@ VERCEL_URL = "https://ai-gateway.vercel.sh/v1/models"
 OPENAI_URL = "https://developers.openai.com/api/docs/pricing"
 ANTHROPIC_URL = "https://platform.claude.com/docs/en/about-claude/pricing"
 GOOGLE_URL = "https://ai.google.dev/gemini-api/docs/pricing"
-DEEPSEEK_URL = "https://api-docs.deepseek.com/quick_start/pricing"
+DEEPSEEK_URL = "https://api-docs.deepseek.com/quick_start/pricing/"
 MISTRAL_URL = "https://docs.mistral.ai/models/mistral-large"
 XAI_URL = "https://docs.x.ai/developers/models"
 PERPLEXITY_URL = "https://docs.perplexity.ai/docs/getting-started/pricing"
@@ -163,6 +168,9 @@ class CatalogRow:
     source_url: str
     # (provider, alias) pairs the catalog carries for this model on this channel.
     aliases: tuple[tuple[str, str], ...]
+    # Lowercased names this channel defines as aliases only outside today's
+    # window; the canonical tail is not a fallback for them.
+    inactive_aliases: frozenset[str] = frozenset()
 
     # Quotes are keyed by model, channel and region.
     @property
@@ -195,12 +203,14 @@ def effective_rows(document: Mapping[str, Any], today: date) -> list[CatalogRow]
     for model in document.get("models") or []:
         canonical_id = str(model["canonical_id"])
         aliases_by_channel: dict[str, list[tuple[str, str]]] = {}
+        inactive_by_channel: dict[str, set[str]] = {}
         for alias in model.get("aliases") or []:
             starts = alias.get("effective_from")
             ends = alias.get("effective_to")
             if (starts is not None and _date(starts) > today) or (
                 ends is not None and _date(ends) <= today
             ):
+                inactive_by_channel.setdefault(str(alias["channel"]), set()).add(str(alias["alias"]).lower())
                 continue
             aliases_by_channel.setdefault(str(alias["channel"]), []).append(
                 (str(alias["provider"]), str(alias["alias"]))
@@ -229,6 +239,10 @@ def effective_rows(document: Mapping[str, Any], today: date) -> list[CatalogRow]
                     rates=rates,
                     source_url=str(price.get("source_url") or ""),
                     aliases=tuple(aliases_by_channel.get(channel, ())),
+                    inactive_aliases=frozenset(
+                        inactive_by_channel.get(channel, set())
+                        - {alias.lower() for _, alias in aliases_by_channel.get(channel, ())}
+                    ),
                 )
             )
     return rows
@@ -389,7 +403,9 @@ def _direct_aliases(row: CatalogRow) -> list[str]:
     """Model ids a provider-facing source might use, most specific first."""
     names = [alias for provider, alias in row.aliases if provider not in ALIAS_ONLY_PROVIDERS]
     tail = row.canonical_id.split("/", 1)[-1]
-    if tail not in names:
+    # The canonical tail is a fallback, except for a name the channel
+    # defines as an alias that is not in effect today.
+    if tail not in names and tail.lower() not in row.inactive_aliases:
         names.append(tail)
     return names
 
@@ -412,30 +428,11 @@ def _modelsdev_quotes(data: Mapping[str, Any], rows: list[CatalogRow]) -> dict[C
     return quotes
 
 
-def _page_text(html_text: str) -> str:
-    """A page as one line of cell-separated text, for pages that are prose."""
-    text = re.sub(r"<script.*?</script>|<style.*?</style>", "", html_text, flags=re.S)
-    text = re.sub(r"<[^>]+>", " | ", text)
-    text = html.unescape(re.sub(r"\s+", " ", text))
-    return re.sub(r"(\s*\|\s*)+", " | ", text)
-
-
-def _page_tables(html_text: str) -> list[list[list[str]]]:
-    """Every HTML table as rows of cell text."""
-    tables = []
-    for table in re.findall(r"<table.*?</table>", html_text, flags=re.S):
-        rows = []
-        for row in re.findall(r"<tr.*?</tr>", table, flags=re.S):
-            cells = re.findall(r"<t[hd].*?</t[hd]>", row, flags=re.S)
-            rows.append([html.unescape(re.sub(r"<[^>]+>", "", c)).strip() for c in cells])
-        tables.append(rows)
-    return tables
-
-
-def _dollars(text: str) -> Decimal | None:
-    """The first dollar amount in a cell, e.g. "$0.75 (text / image)"."""
-    match = re.search(r"\$([0-9][0-9,]*\.?[0-9]*)", text)
-    return _decimal(match.group(1).replace(",", "")) if match else None
+# Page reading and the official parsers live in metergraph_core.extractors;
+# these names keep the checker's existing behavior and interface.
+_page_text = extractors.page_text
+_page_tables = extractors.page_tables
+_dollars = extractors.dollars
 
 
 def _rates_for(row: CatalogRow, lookup: Callable[[str], Mapping[str, Decimal] | None]) -> tuple[str, Mapping[str, Decimal]] | None:
@@ -448,191 +445,15 @@ def _rates_for(row: CatalogRow, lookup: Callable[[str], Mapping[str, Decimal] | 
 
 # Provider pages. Each parser turns a page into {model name: rates}; the
 # matcher then pairs catalog rows on the page's channel with those names.
-
-# OpenAI's page carries its tables as data. In the Standard section a row is
-# input, cached input, output, with a cache-write column on newer models.
-_OPENAI_ROW = re.compile(r'\[\[0,"([^"]+)"\]((?:,\[0,(?:[0-9.]+|"-")\]){3,4})\]')
-_OPENAI_CELL = re.compile(r'\[0,([0-9.]+|"-")\]')
-
-
-def _parse_openai(html_text: str) -> dict[str, dict[str, Decimal]]:
-    text = html.unescape(html_text)
-    # The page repeats the "standard" label (text, image and audio tables);
-    # the text-model table is the standard section with the most gpt rows.
-    sections = []
-    for match in re.finditer(r'\[0,"standard"\]', text):
-        end = text.find('[0,"batch"]', match.end())
-        if end > match.end():
-            sections.append(text[match.end():end])
-    section = max(sections, key=lambda sec: sum(n.startswith("gpt") for n, _ in _OPENAI_ROW.findall(sec)), default=text)
-    table: dict[str, dict[str, Decimal]] = {}
-    for name, cells in _OPENAI_ROW.findall(section):
-        key = re.sub(r"\s*\(.*\)$", "", name).strip().lower()
-        if key in table:
-            continue
-        values = [_decimal(v) for v in _OPENAI_CELL.findall(cells)]
-        names = ("input", "cache_read", "cache_write", "output") if len(values) == 4 else ("input", "cache_read", "output")
-        table[key] = {k: v for k, v in zip(names, values) if v is not None}
-    return table
-
-
-def _parse_anthropic(html_text: str) -> dict[str, dict[str, Decimal]]:
-    """The base-token table: name, input, output, 5m write, 1h write, hits.
-    Keys are model ids such as claude-opus-5-5."""
-    table: dict[str, dict[str, Decimal]] = {}
-    for rows_ in _page_tables(html_text):
-        if not rows_ or "Base tokens" not in " ".join(rows_[0]):
-            continue
-        for cells in rows_[2:]:
-            if len(cells) < 6:
-                continue
-            match = re.match(r"(Claude [A-Za-z]+ [0-9.]+)", cells[0])
-            if not match:
-                continue
-            key = match.group(1).lower().replace(" ", "-").replace(".", "-")
-            rates = {"input": _dollars(cells[1]), "output": _dollars(cells[2]), "cache_write": _dollars(cells[3]), "cache_read": _dollars(cells[5])}
-            table.setdefault(key, {k: v for k, v in rates.items() if v is not None})
-        break
-    return table
-
-
-def _parse_google(html_text: str) -> dict[str, dict[str, Decimal]]:
-    """The Gemini API page: each model's id precedes its "Try it" link, and
-    its paid-tier prices follow. Where a price is dated the first amount is
-    the one in effect; per-image output is not a token rate."""
-    parts = _page_text(html_text).split("Try it in Google AI Studio")
-    tier = r"(?:Free of charge \| |Not available \| )?([^|]*\$[^|]*)"
-    table: dict[str, dict[str, Decimal]] = {}
-    for before, block in zip(parts, parts[1:]):
-        cells = [c.strip() for c in before.split("|") if c.strip()]
-        if not cells or not re.fullmatch(r"[a-z0-9][a-z0-9.-]*", cells[-1]):
-            continue
-        inp = re.search(r"Input price \| " + tier, block)
-        out = re.search(r"Output price[^|]*\| " + tier, block)
-        if not (inp and out):
-            continue
-        cache = re.search(r"Context caching price \| " + tier, block)
-        output = None if "per image" in out.group(1) else _dollars(out.group(1))
-        rates = {"input": _dollars(inp.group(1)), "output": output, "cache_read": _dollars(cache.group(1)) if cache else None}
-        table.setdefault(cells[-1], {k: v for k, v in rates.items() if v is not None})
-    return table
-
-
-def _deepseek_name(name: str) -> str:
-    # The page names the current Flash "deepseek-flash" and keeps the
-    # versioned ids as legacy names for it.
-    return re.sub(r"\(\d+\)", "", name).strip().lower().replace("deepseek-v4.1-", "deepseek-").replace("deepseek-v4-", "deepseek-")
-
-
-def _parse_deepseek(html_text: str) -> dict[str, dict[str, Decimal]]:
-    """The pricing table, one column per model; the catalog carries the peak
-    rate and an off-peak rule, so peak rows are read."""
-    columns: list[str] = []
-    table: dict[str, dict[str, Decimal]] = {}
-    section = ""
-    for rows_ in _page_tables(html_text):
-        for cells in rows_:
-            if cells and cells[0].upper().startswith("MODEL") and len(cells) > 1:
-                columns = [_deepseek_name(c) for c in cells[1:]]
-                for column in columns:
-                    table[column] = {}
-                continue
-            if not columns:
-                continue
-            label = " ".join(cells).upper()
-            if "CACHE HIT" in label:
-                section = "cache_read"
-            elif "CACHE MISS" in label:
-                section = "input"
-            elif "OUTPUT" in label:
-                section = "output"
-            if section and any(c.upper() == "PEAK" for c in cells):
-                values = [c for c in cells if c.startswith("$")]
-                for column, value in zip(columns, values):
-                    rate = _dollars(value)
-                    if rate is not None:
-                        table[column][section] = rate
-    return table
-
-
-def _parse_mistral(html_text: str) -> dict[str, dict[str, Decimal]]:
-    """Mistral Large 4's model card embeds the active price and, during a
-    sale, the original price. Read the active ``price`` values by label."""
-    text = html.unescape(html_text).replace(r'\"', '"')
-    if "mistral-large-4" not in text:
-        return {}
-    start = text.find('"pricing":{"type":"custom"')
-    if start < 0:
-        return {}
-    block = text[start : start + 2000]
-    rates: dict[str, Decimal] = {}
-    fields = {"input": "input", "cached input": "cache_read", "output": "output"}
-    for price, label in re.findall(
-        r'"price":([0-9.]+).*?"label":"([^"]+)"', block
-    ):
-        field = fields.get(label.lower())
-        rate = _decimal(price)
-        if field is not None and rate is not None:
-            rates.setdefault(field, rate)
-    return {"mistral-large-4": rates} if "input" in rates and "output" in rates else {}
-
-
-# xAI's models page embeds each model once per cluster as JSON, with prices
-# in units of $0.0000000001 per token, so 20000 is $2 per million. The
-# us-central-1 cluster is the US regional endpoint, priced 10% above the
-# global endpoint; the catalog carries it as region "us".
-_XAI_MODEL = re.compile(r'"name":"([^"]+)","version"')
-_XAI_UNIT = Decimal("0.0001")
-_XAI_CLUSTER_REGION = {"us-central-1": "us"}
-
-
-def _regional_key(name: str, region: str) -> str:
-    """A page table key for a regional price: the global key is bare."""
-    return name if region == "global" else f"{name}@{region}"
-
-
-def _parse_xai(html_text: str) -> dict[str, dict[str, Decimal]]:
-    text = html.unescape(html_text)
-    table: dict[str, dict[str, Decimal]] = {}
-    for match in _XAI_MODEL.finditer(text):
-        body = text[match.end(): match.end() + 1500]
-        cluster = re.search(r'"cluster":"([^"]+)"', body)
-        key = _regional_key(match.group(1).lower(), _XAI_CLUSTER_REGION.get(cluster.group(1) if cluster else "", "global"))
-        if key in table:
-            continue
-
-        def price(field: str) -> Decimal | None:
-            found = re.search(r'"' + field + r'":"?([0-9.]+)"?', body)
-            return _decimal(found.group(1)) * _XAI_UNIT if found else None
-
-        rates = {"input": price("promptTextTokenPrice"), "cache_read": price("cachedPromptTokenPrice"), "output": price("completionTextTokenPrice")}
-        if rates["input"] is not None and rates["output"] is not None:
-            table[key] = {k: v for k, v in rates.items() if v is not None}
-    return table
-
-
-def _parse_perplexity(html_text: str) -> dict[str, dict[str, Decimal]]:
-    """The page's cost calculator carries a PRICING object, which the page
-    calls its single source of truth; its sonar models give token rates."""
-    text = html.unescape(html_text)
-    start = text.find("const PRICING=")
-    end = text.find("};const PricingCalculator", start)
-    if start < 0 or end < 0:
-        return {}
-    raw = text[start + len("const PRICING="): end + 1]
-    raw = raw.replace('\\"', '"').replace("\\u0026", "&").replace("\\n", " ")
-    raw = re.sub(r"`([^`]*)`", lambda m: json.dumps(m.group(1)), raw)
-    raw = re.sub(r"(?<=[:\[,])\s*\.(\d)", r"0.\1", raw)
-    try:
-        pricing = json.loads(raw)
-    except ValueError:
-        return {}
-    table: dict[str, dict[str, Decimal]] = {}
-    for model in (pricing.get("sonar") or {}).get("models") or []:
-        rates = {"input": _decimal(model.get("input")), "output": _decimal(model.get("output"))}
-        if rates["input"] is not None:
-            table[str(model.get("id")).lower()] = {k: v for k, v in rates.items() if v is not None}
-    return table
+_parse_openai = extractors.parse_openai
+_parse_anthropic = extractors.parse_anthropic
+_parse_google = extractors.parse_google
+_deepseek_name = extractors.deepseek_name
+_parse_deepseek = extractors.parse_deepseek
+_parse_mistral = extractors.parse_mistral
+_regional_key = extractors.regional_key
+_parse_xai = extractors.parse_xai
+_parse_perplexity = extractors.parse_perplexity
 
 
 PROVIDER_PAGES: dict[str, tuple[str, str, Callable[[str], dict[str, dict[str, Decimal]]]]] = {
@@ -646,23 +467,8 @@ PROVIDER_PAGES: dict[str, tuple[str, str, Callable[[str], dict[str, dict[str, De
 }
 
 
-def _page_key(source: str, name: str) -> str:
-    """A catalog alias in the spelling the provider page uses."""
-    name = name.lower().split("/")[-1]
-    if source == "google":
-        name = name.removeprefix("models/")
-    if source == "deepseek":
-        name = _deepseek_name(name)
-    return name
-
-
-def _page_match(source: str, table: Mapping[str, Mapping[str, Decimal]], name: str, region: str = "global") -> Mapping[str, Decimal] | None:
-    key = _regional_key(_page_key(source, name), region)
-    if source == "anthropic":
-        # Ids match exactly or with a date suffix; a variant such as
-        # claude-opus-5-fast never inherits the base model's price.
-        return next((r for k, r in table.items() if re.fullmatch(re.escape(k) + r"(-\d{8})?", key)), None)
-    return table.get(key)
+_page_key = extractors.page_key
+_page_match = extractors.page_match
 
 
 def _page_quotes(source: str, table: Mapping[str, Mapping[str, Decimal]], rows: list[CatalogRow]) -> dict[CatalogRow, Quote]:
