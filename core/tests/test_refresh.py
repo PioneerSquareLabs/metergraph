@@ -422,8 +422,8 @@ def test_discovery_evidence_lists_candidates_with_prior_values_and_reasons():
     assert evidence["fingerprint_matches"] is True
     assert evidence["applicable"] is True
     assert evidence["candidates"] == [
-        {"model_key": "gpt-legacy", "region": "global", "canonical_id": None, "reason": "unknown_model", "prior": None, "candidate": {"input_per_mtok": "2.5", "cache_read_per_mtok": "1.25", "output_per_mtok": "10"}},
-        {"model_key": "gpt-x", "region": "global", "canonical_id": "example/gpt-x", "reason": "changed", "prior": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "9"}, "candidate": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "8"}},
+        {"model_key": "gpt-legacy", "region": "global", "canonical_id": None, "reason": "unknown_model", "prior": None, "candidate": {"input_per_mtok": "2.5", "cache_read_per_mtok": "1.25", "output_per_mtok": "10"}, "missing_dimensions": []},
+        {"model_key": "gpt-x", "region": "global", "canonical_id": "example/gpt-x", "reason": "changed", "prior": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "9"}, "candidate": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "8"}, "missing_dimensions": []},
     ]
     assert evidence["retention"] == {"store_raw": False, "redistribute_raw": False, "excerpt_chars": 0, "reason": "Synthetic test source."}
     assert evidence["excerpt"] is None
@@ -874,6 +874,46 @@ def test_discovery_proposes_no_operation_that_would_copy_a_missing_rate_forward(
     evidence = discovery_evidence(source, _NO_CACHE_WRITE, _document(), observed_on=OBSERVED_ON)
     assert [(c["model_key"], c["reason"]) for c in evidence["candidates"]] == [("gpt-x", "changed")]
     assert evidence["operations"] == []
+
+
+def test_discovery_reports_a_cache_rate_that_disappears_with_nothing_else_changed():
+    page = _fixture("openai-api-pricing").replace("[0,2],[0,0.2],[0,2.5],[0,8]", "[0,2],[0,0.2],[0,8]")
+    source = _registry(_openai_source(low_risk=False)).get("openai-api-pricing")
+    evidence = discovery_evidence(source, page, _document(), observed_on=OBSERVED_ON)
+    assert evidence["candidates"] == [
+        {
+            "model_key": "gpt-x",
+            "region": "global",
+            "canonical_id": "example/gpt-x",
+            "reason": "missing_rate",
+            "prior": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "cache_write_5m_per_mtok": "2.5", "output_per_mtok": "8"},
+            "candidate": {"input_per_mtok": "2", "cache_read_per_mtok": "0.2", "output_per_mtok": "8"},
+            "missing_dimensions": ["cache_write_5m_per_mtok"],
+        }
+    ]
+    assert evidence["operations"] == []
+
+
+def test_discovery_reports_an_output_rate_that_disappears_with_nothing_else_changed():
+    entry = _source("anthropic-api-pricing", "anthropic", "anthropic-api", "anthropic", low_risk=False)
+    source = _registry(entry).get("anthropic-api-pricing")
+    document = _document(
+        _model("example/claude-example-5", "claude-example-5", dict(_row(input_per_mtok=5.0, output_per_mtok=25.0, cache_write_5m_per_mtok=6.25, cache_read_per_mtok=0.5), channel="anthropic-api"), channel="anthropic-api", provider="anthropic"),
+        _model("example/claude-example-5-5", "claude-example-5-5", dict(_row(input_per_mtok=4.0, output_per_mtok=20.0, cache_write_5m_per_mtok=5.0, cache_read_per_mtok=0.4), channel="anthropic-api"), channel="anthropic-api", provider="anthropic"),
+    )
+    page = _fixture("anthropic-api-pricing").replace("<td>$25 / MTok</td>", "<td>Contact us</td>")
+    evidence = discovery_evidence(source, page, document, observed_on=OBSERVED_ON)
+    assert [(c["model_key"], c["reason"], c["missing_dimensions"]) for c in evidence["candidates"]] == [
+        ("claude-example-5", "missing_rate", ["output_per_mtok"])
+    ]
+    assert evidence["operations"] == []
+
+
+def test_discovery_lists_a_missing_rate_alongside_a_changed_one():
+    source = _no_cache_write_registry(low_risk=False).get("openai-api-pricing")
+    evidence = discovery_evidence(source, _NO_CACHE_WRITE, _document(), observed_on=OBSERVED_ON)
+    [candidate] = evidence["candidates"]
+    assert (candidate["reason"], candidate["missing_dimensions"]) == ("changed", ["cache_write_5m_per_mtok"])
 
 
 def test_discovery_proposes_no_operation_for_an_ambiguous_row():

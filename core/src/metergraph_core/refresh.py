@@ -507,13 +507,23 @@ def discovery_evidence(
                 continue
             candidate = _rates_json(match.rate.rates, source.dimensions)
             prior = _rates_json(match.row, source.dimensions)
-            if any(prior.get(d) != v for d, v in candidate.items()):
+            # Every represented rate the row carries is compared, so one the
+            # page no longer shows is evidence even when the rest agree.
+            missing = [d for d in prior if d not in candidate]
+            differs = any(prior.get(d) != v for d, v in candidate.items())
+            if differs or missing:
                 candidates.append(
-                    {"model_key": match.rate.model_key, "region": match.key.region, "canonical_id": match.canonical_id, "reason": "changed", "prior": prior, "candidate": candidate}
+                    {
+                        "model_key": match.rate.model_key,
+                        "region": match.key.region,
+                        "canonical_id": match.canonical_id,
+                        "reason": "changed" if differs else "missing_rate",
+                        "prior": prior,
+                        "candidate": candidate,
+                        "missing_dimensions": missing,
+                    }
                 )
-                complete = all(
-                    d in match.rate.rates for d in source.dimensions if match.row.get(d) is not None
-                )
+                complete = not missing
                 ambiguous = regional_key(match.rate.model_key, match.rate.region) in extraction.ambiguities
                 if (
                     complete
@@ -527,7 +537,7 @@ def discovery_evidence(
                     operations.append(_replace_operation(source, match, changed, observed_on))
         for rate, reason in unclaimed:
             candidates.append(
-                {"model_key": rate.model_key, "region": rate.region, "canonical_id": None, "reason": reason, "prior": None, "candidate": _rates_json(rate.rates, source.dimensions)}
+                {"model_key": rate.model_key, "region": rate.region, "canonical_id": None, "reason": reason, "prior": None, "candidate": _rates_json(rate.rates, source.dimensions), "missing_dimensions": []}
             )
         candidates.sort(key=lambda c: (c["model_key"], c["region"]))
     excerpt = None
