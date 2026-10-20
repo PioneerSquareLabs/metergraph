@@ -1,10 +1,14 @@
 """The low-risk refresh script, run against fixture content. No test touches
 the network."""
 
+import email.message
 import hashlib
 import importlib.util
+import io
 import json
 import sys
+import urllib.request
+import urllib.response
 from pathlib import Path
 
 import pytest
@@ -182,6 +186,92 @@ def test_cli_fetches_exactly_the_registered_urls(setup, capsys, monkeypatch):
 def test_fetch_refuses_a_url_outside_the_registry():
     with pytest.raises(ValueError, match="not a registered source URL"):
         refresh_prices.fetch_text("https://example.com/elsewhere", frozenset({OPENAI_URL}))
+
+
+class _FakeSite(urllib.request.BaseHandler):
+    """Serves https URLs from memory: a page body, or a redirect."""
+
+    handler_order = 100  # ahead of the real HTTPS handler
+
+    def __init__(self, pages):
+        self.pages = pages
+        self.opened = []
+
+    def https_open(self, request):
+        self.opened.append(request.full_url)
+        kind, value = self.pages[request.full_url]
+        headers = email.message.Message()
+        if kind == "redirect":
+            headers["Location"] = value
+            response = urllib.response.addinfourl(io.BytesIO(b""), headers, request.full_url, 302)
+            response.msg = "Found"
+        else:
+            response = urllib.response.addinfourl(io.BytesIO(value.encode()), headers, request.full_url, 200)
+            response.msg = "OK"
+        return response
+
+
+def _serve(monkeypatch, pages):
+    site = _FakeSite(pages)
+    real = refresh_prices.build_allowlisted_opener
+
+    def opener_with_site(allowed):
+        opener = real(allowed)
+        opener.add_handler(site)
+        return opener
+
+    monkeypatch.setattr(refresh_prices, "build_allowlisted_opener", opener_with_site)
+    return site
+
+
+SECOND_URL = "https://example.com/openai-pricing-moved"
+
+
+def test_fetch_reads_a_registered_page_without_redirects(monkeypatch):
+    site = _serve(monkeypatch, {OPENAI_URL: ("page", "<p>prices</p>")})
+    assert refresh_prices.fetch_text(OPENAI_URL, frozenset({OPENAI_URL})) == "<p>prices</p>"
+    assert site.opened == [OPENAI_URL]
+
+
+def test_fetch_follows_a_redirect_to_another_registered_url(monkeypatch):
+    site = _serve(monkeypatch, {OPENAI_URL: ("redirect", SECOND_URL), SECOND_URL: ("page", "<p>moved</p>")})
+    assert refresh_prices.fetch_text(OPENAI_URL, frozenset({OPENAI_URL, SECOND_URL})) == "<p>moved</p>"
+    assert site.opened == [OPENAI_URL, SECOND_URL]
+
+
+def test_fetch_refuses_a_redirect_outside_the_registry(monkeypatch):
+    elsewhere = "https://example.org/somewhere-else"
+    site = _serve(monkeypatch, {OPENAI_URL: ("redirect", elsewhere), elsewhere: ("page", "<p>other</p>")})
+    with pytest.raises(ValueError, match="redirect to https://example.org/somewhere-else is not a registered source URL"):
+        refresh_prices.fetch_text(OPENAI_URL, frozenset({OPENAI_URL}))
+    assert site.opened == [OPENAI_URL]
+
+
+def test_fetch_checks_every_redirect_hop(monkeypatch):
+    elsewhere = "https://example.org/third"
+    site = _serve(
+        monkeypatch,
+        {OPENAI_URL: ("redirect", SECOND_URL), SECOND_URL: ("redirect", elsewhere), elsewhere: ("page", "x")},
+    )
+    with pytest.raises(ValueError, match="redirect to https://example.org/third"):
+        refresh_prices.fetch_text(OPENAI_URL, frozenset({OPENAI_URL, SECOND_URL}))
+    assert site.opened == [OPENAI_URL, SECOND_URL]
+
+
+def test_a_refused_redirect_is_observed_and_escalated(setup, capsys, monkeypatch):
+    write, _, _, _ = setup
+    _serve(
+        monkeypatch,
+        {
+            OPENAI_URL: ("page", (FIXTURES / "openai-api-pricing.html").read_text()),
+            ANTHROPIC_URL: ("redirect", "https://example.org/login"),
+        },
+    )
+    status, output = _run(write(), capsys)
+    assert status == 2
+    [escalation] = output["escalations"]
+    assert (escalation["source_id"], escalation["reason"]) == ("anthropic-api-pricing", "content_missing")
+    assert "https://example.org/login is not a registered source URL" in escalation["detail"]
 
 
 def test_a_failed_fetch_is_observed_and_escalated(setup, capsys, monkeypatch):

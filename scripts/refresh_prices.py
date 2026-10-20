@@ -27,7 +27,12 @@ import json
 import sys
 from datetime import date, datetime, timezone
 from pathlib import Path
-from urllib.request import Request, urlopen
+from urllib.request import (
+    HTTPRedirectHandler,
+    OpenerDirector,
+    Request,
+    build_opener,
+)
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 # Run against the in-repository core, not whatever version is installed.
@@ -50,11 +55,31 @@ USER_AGENT = "metergraph-refresh-prices/1 (+https://github.com/PioneerSquareLabs
 REPORT_SCHEMA_VERSION = 1
 
 
+class AllowlistRedirectHandler(HTTPRedirectHandler):
+    """Follow a redirect only to an exact registered URL. Every hop is
+    checked, so a redirect can never lead a fetch off the allowlist."""
+
+    def __init__(self, allowed: frozenset[str]) -> None:
+        super().__init__()
+        self.allowed = allowed
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D102
+        if newurl not in self.allowed:
+            raise ValueError(f"redirect to {newurl} is not a registered source URL")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def build_allowlisted_opener(allowed: frozenset[str]) -> OpenerDirector:
+    return build_opener(AllowlistRedirectHandler(allowed))
+
+
 def fetch_text(url: str, allowed: frozenset[str], timeout: float = 30.0) -> str:
-    """Fetch a registered source URL. Any other URL is refused."""
+    """Fetch a registered source URL. Any other URL, including any redirect
+    target, is refused."""
     if url not in allowed:
         raise ValueError(f"{url} is not a registered source URL")
-    with urlopen(Request(url, headers={"User-Agent": USER_AGENT}), timeout=timeout) as response:
+    request = Request(url, headers={"User-Agent": USER_AGENT})
+    with build_allowlisted_opener(allowed).open(request, timeout=timeout) as response:
         return response.read().decode("utf-8", errors="ignore")
 
 
