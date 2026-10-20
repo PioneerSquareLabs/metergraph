@@ -331,10 +331,15 @@ def _precondition(document: Mapping[str, Any], operation: DeltaOperation) -> str
         return "row_not_open"
     if _canonical_json(row) != _canonical_json(operation.expect):
         return "expect_mismatch"
-    if operation.op == "replace_price" and _instant(
-        operation.price["effective_from"]
-    ) <= _instant(operation.key.effective_from):
-        return "not_after_current"
+    if operation.op == "replace_price":
+        starts = _instant(operation.price["effective_from"])
+        current = _instant(operation.key.effective_from)
+        if starts <= current:
+            return "not_after_current"
+        # A price id names its row by UTC date, so a replacement must start
+        # on a later UTC date than the row it closes to keep ids distinct.
+        if starts.date() == current.date():
+            return "same_day_replacement"
     return None
 
 

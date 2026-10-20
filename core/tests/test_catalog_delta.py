@@ -512,6 +512,29 @@ def test_a_replacement_before_the_row_with_an_offset_is_a_conflict(effective_fro
     assert _conflicts(_document(), _delta(operation)) == [(0, "not_after_current")]
 
 
+@pytest.mark.parametrize(
+    "effective_from",
+    ["2026-01-01T12:00:00Z", "2026-01-01T00:00:01+00:00", "2026-01-02T01:00:00+02:00"],
+    ids=["noon", "one-second-later", "offset-into-the-same-utc-date"],
+)
+def test_a_replacement_on_the_targets_utc_date_is_a_conflict(effective_from):
+    # Price ids are date-granular, so both rows would share one public id.
+    operation = _replace(price=_new_price(effective_from=effective_from))
+    assert _conflicts(_document(), _delta(operation)) == [(0, "same_day_replacement")]
+
+
+def test_a_replacement_on_the_next_utc_date_keeps_distinct_price_ids():
+    operation = _replace(price=_new_price(effective_from="2026-01-02T00:30:00Z"))
+    loaded = load_catalog_document(apply_catalog_delta(_document(), _delta(operation)))
+    ids = sorted(p.id for prices in loaded.snapshot._prices.values() for p in prices)
+    assert ids == [
+        "example/model-a:openai-api:global:2025-06-01",
+        "example/model-a:openai-api:global:2026-01-01",
+        "example/model-a:openai-api:global:2026-01-02",
+        "example/model-a:openai-api:us:2026-01-01",
+    ]
+
+
 def test_a_replacement_with_an_offset_after_the_row_applies():
     operation = _replace(price=_new_price(effective_from="2026-10-20T00:00:00+00:00"))
     result = apply_catalog_delta(_document(), _delta(operation))

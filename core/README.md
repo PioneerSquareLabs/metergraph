@@ -235,7 +235,9 @@ effective_from)` on a model the catalog already has:
 
 - `add_price` appends a row; `expect` is `null` because no such row may exist.
 - `replace_price` closes the open row at the new row's `effective_from` and
-  appends the new row; `expect` is the exact current row.
+  appends the new row; `expect` is the exact current row. The new row must
+  start on a later UTC date than the row it replaces, because price ids name
+  rows by date.
 - `close_price` sets `effective_to` on the open row without a replacement.
 
 New rates are decimal strings. `apply_catalog_delta(document, delta)` returns a
