@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import copy
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Iterable, Mapping
@@ -32,6 +32,7 @@ from .catalog_delta import (
     PriceRowKey,
     _instant,
     _iso_date,
+    parse_catalog_delta,
     row_key,
 )
 from .extractors import (
@@ -43,7 +44,7 @@ from .extractors import (
     redact_evidence,
     regional_key,
 )
-from .loader import _canonical_value, load_catalog_document
+from .loader import _canonical_json, _canonical_value, load_catalog_document
 from .sources import PriceSource, SourceRegistry
 
 # Provider names that are not a page's own spelling of a model.
@@ -417,15 +418,93 @@ def _refresh_source(
                 detail="the catalog has no row for this model" if reason == "unknown_model" else "the catalog has no row for this region",
             )
         )
+    return observe(_result(operations, escalations), fingerprint, compared, operations, escalations)
+
+
+def _result(operations: list, escalations: list) -> str:
     if operations and escalations:
-        result = "changed_and_escalated"
-    elif operations:
-        result = "changed"
-    elif escalations:
-        result = "escalated"
-    else:
-        result = "unchanged"
-    return observe(result, fingerprint, compared, operations, escalations)
+        return "changed_and_escalated"
+    if operations:
+        return "changed"
+    if escalations:
+        return "escalated"
+    return "unchanged"
+
+
+def _names_list(names: list[str]) -> str:
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def _resolve_claims(
+    planned: list[tuple[Observation, list[dict], list[Escalation]]],
+) -> list[tuple[Observation, list[dict], list[Escalation]]]:
+    """Withdraw every operation on a row that more than one source proposes,
+    whether or not they agree, and escalate each claim naming the others, so
+    the delta never targets a row twice and no source silently wins."""
+    claims: dict[tuple, list[tuple[str, dict]]] = {}
+    for observation, operations, _ in planned:
+        for operation in operations:
+            claims.setdefault(tuple(sorted(operation["key"].items())), []).append(
+                (observation.source_id, operation)
+            )
+    contested = {key: claim for key, claim in claims.items() if len({s for s, _ in claim}) > 1}
+    if not contested:
+        return planned
+    resolved = []
+    for observation, operations, escalations in planned:
+        kept = []
+        added = []
+        for operation in operations:
+            claim = contested.get(tuple(sorted(operation["key"].items())))
+            if claim is None:
+                kept.append(operation)
+                continue
+            sources = list(dict.fromkeys(s for s, _ in claim))
+            # Each source cites its own page, so agreement ignores source_url.
+            same = len({
+                _canonical_json({k: v for k, v in op["price"].items() if k != "source_url"})
+                for _, op in claim
+            }) == 1
+            expect, price = operation["expect"], operation["price"]
+            changed = [
+                f for f in RATE_FIELDS
+                if price.get(f) is not None and (expect.get(f) is None or _money(_rate(expect[f])) != price[f])
+            ]
+            values = {}
+            if len(changed) == 1:
+                current = _rate(expect.get(changed[0]))
+                values = {
+                    "dimension": changed[0],
+                    "current": _money(current) if current is not None else None,
+                    "observed": price[changed[0]],
+                }
+            added.append(
+                Escalation(
+                    observation.source_id,
+                    "conflicting_sources",
+                    key=PriceRowKey(**operation["key"]),
+                    region=operation["key"]["region"],
+                    detail=(
+                        f"{_names_list(sources)} both propose this row, with "
+                        + ("the same values" if same else "different values")
+                    ),
+                    **values,
+                )
+            )
+        escalations = escalations + added
+        resolved.append(
+            (
+                replace(
+                    observation,
+                    result=_result(kept, escalations),
+                    changes=len(kept),
+                    escalations=len(escalations),
+                ),
+                kept,
+                escalations,
+            )
+        )
+    return resolved
 
 
 def plan_low_risk_refresh(
@@ -453,10 +532,10 @@ def plan_low_risk_refresh(
     operations: list[dict] = []
     escalations: list[Escalation] = []
     evidence: list[dict[str, Any]] = []
-    for source in sources:
-        observation, source_operations, source_escalations = _refresh_source(
-            source, contents.get(source.id), document, observed_on
-        )
+    planned = _resolve_claims(
+        [_refresh_source(source, contents.get(source.id), document, observed_on) for source in sources]
+    )
+    for source, (observation, source_operations, source_escalations) in zip(sources, planned):
         observations.append(observation)
         operations.extend(source_operations)
         escalations.extend(source_escalations)
@@ -473,6 +552,8 @@ def plan_low_risk_refresh(
         },
         "operations": operations,
     }
+    # The returned proposal must always be a valid delta.
+    parse_catalog_delta(delta)
     return RefreshResult(delta, tuple(observations), tuple(escalations))
 
 

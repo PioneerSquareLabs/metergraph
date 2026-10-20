@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from metergraph_core import load_catalog_document
-from metergraph_core.catalog_delta import apply_catalog_delta
+from metergraph_core.catalog_delta import apply_catalog_delta, parse_catalog_delta
 from metergraph_core.extractors import structural_fingerprint
 from metergraph_core.refresh import discovery_evidence, plan_low_risk_refresh
 from metergraph_core.sources import parse_source_registry
@@ -295,6 +295,72 @@ def test_every_source_in_the_given_registry_is_observed_even_without_content():
         ("other-pricing", "missing"),
     ]
     assert [(e.source_id, e.reason) for e in result.escalations] == [("other-pricing", "content_missing")]
+
+
+MIRROR_URL = "https://example.com/openai-mirror"
+
+
+def _two_openai_sources():
+    mirror = dict(_openai_source(), id="openai-mirror-pricing", url=MIRROR_URL)
+    return _registry(_openai_source(), mirror)
+
+
+def _plan_two(document, mirror_page):
+    return _plan(
+        document,
+        _two_openai_sources(),
+        {"openai-api-pricing": _fixture("openai-api-pricing"), "openai-mirror-pricing": mirror_page},
+    )
+
+
+def test_two_sources_agreeing_on_one_row_change_yield_no_duplicate_operation():
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    result = _plan_two(document, _fixture("openai-api-pricing"))
+    assert result.delta["operations"] == []
+    assert [(e.source_id, e.reason, e.key.canonical_id) for e in result.escalations] == [
+        ("openai-api-pricing", "conflicting_sources", "example/gpt-x"),
+        ("openai-mirror-pricing", "conflicting_sources", "example/gpt-x"),
+    ]
+    assert result.escalations[0].detail == (
+        "openai-api-pricing and openai-mirror-pricing both propose this row, with the same values"
+    )
+    assert [(o.source_id, o.result, o.changes) for o in result.observations] == [
+        ("openai-api-pricing", "escalated", 0),
+        ("openai-mirror-pricing", "escalated", 0),
+    ]
+    parse_catalog_delta(result.delta)
+
+
+def test_two_sources_disagreeing_on_one_row_change_yield_no_operation():
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    mirror = _fixture("openai-api-pricing").replace("[0,2],[0,0.2],[0,2.5],[0,8]", "[0,2],[0,0.2],[0,2.5],[0,8.5]")
+    result = _plan_two(document, mirror)
+    assert result.delta["operations"] == []
+    assert [(e.source_id, e.reason) for e in result.escalations] == [
+        ("openai-api-pricing", "conflicting_sources"),
+        ("openai-mirror-pricing", "conflicting_sources"),
+    ]
+    assert result.escalations[1].detail == (
+        "openai-api-pricing and openai-mirror-pricing both propose this row, with different values"
+    )
+    assert result.escalations[0].observed == "8"
+    assert result.escalations[1].observed == "8.5"
+
+
+def test_a_conflict_on_one_row_leaves_other_rows_operations():
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    document["models"][1]["prices"][0]["output_per_mtok"] = 2.0
+    mirror = _fixture("openai-api-pricing").replace("[0,0.4],[0,0.04],[0,1.6]", "[0,0.4],[0,0.04],[0,2]")
+    # The mirror agrees gpt-x-mini is unchanged, so only openai-api-pricing
+    # proposes that row; both propose gpt-x.
+    result = _plan_two(document, mirror)
+    assert [op["key"]["canonical_id"] for op in result.delta["operations"]] == ["example/gpt-x-mini"]
+    assert [(o.source_id, o.result, o.changes) for o in result.observations] == [
+        ("openai-api-pricing", "changed_and_escalated", 1),
+        ("openai-mirror-pricing", "escalated", 0),
+    ]
+    applied = apply_catalog_delta(document, result.delta)
+    assert load_catalog_document(applied).version == "2026-10-19"
 
 
 def test_content_for_a_source_outside_the_registry_is_rejected():
