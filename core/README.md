@@ -9,7 +9,9 @@ and the ordered candidate fields MeterGraph products offer. `prices.yaml`
 records effective-dated rates and billing rules. Core parses and validates both
 datasets, resolves provider aliases and routes, calculates deterministic costs,
 and selects a qualified gateway-reported charge or catalog estimate as the
-effective call cost.
+effective call cost. A third dataset, `sources.yaml`, registers the official
+pricing sources that keep `prices.yaml` current; see
+[Source registry](#source-registry).
 
 It does not own HTTP routes, database access, migrations, authentication,
 tenancy, ingest, dashboard code, or any hosted-only concern, and it never reads
@@ -44,6 +46,23 @@ explicit `path` for tests or a self-hosted catalog replacement. The returned
 `LoadedCatalog` exposes the declared catalog `version`, the SHA-256
 `content_hash` of the loaded bytes, the parsed `document`, and the immutable
 `snapshot` used for pricing.
+
+A catalog that is already parsed, for example a canonical JSON document read
+from storage, loads with `load_catalog_document()`:
+
+```python
+from metergraph_core import load_catalog_document
+
+catalog = load_catalog_document(document, region="global")
+```
+
+It validates exactly as `load_catalog()` does, because both build through the
+same path, and a file and a document with the same content produce the same
+catalog. The document is deep-copied, so later changes to the caller's mapping
+never reach the loaded catalog. Its `content_hash` is the SHA-256 of the
+document's canonical JSON (sorted keys, compact separators, ISO dates), so two
+documents with the same content hash the same whatever their key order. That
+differs from the raw-byte hash `load_catalog()` reports for a file.
 
 Planning and evaluation systems that know the deployment channel before making
 a call can resolve the exact effective price without emulating a provider
@@ -192,12 +211,155 @@ The billing module validates only gateway, endpoint, fixed source names, and
 decimal cost values. It does not inspect provider response content or own SDK
 capture, HTTP, timestamps, trace context, persistence, or tenant behavior.
 
+## Pricing deltas
+
+A pricing delta proposes changes to a catalog's price rows. It is a change
+artifact to review and apply, never a catalog to serve.
+
+```yaml
+schema_version: 1
+kind: pricing_delta
+provenance:
+  observations: [openai-api-pricing@2026-10-20]
+  evidence: [{source_id: openai-api-pricing, url: "https://...", fingerprint: "sha256:..."}]
+operations:
+  - op: replace_price
+    key: {canonical_id: openai/gpt-x, channel: openai-api, region: global, effective_from: "2026-01-01"}
+    expect: {...the full current row...}
+    price: {channel: openai-api, region: global, effective_from: "2026-10-20",
+            input_per_mtok: "2.50", output_per_mtok: "10", source_url: "https://..."}
+```
+
+Each operation names its row by `(canonical_id, channel, region,
+effective_from)` on a model the catalog already has:
+
+- `add_price` appends a row; `expect` is `null` because no such row may exist.
+- `replace_price` closes the open row at the new row's `effective_from` and
+  appends the new row; `expect` is the exact current row.
+- `close_price` sets `effective_to` on the open row without a replacement.
+
+New rates are decimal strings. `apply_catalog_delta(document, delta)` returns a
+new document and never changes either input. It checks every operation's
+precondition first; if any fails, `CatalogDeltaConflict.conflicts` names every
+failing operation and nothing is applied. History is never rewritten, the
+top-level `version` and `pricing_verified_at` are left for the publisher to
+update, and the complete result is validated with `load_catalog_document()`.
+Because preconditions cover only the rows a delta changes, an approved delta
+still applies after unrelated catalog changes. `parse_catalog_delta()` validates
+a delta without applying it.
+
+## Source registry
+
+`src/metergraph_core/data/sources.yaml` lists the official pricing sources the
+refresh tools read. `load_source_registry()` loads it, and
+`validate_source_registry(registry, catalog)` checks its channels against a
+catalog. Each entry records:
+
+- the provider and pricing `channel`, and whether the catalog carries that
+  channel yet (`catalog_channel`);
+- the official pricing `url`, the only address a refresh tool may fetch for it;
+- the `parser` that reads it;
+- the page's `source_shape` (a token table, embedded data, a model card,
+  option-dependent token prices, or GPU-hour or license pricing) and `clarity`
+  (structured, semi-structured, prose, or option-dependent);
+- the catalog price columns it represents (`dimensions`);
+- the page's expected structural `fingerprint`;
+- `low_risk`: whether automated refreshes may use it, and for eligible sources
+  the largest relative change and the dimensions they may change;
+- `evidence`: whether raw page content may be stored or redistributed, how long
+  an excerpt may be quoted, and why raw content may not be kept.
+
+To inspect the registered source for a provider:
+
+```python
+from metergraph_core import load_source_registry
+
+for source in load_source_registry().sources:
+    if source.provider == "anthropic":
+        print(source.id, source.url, source.parser, source.dimensions, source.low_risk)
+```
+
+Seeding a source does not make it low-risk. OpenAI, Anthropic, Google,
+DeepSeek, Mistral, xAI and Perplexity start low-risk because their official
+parsers are proven; each may change existing rates on existing rows by up to 50
+percent. A low-risk source with no recorded fingerprint escalates every change
+until one is reviewed and recorded. Fireworks, Z.AI, AWS Bedrock (both the
+in-region and geographic channels), Azure Foundry and NVIDIA start non-low-risk;
+their extractors record evidence for review and never produce price rows.
+NVIDIA's NIM production pricing is per GPU or license, so it is recorded with
+GPU-hour and license dimensions and never as token pricing.
+
+### Extractors
+
+`extract(parser_id, content)` reads source content the caller supplies and
+returns the rates it finds, mapped to catalog price columns, or evidence for a
+discovery-only parser. `structural_fingerprint(parser_id, content)` summarizes
+only the labels, headers and key paths that parser relies on, so a price change
+or a newly listed model keeps the fingerprint and a format change alters it.
+Extractors never fetch. The package adds no browser or LLM dependency.
+
+## Refresh and discovery scripts
+
+Two repository scripts run the registry against live sources. Neither holds
+credentials, applies a delta, writes the catalog, publishes, or touches GitHub.
+
+`scripts/refresh_prices.py` takes the registry and a current catalog document.
+For each low-risk source it fetches the registered URL, checks the page's
+fingerprint, extracts prices, checks invariants and bounds, and prints a JSON
+report: a pricing delta for the changes that pass, one observation per source
+(including sources with no change), and every escalation. New models, new
+regions, new dimensions, rows a page no longer lists, ambiguous parses, format
+changes, non-positive or missing rates, duplicated model entries, changes beyond
+the bound, and backdated or same-day effective dates escalate. A change takes
+effect on the UTC observation date. It exits 0 with no change, 2 with a delta or
+an escalation, and 1 on error.
+
+`scripts/discover_prices.py` scans sources that are not low-risk, the sources
+behind a refresh report's escalations (`--escalations`), and new-source content
+from a file or stdin (`--new-source`, never a URL). It prints evidence for each:
+candidate and prior values, the reason for review, the retention policy, and a
+proposed delta for changed catalog rows. An optional adapter
+(`--llm-adapter module:callable`) is called as
+`propose(source, content, current_rows)` and returns delta operations; its output
+is schema-validated and kept as review evidence. Everything discovery emits
+requires review.
+
+Both read `<source-id>.*` files from `--content-dir` instead of fetching, which
+is how their tests run against the synthetic fixtures in
+`tests/fixtures/sources/`.
+
+## Provider review and contributions
+
+Model providers, new and existing, can check and improve how MeterGraph prices
+their models:
+
+1. **Review your entry.** Find your provider in `sources.yaml` (or run the
+   snippet above) and check the registered pricing URL, its source shape and
+   clarity, and the dimensions it represents. Then check your models' current
+   rows in `prices.yaml`.
+2. **Propose a correction or a new source.** Edit your entry or add a new
+   provider with its official pricing URL. A new source starts non-low-risk.
+3. **Add the fixture, extractor and tests.** Add a minimal synthetic fixture in
+   `tests/fixtures/sources/` that reproduces only the structure your parser
+   reads, never a saved copy of the page. Add or update the extractor in
+   `extractors.py` when one applies, and extend the tests.
+4. **Open a pull request** with the official-source evidence and an effective
+   date for each pricing change. Price changes close the old row's window and
+   add a new row; they never edit history.
+
+Provider-submitted changes go through the same validation and review as any
+other catalog change. A provider cannot mark its own source low-risk or publish
+directly to the live catalog: low-risk status changes only through a reviewed
+registry change, and publication is done by MeterGraph's release process.
+
 ## Public API
 
 ```python
 from metergraph_core import (
     Alias,
     BillingDecision,
+    CatalogDeltaConflict,
+    CatalogDeltaError,
     CatalogError,
     CatalogSnapshot,
     CostResult,
@@ -208,13 +370,26 @@ from metergraph_core import (
     ModelUsage,
     Price,
     PriceResult,
+    PriceRowKey,
+    PriceSource,
+    RefreshResult,
     ResolvedPrice,
+    SourceRegistry,
+    apply_catalog_delta,
+    discovery_evidence,
+    extract,
     load_catalog,
+    load_catalog_document,
     load_model_registry,
+    load_source_registry,
     normalize_gateway_evidence,
     parse_catalog,
+    parse_catalog_delta,
+    plan_low_risk_refresh,
     resolve_billing,
+    structural_fingerprint,
     validate_model_registry,
+    validate_source_registry,
 )
 ```
 
@@ -223,7 +398,8 @@ from metergraph_core import (
 The two manually maintained public datasets live under
 `src/metergraph_core/data/`. Update `models.yaml` when model identity, display,
 routing, or managed candidate policy changes. Update `prices.yaml` when rates
-or billing rules change. Price corrections close or add effective windows;
+or billing rules change. `sources.yaml` changes through reviewed pull requests
+as described in [Provider review and contributions](#provider-review-and-contributions). Price corrections close or add effective windows;
 they never rewrite historical prices in place. Either data change increments
 its own declared version and produces a patch release of `metergraph-core`.
 Software and data versions remain separate because they have different
