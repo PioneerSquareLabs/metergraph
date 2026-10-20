@@ -188,6 +188,19 @@ def test_an_explicitly_selected_source_whose_fetch_fails_is_reported(setup, caps
     assert output["escalations"][0]["detail"] == "fetch failed: connection refused"
 
 
+def test_a_source_named_twice_is_planned_once(setup, capsys):
+    write, _, content, _ = setup
+    names = "anthropic-api-pricing,openai-api-pricing,anthropic-api-pricing, openai-api-pricing"
+    status, output = _run(write(_catalog(gpt_x_output=9.0)) + ["--content-dir", str(content), "--sources", names], capsys)
+    assert status == 2
+    assert [o["source_id"] for o in output["observations"]] == ["anthropic-api-pricing", "openai-api-pricing"]
+    assert [op["key"]["canonical_id"] for op in output["delta"]["operations"]] == ["example/gpt-x"]
+    assert output["delta"]["provenance"]["observations"] == [
+        "anthropic-api-pricing@2026-10-20",
+        "openai-api-pricing@2026-10-20",
+    ]
+
+
 def test_cli_rejects_an_unregistered_source_with_exit_one(setup, capsys):
     write, _, content, _ = setup
     status = refresh_prices.main(write() + ["--content-dir", str(content), "--sources", "unknown-pricing"])

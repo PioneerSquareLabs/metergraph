@@ -91,7 +91,9 @@ def read_content(content_dir: Path, source_id: str) -> str | None:
 def select_sources(registry: SourceRegistry, names: str | None) -> SourceRegistry:
     """The registry narrowed to the named sources, or to its low-risk ones."""
     if names:
-        chosen = [registry.get(name.strip()) for name in names.split(",") if name.strip()]
+        # A source named twice is planned once, in first-seen order.
+        unique = dict.fromkeys(name.strip() for name in names.split(",") if name.strip())
+        chosen = [registry.get(name) for name in unique]
     else:
         chosen = list(registry.low_risk())
     return SourceRegistry(registry.schema_version, tuple(chosen))
