@@ -274,6 +274,65 @@ def test_nvidia_ignores_token_wording_on_its_page():
     assert set(extraction.evidence["candidates"]) == {"license_per_gpu_year_usd", "gpu_hour_usd"}
 
 
+def _xai_object(name, **fields):
+    body = "".join(f",&quot;{key}&quot;:&quot;{value}&quot;" for key, value in fields.items())
+    return "{&quot;name&quot;:&quot;" + name + "&quot;,&quot;version&quot;:&quot;1.0&quot;" + body + "}"
+
+
+def test_xai_reads_each_model_only_from_its_own_object():
+    # grok-a omits its cluster and cached price; grok-b, right after, has both.
+    page = (
+        "<script>"
+        + _xai_object("grok-a", promptTextTokenPrice="10000", completionTextTokenPrice="30000")
+        + _xai_object(
+            "grok-b",
+            promptTextTokenPrice="20000",
+            cachedPromptTokenPrice="5000",
+            completionTextTokenPrice="60000",
+            cluster="us-central-1",
+        )
+        + "</script>"
+    )
+    assert _rates(extract("xai", page)) == {
+        ("grok-a", "global"): {"input_per_mtok": D("1"), "output_per_mtok": D("3")},
+        ("grok-b", "us"): {"input_per_mtok": D("2"), "cache_read_per_mtok": D("0.5"), "output_per_mtok": D("6")},
+    }
+
+
+def test_xai_skips_a_model_whose_own_object_lacks_a_required_price():
+    # grok-a has no output price of its own; grok-b's must not be borrowed.
+    page = (
+        "<script>"
+        + _xai_object("grok-a", promptTextTokenPrice="10000", cluster="us-east-1")
+        + _xai_object("grok-b", promptTextTokenPrice="20000", completionTextTokenPrice="60000", cluster="us-east-1")
+        + "</script>"
+    )
+    assert _rates(extract("xai", page)) == {
+        ("grok-b", "global"): {"input_per_mtok": D("2"), "output_per_mtok": D("6")},
+    }
+
+
+def test_xai_reads_prices_nested_inside_a_model_object():
+    page = (
+        "<script>{&quot;name&quot;:&quot;grok-c&quot;,&quot;version&quot;:&quot;1.0&quot;,"
+        "&quot;limits&quot;:{&quot;rpm&quot;:&quot;60&quot;},"
+        "&quot;promptTextTokenPrice&quot;:&quot;10000&quot;,&quot;completionTextTokenPrice&quot;:&quot;30000&quot;}</script>"
+    )
+    assert _rates(extract("xai", page)) == {
+        ("grok-c", "global"): {"input_per_mtok": D("1"), "output_per_mtok": D("3")},
+    }
+
+
+def test_xai_finds_the_enclosing_object_when_a_nested_one_precedes_the_name():
+    page = (
+        "<script>{&quot;limits&quot;:{&quot;rpm&quot;:&quot;60&quot;},&quot;name&quot;:&quot;grok-d&quot;,&quot;version&quot;:&quot;1.0&quot;,"
+        "&quot;promptTextTokenPrice&quot;:&quot;10000&quot;,&quot;completionTextTokenPrice&quot;:&quot;30000&quot;}</script>"
+    )
+    assert _rates(extract("xai", page)) == {
+        ("grok-d", "global"): {"input_per_mtok": D("1"), "output_per_mtok": D("3")},
+    }
+
+
 def test_unknown_parser_is_rejected():
     with pytest.raises(ValueError, match="unknown parser 'scraper'"):
         extract("scraper", "<html></html>")

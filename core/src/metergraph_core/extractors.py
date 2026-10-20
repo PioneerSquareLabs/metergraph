@@ -280,11 +280,58 @@ XAI_CLUSTER_REGION = {"us-central-1": "us"}
 _XAI_KEYS = ("promptTextTokenPrice", "cachedPromptTokenPrice", "completionTextTokenPrice", "cluster")
 
 
+def _object_end(text: str, start: int) -> int:
+    """The index just past the JSON object opening at ``text[start]``, or
+    -1 when it does not close. Braces inside strings are ignored."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+    return -1
+
+
+def _xai_body(text: str, match: re.Match[str], next_start: int) -> str:
+    """The rest of the model object ``match`` names, so a field the object
+    omits is never read from a neighbouring model."""
+    # The enclosing object is the nearest opening brace whose object extends
+    # past the name; a nested object that closes before it is skipped.
+    end = -1
+    opening = text.rfind("{", 0, match.start())
+    while opening >= 0:
+        end = _object_end(text, opening)
+        if end > match.end():
+            break
+        end = -1
+        opening = text.rfind("{", 0, opening)
+    if end < 0:
+        # An object that does not close stops at the next model at the latest.
+        end = next_start
+    return text[match.end():end]
+
+
 def parse_xai(html_text: str, *, duplicates: list[str] | None = None) -> Table:
     text = html.unescape(html_text)
     table: Table = {}
-    for match in XAI_MODEL.finditer(text):
-        body = text[match.end(): match.end() + 1500]
+    matches = list(XAI_MODEL.finditer(text))
+    for position, match in enumerate(matches):
+        next_start = matches[position + 1].start() if position + 1 < len(matches) else len(text)
+        body = _xai_body(text, match, next_start)
         cluster = re.search(r'"cluster":"([^"]+)"', body)
         key = regional_key(match.group(1).lower(), XAI_CLUSTER_REGION.get(cluster.group(1) if cluster else "", "global"))
 
