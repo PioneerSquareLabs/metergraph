@@ -26,10 +26,11 @@ sources:
     url: https://developers.openai.com/api/docs/pricing
     parser: openai
     dimensions: [input_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, output_per_mtok]
-    fingerprint: sha256:a18bfb4f94736dd25ef1604d6c670a2ef92ba94629cfb03b5bb72d3f28020ff4
-    low_risk:
-      eligible: true
-      dimensions: [input_per_mtok, cache_read_per_mtok, cache_write_5m_per_mtok, output_per_mtok]
+    # Reviewed discovery only: the live pricing data no longer exposes the
+    # rendered column header the openai parser needs to verify its positional
+    # columns, so its rows cannot be trusted unreviewed.
+    fingerprint: null
+    low_risk: {eligible: false, dimensions: []}
 
   - id: anthropic-api-pricing
     provider: anthropic
@@ -61,7 +62,7 @@ sources:
     provider: deepseek
     channel: deepseek-api
     catalog_channel: true
-    url: https://api-docs.deepseek.com/quick_start/pricing
+    url: https://api-docs.deepseek.com/quick_start/pricing/
     parser: html-tables
     dimensions: [input_per_mtok, output_per_mtok, cache_read_per_mtok]
     # Reviewed discovery only: the official deepseek parser no longer reads the
@@ -105,7 +106,7 @@ sources:
     fingerprint: null
     low_risk: {eligible: false, dimensions: []}
 
-  # Every source that is not low-risk is reviewed discovery only: a generic
+  # Every other source that is not low-risk is reviewed discovery only: a generic
   # parser (html-tables or gpu-license-prose) records normalized evidence and
   # never produces applicable price rows. A generic parser does not mean the
   # page's layout is supported; the provider sources below have no parser of

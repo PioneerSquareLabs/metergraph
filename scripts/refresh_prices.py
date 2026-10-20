@@ -4,7 +4,7 @@ For each low-risk source (or each source named with ``--sources``) the
 script fetches the page from its registered URL -- and from no other URL --
 or reads ``<source-id>.*`` from ``--content-dir``. It checks the page's
 structural fingerprint, extracts prices, checks invariants and the source's
-bounds, and compares them with the supplied catalog. It prints a JSON report
+allowed dimensions, and compares them with the supplied catalog. It prints a JSON report
 with a pricing delta, one observation per source (including sources with no
 change), and every escalation.
 

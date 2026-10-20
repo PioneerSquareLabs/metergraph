@@ -243,11 +243,13 @@ def test_validate_rejects_a_registry_only_channel_the_catalog_prices():
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sources"
 LOW_RISK_IDS = {
-    "openai-api-pricing",
     "anthropic-api-pricing",
     "google-api-pricing",
     "xai-api-pricing",
 }
+# Demoted to reviewed discovery while keeping the official parser, so its
+# rows remain discovery evidence; its synthetic fixture still covers that parser.
+DEMOTED_OFFICIAL_PARSER_IDS = {"openai-api-pricing"}
 
 
 def test_bundled_registry_validates_against_the_bundled_catalog():
@@ -271,10 +273,19 @@ def test_bundled_registry_covers_every_seeded_provider():
     }
 
 
-def test_only_the_four_reviewed_official_parsers_start_low_risk():
+def test_only_the_three_reviewed_official_parsers_start_low_risk():
     low_risk = load_source_registry().low_risk()
     assert {source.id for source in low_risk} == LOW_RISK_IDS
-    assert {source.parser for source in low_risk} == {"openai", "anthropic", "google", "xai"}
+    assert {source.parser for source in low_risk} == {"anthropic", "google", "xai"}
+
+
+def test_openai_is_reviewed_discovery_with_its_official_parser():
+    source = load_source_registry().get("openai-api-pricing")
+    assert source.parser == "openai"
+    assert source.low_risk.eligible is False
+    assert source.low_risk.dimensions == ()
+    assert source.fingerprint is None
+    assert source.catalog_channel is True
 
 
 def test_every_low_risk_source_has_a_recorded_fingerprint():
@@ -289,6 +300,13 @@ def test_sources_whose_live_parse_is_unreviewed_start_without_low_risk_status():
         assert source.low_risk.eligible is False
         assert source.fingerprint is None
         assert source.catalog_channel is True
+
+
+def test_deepseek_registers_its_trailing_slash_pricing_url():
+    # The slashless URL redirects here, and the exact redirect allowlist
+    # rejects that redirect.
+    source = load_source_registry().get("deepseek-api-pricing")
+    assert source.url == "https://api-docs.deepseek.com/quick_start/pricing/"
 
 
 def test_low_risk_sources_read_the_pages_the_price_checker_reads():
@@ -368,23 +386,24 @@ GPU_LICENSE_PAGE = (
 GENERIC_PAGES = {"html-tables": TOKEN_TABLE_PAGE, "gpu-license-prose": GPU_LICENSE_PAGE}
 
 
-def test_only_low_risk_sources_have_source_specific_fixtures():
+def test_only_low_risk_and_demoted_official_sources_have_source_specific_fixtures():
     fixtures = {path.name.split(".")[0] for path in FIXTURES.iterdir()}
-    assert fixtures == {source.id for source in load_source_registry().low_risk()}
+    low_risk = {source.id for source in load_source_registry().low_risk()}
+    assert fixtures == low_risk | DEMOTED_OFFICIAL_PARSER_IDS
 
 
-def test_every_non_low_risk_source_uses_a_generic_discovery_parser():
+def test_every_other_non_low_risk_source_uses_a_generic_discovery_parser():
     for source in load_source_registry().sources:
-        if not source.low_risk.eligible:
+        if not source.low_risk.eligible and source.id not in DEMOTED_OFFICIAL_PARSER_IDS:
             assert source.parser in GENERIC_PAGES, source.id
 
 
-def test_every_non_low_risk_source_yields_normalized_discovery_evidence():
+def test_every_generic_discovery_source_yields_normalized_discovery_evidence():
     from metergraph_core import discovery_evidence
 
     catalog = load_catalog()
     for source in load_source_registry().sources:
-        if source.low_risk.eligible:
+        if source.low_risk.eligible or source.id in DEMOTED_OFFICIAL_PARSER_IDS:
             continue
         page = GENERIC_PAGES[source.parser]
         evidence = discovery_evidence(source, page, catalog.document, observed_on=date(2026, 10, 20))["evidence"]
