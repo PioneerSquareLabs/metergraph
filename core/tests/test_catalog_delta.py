@@ -535,6 +535,53 @@ def test_a_replacement_on_the_next_utc_date_keeps_distinct_price_ids():
     ]
 
 
+def _with_finite_gateway_row():
+    """A gateway row that ran from 00:00 to 10:00 UTC on 20 October."""
+    document = _document()
+    document["models"][0]["prices"].append(
+        _new_price(
+            channel="vercel-ai-gateway",
+            effective_from="2026-10-20T00:00:00Z",
+            effective_to="2026-10-20T10:00:00Z",
+        )
+    )
+    return document
+
+
+def _add_gateway_row(effective_from):
+    return _add(
+        key=_key(channel="vercel-ai-gateway", effective_from=effective_from),
+        price=_new_price(channel="vercel-ai-gateway", effective_from=effective_from),
+    )
+
+
+def test_adding_a_row_on_an_existing_rows_utc_date_is_a_price_id_collision():
+    # The windows do not overlap, but both rows would get the id
+    # example/model-a:vercel-ai-gateway:global:2026-10-20.
+    document = _with_finite_gateway_row()
+    before = copy.deepcopy(document)
+    assert _conflicts(document, _delta(_add_gateway_row("2026-10-20T12:00:00Z"))) == [
+        (0, "price_id_collision")
+    ]
+    assert document == before
+
+
+def test_a_price_id_collision_ignores_other_channels_and_regions():
+    # Rows on 2026-01-01 exist for openai-api global and us, not the gateway.
+    result = apply_catalog_delta(_document(), _delta(_add_gateway_row("2026-01-01T12:00:00Z")))
+    assert len(_rows(result, channel="vercel-ai-gateway")) == 1
+
+
+def test_adding_a_row_on_the_next_utc_date_keeps_distinct_price_ids():
+    applied = apply_catalog_delta(_with_finite_gateway_row(), _delta(_add_gateway_row("2026-10-21")))
+    loaded = load_catalog_document(applied)
+    ids = sorted(p.id for prices in loaded.snapshot._prices.values() for p in prices if p.pricing_channel == "vercel-ai-gateway")
+    assert ids == [
+        "example/model-a:vercel-ai-gateway:global:2026-10-20",
+        "example/model-a:vercel-ai-gateway:global:2026-10-21",
+    ]
+
+
 def test_a_replacement_with_an_offset_after_the_row_applies():
     operation = _replace(price=_new_price(effective_from="2026-10-20T00:00:00+00:00"))
     result = apply_catalog_delta(_document(), _delta(operation))

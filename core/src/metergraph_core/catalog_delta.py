@@ -323,7 +323,22 @@ def _precondition(document: Mapping[str, Any], operation: DeltaOperation) -> str
     if reason is not None:
         return reason
     if operation.op == "add_price":
-        return "row_exists" if rows else None
+        if rows:
+            return "row_exists"
+        # A price id names its row by UTC date, so a new row may not share a
+        # UTC start date with any row on its model, channel and region, even
+        # one whose window it does not overlap.
+        key = operation.key
+        day = _instant(key.effective_from).date()
+        for other in document["models"][model_index].get("prices") or []:
+            other_key = row_key(key.canonical_id, other) if isinstance(other, Mapping) else None
+            if (
+                other_key is not None
+                and (other_key.channel, other_key.region) == (key.channel, key.region)
+                and _instant(other_key.effective_from).date() == day
+            ):
+                return "price_id_collision"
+        return None
     if not rows:
         return "row_missing"
     row = document["models"][model_index]["prices"][rows[0]]

@@ -234,6 +234,9 @@ Each operation names its row by `(canonical_id, channel, region,
 effective_from)` on a model the catalog already has:
 
 - `add_price` appends a row; `expect` is `null` because no such row may exist.
+  It may not start on the same UTC date as another row for that model,
+  channel and region, even one it does not overlap, because price ids name
+  rows by date.
 - `replace_price` closes the open row at the new row's `effective_from` and
   appends the new row; `expect` is the exact current row. The new row must
   start on a later UTC date than the row it replaces, because price ids name
