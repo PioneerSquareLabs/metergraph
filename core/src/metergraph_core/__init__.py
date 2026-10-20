@@ -25,6 +25,7 @@ from .loader import (
     CatalogError,
     LoadedCatalog,
     load_catalog,
+    load_catalog_document,
     parse_catalog,
     parse_retrieval,
 )
@@ -78,6 +79,7 @@ __all__ = [
     "direct_channel_for_provider",
     "normalize_provider",
     "load_catalog",
+    "load_catalog_document",
     "load_model_registry",
     "normalize_gateway_evidence",
     "parse_catalog",

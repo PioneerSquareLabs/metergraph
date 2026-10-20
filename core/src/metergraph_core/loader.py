@@ -1,8 +1,12 @@
-"""Parse and load the bundled prices.yaml into a CatalogSnapshot."""
+"""Parse and load a prices document, from a file or already parsed, into a
+CatalogSnapshot."""
 
+import copy
 import hashlib
+import json
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -491,22 +495,73 @@ def parse_disputes(document: Any) -> list[Dispute]:
     return disputes
 
 
-def load_catalog(
-    path: str | Path | None = None, *, region: str = "global"
+def _canonical_value(value: Any) -> Any:
+    """``value`` in the form canonical JSON compares and hashes: mappings and
+    sequences recursively, dates as ISO strings and decimals as strings, so a
+    quoted and an unquoted YAML date are the same document."""
+    if isinstance(value, Mapping):
+        return {str(key): _canonical_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_canonical_value(item) for item in value]
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    return value
+
+
+def _canonical_json(value: Any) -> str:
+    try:
+        return json.dumps(
+            _canonical_value(value), sort_keys=True, separators=(",", ":")
+        )
+    except (TypeError, ValueError) as exc:
+        raise CatalogError(f"prices document is not JSON-representable: {exc}") from exc
+
+
+def _build_loaded_catalog(
+    document: Any, *, content_hash: str, region: str
 ) -> LoadedCatalog:
-    resolved = Path(path) if path is not None else DEFAULT_CATALOG_PATH
-    content = resolved.read_bytes()
-    document = yaml.safe_load(content)
+    """The one construction and validation path behind both loaders."""
     version, aliases, prices = parse_catalog(document)
     currency, pricing_verified_at = _catalog_metadata(document)
     return LoadedCatalog(
         version=version,
         currency=currency,
         pricing_verified_at=pricing_verified_at,
-        content_hash=hashlib.sha256(content).hexdigest(),
+        content_hash=content_hash,
         document=document,
         snapshot=CatalogSnapshot(aliases, prices, region=region),
         canonical_ids=_canonical_index(document),
         retrieval=RetrievalCatalog(parse_retrieval(document)),
         disputes=tuple(parse_disputes(document)),
     )
+
+
+def load_catalog(
+    path: str | Path | None = None, *, region: str = "global"
+) -> LoadedCatalog:
+    """Load a catalog file. ``content_hash`` is the SHA-256 of its bytes."""
+    resolved = Path(path) if path is not None else DEFAULT_CATALOG_PATH
+    content = resolved.read_bytes()
+    return _build_loaded_catalog(
+        yaml.safe_load(content),
+        content_hash=hashlib.sha256(content).hexdigest(),
+        region=region,
+    )
+
+
+def load_catalog_document(
+    document: Mapping[str, Any], *, region: str = "global"
+) -> LoadedCatalog:
+    """Build a catalog from an already parsed document, validated exactly as
+    :func:`load_catalog` validates a file. The document is deep-copied, so later
+    changes to the caller's mapping never reach the loaded catalog.
+    ``content_hash`` is the SHA-256 of the document's canonical JSON (sorted
+    keys, compact separators, ISO dates), so equal documents hash equally
+    whatever their key order; it differs from a file's raw-byte hash."""
+    if not isinstance(document, Mapping):
+        raise CatalogError("prices document must have a models list")
+    copied = copy.deepcopy(dict(document))
+    content_hash = hashlib.sha256(_canonical_json(copied).encode("utf-8")).hexdigest()
+    return _build_loaded_catalog(copied, content_hash=content_hash, region=region)
