@@ -309,6 +309,30 @@ def test_a_non_positive_rate_escalates():
     assert [(e.reason, e.dimension) for e in result.escalations] == [("non_positive_rate", "input_per_mtok")]
 
 
+@pytest.mark.parametrize(
+    "current",
+    [-1.0, 0.0, "-0.5", float("nan"), float("inf"), "NaN", "-Infinity"],
+    ids=["negative", "zero", "negative-text", "nan", "infinite", "nan-text", "negative-infinite-text"],
+)
+def test_an_invalid_current_rate_escalates_before_any_bound_math(current):
+    # The catalog loader accepts these; the planner must not divide by them.
+    document = _with_gpt_x(**dict(GPT_X, input_per_mtok=current))
+    result = _plan(document)
+    assert result.delta["operations"] == []
+    [escalation] = result.escalations
+    assert (escalation.reason, escalation.dimension, escalation.observed) == (
+        "invalid_current_rate", "input_per_mtok", "2"
+    )
+
+
+def test_a_negative_current_rate_cannot_pass_the_bound_through_its_sign():
+    # Against -4 the change to 2 would look like -150%, under any positive
+    # bound if the denominator's sign were trusted.
+    result = _plan(_with_gpt_x(**dict(GPT_X, input_per_mtok=-4.0)))
+    assert result.delta["operations"] == []
+    assert [e.reason for e in result.escalations] == ["invalid_current_rate"]
+
+
 def test_a_missing_required_rate_escalates():
     source = _source("anthropic-api-pricing", "anthropic", "anthropic-api", "anthropic")
     document = _document(

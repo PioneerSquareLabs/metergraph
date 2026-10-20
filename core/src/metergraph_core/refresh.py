@@ -307,16 +307,18 @@ def _compare_row(source: PriceSource, match: _RowMatch, ambiguous: Iterable[str]
             continue
         current = _rate(row.get(dimension))
         values = {"dimension": dimension, "current": _money(current) if current is not None else None, "observed": _money(observed)}
-        if observed <= 0:
+        if not observed.is_finite() or observed <= 0:
             escalations.append(escalate("non_positive_rate", **values))
         elif current is None:
             escalations.append(escalate("new_dimension", **values))
+        elif not current.is_finite() or current <= 0:
+            # The relative bound needs a positive, finite denominator; a zero,
+            # negative or non-finite catalog rate would void it.
+            escalations.append(escalate("invalid_current_rate", detail="the catalog rate is not a positive finite number", **values))
         elif observed == current:
             continue
         elif dimension not in source.low_risk.dimensions:
             escalations.append(escalate("dimension_not_allowed", **values))
-        elif current == 0:
-            escalations.append(escalate("bound_exceeded", detail="the current rate is zero", **values))
         else:
             relative = abs(observed - current) / current
             if relative > source.low_risk.max_relative_change:
