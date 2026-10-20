@@ -465,3 +465,113 @@ def test_discovery_evidence_quotes_only_the_permitted_excerpt():
     source = _registry(entry).get("openai-api-pricing")
     evidence = discovery_evidence(source, "<p>Prices changed on the page today.</p>", _document(), observed_on=OBSERVED_ON)
     assert evidence["excerpt"] == "Prices chang"
+
+
+# --- Dimensions that disappear and regional ambiguity -------------------------
+
+# The gpt-x row without its cache-write column. Dropping the column changes the
+# page's row layout, so the registry records this content's fingerprint.
+_NO_CACHE_WRITE = _fixture("openai-api-pricing").replace(
+    "[0,2],[0,0.2],[0,2.5],[0,8]", "[0,2],[0,0.2],[0,9]"
+)
+
+
+def _no_cache_write_registry(**overrides):
+    return _registry(_openai_source(fingerprint=structural_fingerprint("openai", _NO_CACHE_WRITE), **overrides))
+
+
+def test_a_represented_dimension_missing_from_the_page_escalates_a_changing_row():
+    result = _plan(_document(), _no_cache_write_registry(), {"openai-api-pricing": _NO_CACHE_WRITE})
+    assert result.delta["operations"] == []
+    assert [(e.reason, e.dimension, e.current) for e in result.escalations] == [
+        ("missing_rate", "cache_write_5m_per_mtok", "2.5")
+    ]
+
+
+def test_a_represented_dimension_missing_from_the_page_escalates_an_unchanged_row():
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    result = _plan(document, _no_cache_write_registry(), {"openai-api-pricing": _NO_CACHE_WRITE})
+    assert result.delta["operations"] == []
+    assert [(e.reason, e.dimension) for e in result.escalations] == [
+        ("missing_rate", "cache_write_5m_per_mtok")
+    ]
+
+
+def test_a_dimension_the_source_does_not_represent_is_not_required():
+    registry = _no_cache_write_registry(
+        dimensions=["input_per_mtok", "cache_read_per_mtok", "output_per_mtok"]
+    )
+    document = _document()
+    del document["models"][0]["prices"][0]["cache_write_5m_per_mtok"]
+    result = _plan(document, registry, {"openai-api-pricing": _NO_CACHE_WRITE})
+    [operation] = result.delta["operations"]
+    assert operation["price"]["output_per_mtok"] == "9"
+    assert result.escalations == ()
+
+
+def test_discovery_proposes_no_operation_that_would_copy_a_missing_rate_forward():
+    source = _no_cache_write_registry(low_risk=False).get("openai-api-pricing")
+    evidence = discovery_evidence(source, _NO_CACHE_WRITE, _document(), observed_on=OBSERVED_ON)
+    assert [(c["model_key"], c["reason"]) for c in evidence["candidates"]] == [("gpt-x", "changed")]
+    assert evidence["operations"] == []
+
+
+def test_discovery_proposes_no_operation_for_an_ambiguous_row():
+    source = _registry(dict(_xai_source(), low_risk={"eligible": False, "max_relative_change": None, "dimensions": []})).get("xai-api-pricing")
+    document = _xai_document(global_output=6.0)
+    document["models"][0]["prices"][1]["input_per_mtok"] = 2.0
+    evidence = discovery_evidence(source, _XAI_TWO_US_PRICES, document, observed_on=OBSERVED_ON)
+    assert evidence["ambiguities"] == ["grok-x@us"]
+    assert evidence["operations"] == []
+
+
+def _xai_source():
+    return _source(
+        "xai-api-pricing", "xai", "xai-api", "xai",
+        dimensions=["input_per_mtok", "output_per_mtok", "cache_read_per_mtok"],
+    )
+
+
+def _xai_document(global_output):
+    rows = [
+        dict(_row(input_per_mtok=2.0, cache_read_per_mtok=0.5, output_per_mtok=global_output), channel="xai-api"),
+        dict(_row(input_per_mtok=2.2, cache_read_per_mtok=0.55, output_per_mtok=6.6), channel="xai-api", region="us"),
+    ]
+    return _document(_model("example/grok-x", "grok-x", *rows, channel="xai-api", provider="x-ai"))
+
+
+_SECOND_US_ENTRY = (
+    "{&quot;name&quot;:&quot;grok-x&quot;,&quot;version&quot;:&quot;1.0&quot;,"
+    "&quot;promptTextTokenPrice&quot;:&quot;23000&quot;,&quot;cachedPromptTokenPrice&quot;:&quot;5500&quot;,"
+    "&quot;completionTextTokenPrice&quot;:&quot;66000&quot;,&quot;cluster&quot;:&quot;us-central-1&quot;}"
+)
+# A second US-cluster entry for grok-x with a different input price.
+_XAI_TWO_US_PRICES = _fixture("xai-api-pricing").replace(
+    "{&quot;name&quot;:&quot;grok-imagine-image&quot;",
+    _SECOND_US_ENTRY + "{&quot;name&quot;:&quot;grok-imagine-image&quot;",
+)
+
+
+def _plan_xai(global_output):
+    return plan_low_risk_refresh(
+        _xai_document(global_output),
+        _registry(_xai_source()),
+        {"xai-api-pricing": _XAI_TWO_US_PRICES},
+        observed_on=OBSERVED_ON,
+    )
+
+
+def test_a_regional_ambiguity_escalates_only_that_regions_row():
+    result = _plan_xai(global_output=6.5)
+    assert [(op["key"]["region"], op["price"]["output_per_mtok"]) for op in result.delta["operations"]] == [
+        ("global", "6")
+    ]
+    assert [(e.reason, e.region) for e in result.escalations] == [("ambiguous_parse", "us")]
+
+
+def test_a_regional_ambiguity_escalates_even_an_unchanged_row():
+    result = _plan_xai(global_output=6.0)
+    assert result.delta["operations"] == []
+    assert [(e.reason, e.region, e.key.canonical_id) for e in result.escalations] == [
+        ("ambiguous_parse", "us", "example/grok-x")
+    ]

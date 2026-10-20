@@ -36,7 +36,6 @@ from .extractors import ExtractedRate, Extraction, extract, page_match, page_tex
 from .loader import load_catalog_document
 from .sources import PriceSource, SourceRegistry
 
-REQUIRED_DIMENSIONS = ("input_per_mtok", "output_per_mtok")
 # Provider names that are not a page's own spelling of a model.
 _ALIAS_ONLY_PROVIDERS = {"litellm", "unknown"}
 
@@ -229,11 +228,15 @@ def _compare_row(source: PriceSource, match: _RowMatch, ambiguous: Iterable[str]
             source.id, reason, key=match.key, model_key=rate.model_key, region=match.key.region, **fields
         )
 
-    if rate.model_key in ambiguous:
+    # Ambiguities carry the extraction's own regional key, so a duplicate in
+    # one region never blocks, or hides behind, another region's row.
+    if regional_key(rate.model_key, rate.region) in ambiguous:
         return None, [escalate("ambiguous_parse", detail="the page gives two candidate values")]
     escalations: list[Escalation] = []
-    for dimension in REQUIRED_DIMENSIONS:
-        if dimension in source.dimensions and row.get(dimension) is not None and dimension not in rate.rates:
+    # Every represented rate the row carries must still be on the page;
+    # otherwise copying the row forward would keep a stale value.
+    for dimension in source.dimensions:
+        if row.get(dimension) is not None and dimension not in rate.rates:
             escalations.append(escalate("missing_rate", dimension=dimension, current=_money(_rate(row[dimension]))))
     changed: dict[str, Decimal] = {}
     for dimension in source.dimensions:
@@ -436,7 +439,16 @@ def discovery_evidence(
                 candidates.append(
                     {"model_key": match.rate.model_key, "region": match.key.region, "canonical_id": match.canonical_id, "reason": "changed", "prior": prior, "candidate": candidate}
                 )
-                if not match.duplicate_model and _day(match.row["effective_from"]) < observed_on:
+                complete = all(
+                    d in match.rate.rates for d in source.dimensions if match.row.get(d) is not None
+                )
+                ambiguous = regional_key(match.rate.model_key, match.rate.region) in extraction.ambiguities
+                if (
+                    complete
+                    and not ambiguous
+                    and not match.duplicate_model
+                    and _day(match.row["effective_from"]) < observed_on
+                ):
                     changed = {d: v for d, v in match.rate.rates.items() if d in source.dimensions}
                     operations.append(_replace_operation(source, match, changed, observed_on))
         for rate, reason in unclaimed:
