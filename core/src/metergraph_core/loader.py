@@ -221,6 +221,14 @@ def _date(value: Any, *, field: str, model: str) -> datetime:
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
+def _id_date(effective_from: datetime) -> date:
+    """The date a price id names: the UTC date of its start. A date-only or
+    UTC start keeps its written date; an offset start uses its UTC date, so
+    two rows on one UTC date are detectable and rows on different UTC dates
+    never share an id."""
+    return effective_from.astimezone(timezone.utc).date()
+
+
 def _price_region(value: Any, *, model: str) -> tuple[str, ...]:
     """An alias's optional ``price_region``: one region or a list of them."""
     if value is None:
@@ -357,7 +365,7 @@ def parse_catalog(
             seen_windows.append((channel, region, effective_from, effective_to))
             prices.append(
                 Price(
-                    id=f"{canonical}:{channel}:{region}:{effective_from.date()}",
+                    id=f"{canonical}:{channel}:{region}:{_id_date(effective_from)}",
                     model_id=canonical,
                     pricing_channel=channel,
                     region=region,
@@ -443,7 +451,7 @@ def parse_retrieval(document: Any) -> list[RetrievalPrice]:
         seen_windows.append((channel, operation, region, effective_from, effective_to))
         prices.append(
             RetrievalPrice(
-                id=f"{channel}:{operation}:{region}:{effective_from.date()}",
+                id=f"{channel}:{operation}:{region}:{_id_date(effective_from)}",
                 channel=channel,
                 operation=operation,
                 region=region,

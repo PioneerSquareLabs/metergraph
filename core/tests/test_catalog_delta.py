@@ -582,6 +582,53 @@ def test_adding_a_row_on_the_next_utc_date_keeps_distinct_price_ids():
     ]
 
 
+def _loaded_ids(document):
+    loaded = load_catalog_document(document)
+    return [p.id for prices in loaded.snapshot._prices.values() for p in prices]
+
+
+def _offset_document(effective_from, effective_to=None):
+    """model-a's only global openai-api row, starting at an offset time."""
+    document = _document()
+    row = dict(CURRENT_ROW, effective_from=effective_from)
+    if effective_to:
+        row["effective_to"] = effective_to
+    document["models"][0]["prices"] = [row, document["models"][0]["prices"][2]]
+    return document, row
+
+
+def test_replacing_an_offset_row_on_the_same_local_date_keeps_ids_unique():
+    # 00:00 at +14:00 on 2 January is 10:00 UTC on 1 January, so a
+    # replacement at midnight UTC on 2 January starts a UTC date later.
+    document, row = _offset_document("2025-01-02T00:00:00+14:00")
+    operation = _replace(
+        key=_key(effective_from="2025-01-02T00:00:00+14:00"),
+        expect=row,
+        price=_new_price(effective_from="2025-01-02T00:00:00Z"),
+    )
+    ids = _loaded_ids(apply_catalog_delta(document, _delta(operation)))
+    assert len(ids) == len(set(ids))
+    assert sorted(i for i in ids if ":global:" in i) == [
+        "example/model-a:openai-api:global:2025-01-01",
+        "example/model-a:openai-api:global:2025-01-02",
+    ]
+
+
+def test_adding_beside_an_offset_row_on_its_utc_date_is_a_collision():
+    # The finite row ran 10:00-11:00 UTC on 1 January; 12:00 UTC that day
+    # does not overlap it but shares its UTC date, and so its id.
+    document, _ = _offset_document("2025-01-02T00:00:00+14:00", "2025-01-01T11:00:00Z")
+    operation = _add(key=_key(effective_from="2025-01-01T12:00:00Z"), price=_new_price(effective_from="2025-01-01T12:00:00Z"))
+    assert _conflicts(document, _delta(operation)) == [(0, "price_id_collision")]
+
+
+def test_adding_beside_an_offset_row_on_its_local_date_keeps_ids_unique():
+    document, _ = _offset_document("2025-01-02T00:00:00+14:00", "2025-01-01T11:00:00Z")
+    operation = _add(key=_key(effective_from="2025-01-02T00:00:00Z"), price=_new_price(effective_from="2025-01-02T00:00:00Z"))
+    ids = _loaded_ids(apply_catalog_delta(document, _delta(operation)))
+    assert len(ids) == len(set(ids))
+
+
 def test_a_replacement_with_an_offset_after_the_row_applies():
     operation = _replace(price=_new_price(effective_from="2026-10-20T00:00:00+00:00"))
     result = apply_catalog_delta(_document(), _delta(operation))

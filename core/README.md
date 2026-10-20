@@ -235,12 +235,11 @@ effective_from)` on a model the catalog already has:
 
 - `add_price` appends a row; `expect` is `null` because no such row may exist.
   It may not start on the same UTC date as another row for that model,
-  channel and region, even one it does not overlap, because price ids name
-  rows by date.
+  channel and region, even one it does not overlap, because a price id names
+  its row by the UTC date of its start.
 - `replace_price` closes the open row at the new row's `effective_from` and
   appends the new row; `expect` is the exact current row. The new row must
-  start on a later UTC date than the row it replaces, because price ids name
-  rows by date.
+  start on a later UTC date than the row it replaces, for the same reason.
 - `close_price` sets `effective_to` on the open row without a replacement.
 
 New rates are decimal strings. `apply_catalog_delta(document, delta)` returns a

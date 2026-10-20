@@ -204,6 +204,76 @@ def test_document_load_rejects_invalid_documents_like_the_file_loader(
     assert str(from_document.value) == str(from_file.value)
 
 
+# --- Price ids name rows by UTC date --------------------------------------------
+
+
+def _price_id_document(*starts):
+    document = _small_document()
+    row = document["models"][0]["prices"][0]
+    rows = []
+    for index, effective_from in enumerate(starts):
+        later = starts[index + 1] if index + 1 < len(starts) else None
+        rows.append(dict(row, effective_from=effective_from, **({"effective_to": later} if later else {})))
+    document["models"][0]["prices"] = rows
+    return document
+
+
+@pytest.mark.parametrize(
+    ("effective_from", "id_date"),
+    [
+        ("2025-01-02", "2025-01-02"),
+        ("2025-01-02T00:00:00Z", "2025-01-02"),
+        ("2025-01-02T00:00:00+00:00", "2025-01-02"),
+        ("2025-01-02T23:30:00-05:00", "2025-01-03"),
+        ("2025-01-02T00:00:00+14:00", "2025-01-01"),
+    ],
+)
+def test_a_price_id_uses_the_utc_date_of_its_start(effective_from, id_date):
+    [ids] = [_price_ids(load_catalog_document(_price_id_document(effective_from)))[0]]
+    assert ids == [f"example/model-a:openai-api:global:{id_date}"]
+
+
+def test_offset_starts_on_one_local_date_get_distinct_ids():
+    # Both start on 2 January in their own offsets, but on different UTC
+    # dates: 10:00 UTC on 1 January, then midnight UTC on 2 January.
+    loaded = load_catalog_document(_price_id_document("2025-01-02T00:00:00+14:00", "2025-01-02T00:00:00Z"))
+    assert _price_ids(loaded)[0] == [
+        "example/model-a:openai-api:global:2025-01-01",
+        "example/model-a:openai-api:global:2025-01-02",
+    ]
+
+
+def test_a_retrieval_price_id_uses_the_utc_date_of_its_start():
+    document = _small_document()
+    document["retrieval"] = [
+        {
+            "channel": "anthropic-api",
+            "operation": "web_search",
+            "unit": "completed_search",
+            "per_1k_usd": "10",
+            "effective_from": "2025-01-02T00:00:00+14:00",
+            "source_url": "https://example.com/search",
+        }
+    ]
+    assert _price_ids(load_catalog_document(document))[1] == ["anthropic-api:web_search:global:2025-01-01"]
+
+
+def test_bundled_price_ids_keep_their_published_dates():
+    # Every bundled start is a date or a UTC datetime, so each id's date is
+    # the first ten characters of its effective_from as written.
+    document = yaml.safe_load(DEFAULT_CATALOG_PATH.read_bytes())
+    expected = sorted(
+        f"{entry['canonical_id']}:{row['channel']}:{row.get('region') or 'global'}:{str(row['effective_from'])[:10]}"
+        for entry in document["models"]
+        for row in entry.get("prices") or []
+    )
+    retrieval = sorted(
+        f"{row['channel']}:{row['operation']}:{row.get('region') or 'global'}:{str(row['effective_from'])[:10]}"
+        for row in document.get("retrieval") or []
+    )
+    assert _price_ids(load_catalog()) == (expected, retrieval)
+
+
 def test_both_loaders_build_through_one_construction_path(tmp_path, monkeypatch):
     calls = []
     real = loader_module._build_loaded_catalog
