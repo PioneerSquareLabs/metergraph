@@ -606,13 +606,95 @@ def test_an_offset_start_is_compared_on_its_utc_date():
     assert operation["price"]["effective_from"] == "2026-10-20"
 
 
-def test_an_offset_start_on_the_observation_date_in_utc_escalates():
-    # 23:00 at -02:00 on 19 October is 01:00 UTC on 20 October.
+def test_a_row_starting_at_utc_midnight_of_the_observation_date_escalates():
+    document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
+    document["models"][0]["prices"][0]["effective_from"] = "2026-10-19T22:00:00-02:00"
+    result = _plan(document)
+    assert result.delta["operations"] == []
+    assert [e.reason for e in result.escalations] == ["not_after_current"]
+
+
+def test_a_row_starting_after_utc_midnight_is_not_yet_in_effect():
+    # 23:00 at -02:00 on 19 October is 01:00 UTC on 20 October, after the
+    # observation instant, so gpt-x has no current row to compare or replace.
     document = _with_gpt_x(**dict(GPT_X, output_per_mtok=9.0))
     document["models"][0]["prices"][0]["effective_from"] = "2026-10-19T23:00:00-02:00"
     result = _plan(document)
     assert result.delta["operations"] == []
+    assert result.observations[0].rows_compared == 2
+
+
+# --- Effective windows at the observation instant ------------------------------------
+# A run observed on day D sees the catalog as of 00:00 UTC on D.
+
+
+def test_a_row_ending_at_noon_is_current_at_the_observation_instant():
+    document = _with_gpt_x(**GPT_X)
+    document["models"][0]["prices"][0]["effective_to"] = "2026-10-20T14:00:00+02:00"
+    document["models"][0]["prices"].append(
+        _row(**dict(GPT_X, output_per_mtok=12.0), effective_from="2026-10-20T12:00:00Z")
+    )
+    result = _plan(document)
+    # The page matches the row in effect at midnight, not the noon successor.
+    assert result.escalations == ()
+    assert result.observations[0].result == "unchanged"
+    assert result.observations[0].rows_compared == 3
+
+
+def test_date_only_windows_keep_their_meaning():
+    document = _with_gpt_x(**GPT_X)
+    document["models"][0]["prices"][0]["effective_to"] = "2026-10-20"
+    document["models"][0]["prices"].append(
+        _row(**dict(GPT_X, output_per_mtok=9.0), effective_from="2026-10-20")
+    )
+    result = _plan(document)
+    # The 20 October row is current, and it started on the observation date.
     assert [e.reason for e in result.escalations] == ["not_after_current"]
+
+
+def _dated_alias_document(alias_from, alias_to):
+    document = _document()
+    entry = document["models"][0]
+    entry["canonical_id"] = "example/gpt-x-model"
+    entry["aliases"] = [
+        {
+            "provider": "openai",
+            "alias": "gpt-x",
+            "channel": "openai-api",
+            "effective_from": alias_from,
+            "effective_to": alias_to,
+            "source_url": "https://example.com/aliases",
+        }
+    ]
+    return document
+
+
+def test_an_alias_ending_later_on_the_observation_date_still_matches():
+    result = _plan(_dated_alias_document("2026-01-01", "2026-10-20T06:00:00-04:00"))
+    assert result.escalations == ()
+
+
+def test_an_alias_starting_later_on_the_observation_date_does_not_match_yet():
+    result = _plan(_dated_alias_document("2026-10-20T12:00:00Z", None))
+    assert _reasons(result) == [
+        ("openai-api-pricing", "model_not_listed", "example/gpt-x-model"),
+        ("openai-api-pricing", "unknown_model", "gpt-x"),
+    ]
+
+
+def test_current_rows_use_the_observation_instant():
+    from metergraph_core.refresh import current_rows
+
+    document = _with_gpt_x(**GPT_X)
+    document["models"][0]["prices"][0]["effective_to"] = "2026-10-20T12:00:00Z"
+    document["models"][0]["prices"].append(_row(**dict(GPT_X, output_per_mtok=12.0), effective_from="2026-10-20T12:00:00Z"))
+    rows = current_rows(document, "openai-api", OBSERVED_ON)
+    assert [(r["canonical_id"], r["output_per_mtok"]) for r in rows] == [
+        ("example/gpt-x", 8.0),
+        ("example/gpt-x-mini", 1.6),
+        ("example/gpt-legacy", 10.0),
+    ]
+    assert rows[0]["effective_to"] == "2026-10-20T12:00:00Z"
 
 
 def test_a_result_with_datetime_rows_serializes_to_json():

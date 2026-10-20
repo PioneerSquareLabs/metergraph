@@ -21,7 +21,7 @@ from __future__ import annotations
 import copy
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Iterable, Mapping
 
@@ -155,12 +155,41 @@ def _day(value: Any) -> date:
     return instant.date()
 
 
+def _observation_instant(day: date) -> datetime:
+    """A run observed on ``day`` sees the catalog as of 00:00 UTC that day."""
+    return datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+
+
+def _boundary(value: Any) -> datetime:
+    instant = _instant(value)
+    if instant is None:
+        raise ValueError(f"invalid effective date {value!r}")
+    return instant
+
+
 def _in_effect(item: Mapping[str, Any], day: date, *, dated: bool) -> bool:
+    """Whether ``item``'s window contains the observation instant of
+    ``day``. Date-only boundaries are UTC midnight, so they keep their
+    meaning; a datetime boundary is compared as the instant it names."""
     starts = item.get("effective_from")
     ends = item.get("effective_to")
     if starts is None and dated:
         return False
-    return (starts is None or _day(starts) <= day) and (ends is None or day < _day(ends))
+    at = _observation_instant(day)
+    return (starts is None or _boundary(starts) <= at) and (ends is None or at < _boundary(ends))
+
+
+def current_rows(document: Mapping[str, Any], channel: str, observed_on: date) -> list[dict[str, Any]]:
+    """The price rows on ``channel`` in effect at the observation instant of
+    ``observed_on``, each a copy labelled with its ``canonical_id``."""
+    rows = []
+    for entry in document.get("models") or []:
+        for row in entry.get("prices") or []:
+            if row.get("channel") == channel and _in_effect(row, observed_on, dated=True):
+                labelled = {"canonical_id": entry["canonical_id"]}
+                labelled.update(copy.deepcopy(row))
+                rows.append(labelled)
+    return rows
 
 
 # --- Matching catalog rows to extracted rates ------------------------------------

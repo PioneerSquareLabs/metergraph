@@ -57,7 +57,7 @@ from metergraph_core.catalog_delta import (  # noqa: E402
 )
 from metergraph_core.extractors import page_tables, redact_evidence  # noqa: E402
 from metergraph_core.loader import DEFAULT_CATALOG_PATH, load_catalog_document  # noqa: E402
-from metergraph_core.refresh import discovery_evidence  # noqa: E402
+from metergraph_core.refresh import current_rows, discovery_evidence  # noqa: E402
 from metergraph_core.sources import (  # noqa: E402
     DEFAULT_REGISTRY_PATH,
     PriceSource,
@@ -100,12 +100,12 @@ def _delta(operations: list, observations: list[str], evidence: list[dict]) -> d
     }
 
 
-def run_adapter(adapter: Callable[..., Any], name: str, source: dict[str, Any], content: str, current_rows: list[dict]) -> dict[str, Any]:
+def run_adapter(adapter: Callable[..., Any], name: str, source: dict[str, Any], content: str, rows: list[dict]) -> dict[str, Any]:
     """Call the adapter and keep only schema-valid operations on the
     source's channel. Every rejected item is reported with its reason."""
     result: dict[str, Any] = {"name": name, "operations": [], "rejected": [], "error": None}
     try:
-        proposed = adapter(copy.deepcopy(source), content, copy.deepcopy(current_rows))
+        proposed = adapter(copy.deepcopy(source), content, copy.deepcopy(rows))
     except Exception as exc:  # an adapter failure is evidence, not a crash
         result["error"] = f"{type(exc).__name__}: {exc}"
         return result
@@ -145,25 +145,6 @@ def _source_json(source: PriceSource) -> dict[str, Any]:
         "clarity": source.clarity,
         "dimensions": list(source.dimensions),
     }
-
-
-def _current_rows(document: Mapping[str, Any], channel: str, day: date) -> list[dict[str, Any]]:
-    """The catalog rows in effect on ``day`` on ``channel``, each labelled
-    with its model."""
-    today = day.isoformat()
-    rows = []
-    for entry in document.get("models") or []:
-        for row in entry.get("prices") or []:
-            ends = row.get("effective_to")
-            if (
-                row.get("channel") == channel
-                and str(row.get("effective_from"))[:10] <= today
-                and (ends is None or today < str(ends)[:10])
-            ):
-                labelled = {"canonical_id": entry["canonical_id"]}
-                labelled.update(copy.deepcopy(row))
-                rows.append(labelled)
-    return rows
 
 
 def read_new_source(value: str) -> tuple[str, str]:
@@ -262,7 +243,7 @@ def discover(args: argparse.Namespace) -> dict[str, Any]:
             proposal["proposed_delta"] = delta
         if adapter is not None:
             proposal["adapter"] = run_adapter(
-                adapter, args.llm_adapter, _source_json(source), content, _current_rows(document, source.channel, day)
+                adapter, args.llm_adapter, _source_json(source), content, current_rows(document, source.channel, day)
             )
 
     new_sources = []
