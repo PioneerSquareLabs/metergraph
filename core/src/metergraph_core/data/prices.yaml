@@ -6,7 +6,7 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-10-20"
+version: "2026-10-21"
 currency: USD
 pricing_verified_at: "2026-10-20"
 models:
@@ -1523,6 +1523,7 @@ models:
       - channel: google-api
         region: global
         effective_from: "2026-03-09"
+        effective_to: "2026-10-21"
         input_per_mtok: 2.00
         output_per_mtok: 12.00
         cache_read_per_mtok: 0.20
@@ -1653,6 +1654,7 @@ models:
       - channel: google-api
         region: global
         effective_from: "2026-05-19"
+        effective_to: "2026-10-21"
         input_per_mtok: 1.50
         output_per_mtok: 9.00
         cache_read_per_mtok: 0.15
@@ -1863,6 +1865,7 @@ models:
       - channel: google-api
         region: global
         effective_from: "2026-04-02"
+        effective_to: "2026-10-21"
         input_per_mtok: 0.00
         output_per_mtok: 0.00
         source_url: https://ai.google.dev/gemini-api/docs/pricing
@@ -2531,6 +2534,7 @@ models:
       - channel: anthropic-api
         region: global
         effective_from: "2024-03-13"
+        effective_to: "2026-10-21"
         input_per_mtok: 0.25
         output_per_mtok: 1.25
         cache_read_per_mtok: 0.03
@@ -2816,6 +2820,7 @@ models:
       - channel: google-api
         region: global
         effective_from: "2026-04-02"
+        effective_to: "2026-10-21"
         input_per_mtok: 0.00
         output_per_mtok: 0.00
         source_url: https://ai.google.dev/gemini-api/docs/pricing
