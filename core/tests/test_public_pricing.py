@@ -112,6 +112,24 @@ _SYNTHETIC_CATALOG = textwrap.dedent(
             input_per_mtok: 1.6
             output_per_mtok: 4.8
             source_url: https://example.test/google
+      - canonical_id: google/gem-reg
+        aliases:
+          - {provider: google, alias: gem-reg, channel: google-api}
+        prices:
+          - channel: google-api
+            region: us-east-1
+            effective_from: "2026-01-01"
+            effective_to: "2026-04-01"
+            input_per_mtok: 0.9
+            output_per_mtok: 2.7
+            source_url: https://example.test/google
+          - channel: google-api
+            region: global
+            effective_from: "2026-01-01"
+            effective_to: "2026-08-01"
+            input_per_mtok: 0.8
+            output_per_mtok: 2.4
+            source_url: https://example.test/google
       - canonical_id: anthropic/claude-x
         aliases:
           - {provider: bedrock, alias: claude-x-bedrock, channel: aws-bedrock}
@@ -2707,3 +2725,14 @@ def test_a_call_before_the_first_price_is_still_unpriced(tmp_path):
     catalog = _catalog(tmp_path)
     found = catalog.lookup_price(model="gem-old", provider="google", at=datetime(2025, 12, 1, tzinfo=timezone.utc))
     assert found.status == "unpriced"
+
+
+def test_the_last_known_price_is_the_one_that_applied_most_recently(tmp_path):
+    catalog = _catalog(tmp_path)
+    found = catalog.lookup_price(
+        model="gem-reg", provider="google", region="us-east-1",
+        at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    )
+    assert found.reasons == ("price_ended",)
+    assert found.price.region == "global"
+    assert found.price.input_per_mtok == Decimal("0.8")

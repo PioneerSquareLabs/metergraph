@@ -83,8 +83,7 @@ _BEDROCK_CHANNELS = frozenset({_BEDROCK_CHANNEL, "aws-bedrock-geo"})
 _BEDROCK_VERSION_SUFFIX = re.compile(r"-v\d+(?::\d+)?$")
 _BEDROCK_GLOBAL_PREFIX = "global."
 _GLOBAL_REGION = "global"
-# The reason a result carries when it used the last known price: the price
-# ended before the call and nothing replaced it.
+# Reason for a result priced at a price that ended and was not replaced.
 PRICE_ENDED = "price_ended"
 
 
@@ -324,8 +323,7 @@ class PriceResult:
     price: Price | None
     effective_at: datetime
     missing_dimensions: tuple[str, ...] = ()
-    # Facts about the answer that do not make it partial, such as
-    # ``price_ended``: the price stopped being listed before ``effective_at``.
+    # Notes that do not make the result partial, such as ``price_ended``.
     reasons: tuple[str, ...] = ()
 
 
@@ -336,8 +334,7 @@ class ResolvedPrice:
     canonical_model: str
     price: Price
     rules: Mapping[str, Any]
-    # The price ended before the time it was resolved for and nothing
-    # replaced it, so it is the last known price.
+    # The last known price: it ended before the resolved time, unreplaced.
     ended: bool = False
 
 
@@ -729,8 +726,8 @@ class CatalogSnapshot:
         self, alias: Alias, at: datetime, region: str | None = None
     ) -> tuple[Price | None, bool]:
         """The price in effect at ``at``, and whether it is the last known
-        price: when no row covers ``at``, the latest row that ended before it,
-        provided no row for that scope starts at or after its end. A
+        price: when no row covers ``at``, the row that applied most recently,
+        provided nothing in these scopes starts at or after its end. A
         superseded price, or a gap before a scheduled one, never extends."""
         at = at if at.tzinfo else at.replace(tzinfo=timezone.utc)
         candidates = self._prices.get((alias.model_id, alias.pricing_channel), [])
@@ -743,15 +740,21 @@ class CatalogSnapshot:
                     price.effective_to is None or at < price.effective_to
                 ):
                     return price, False
-        for scope in scopes:
-            in_scope = [price for price in candidates if price.region.lower() == scope]
-            # Candidates are sorted newest first, so the first is the latest.
-            if not in_scope:
-                continue
-            latest = in_scope[0]
-            if latest.effective_to is not None and latest.effective_to <= at:
-                return latest, True
-        return None, False
+        in_scopes = [price for price in candidates if price.region.lower() in scopes]
+        ended = [
+            price for price in in_scopes
+            if price.effective_to is not None and price.effective_to <= at
+        ]
+        if not ended:
+            return None, False
+        # The latest end wins; on a tie, the earlier scope, as above.
+        last = max(
+            ended,
+            key=lambda price: (price.effective_to, -scopes.index(price.region.lower())),
+        )
+        if any(price.effective_from >= last.effective_to for price in in_scopes):
+            return None, False
+        return last, True
 
     def infer_direct_channel(self, model: Any) -> str | None:
         """Return the sole direct billing channel known for ``model``.
