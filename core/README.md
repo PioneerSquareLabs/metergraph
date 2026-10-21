@@ -164,6 +164,12 @@ lists `input_tokens` or `output_tokens` in `missing_dimensions`.
 
 A region the model is not sold in is `unpriced` with nothing missing.
 
+A price closed with `effective_to` and not replaced is the last known price.
+A call after it ended resolves to that price, stays `priced`, and carries
+`price_ended` in `reasons` (on both `PriceResult` and `CostResult`). The
+applied `price.effective_to` says when it ended. A closed price followed by a
+later one never extends, so a gap before a scheduled price stays `unpriced`.
+
 ## Model registry
 
 ```python

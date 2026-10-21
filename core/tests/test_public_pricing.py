@@ -84,6 +84,52 @@ _SYNTHETIC_CATALOG = textwrap.dedent(
             input_per_mtok: 0.9
             output_per_mtok: 0.9
             source_url: https://example.test/fireworks
+      - canonical_id: google/gem-old
+        aliases:
+          - {provider: google, alias: gem-old, channel: google-api}
+        prices:
+          - channel: google-api
+            region: global
+            effective_from: "2026-01-01"
+            effective_to: "2026-04-01"
+            input_per_mtok: 0.8
+            output_per_mtok: 2.4
+            source_url: https://example.test/google
+      - canonical_id: google/gem-gap
+        aliases:
+          - {provider: google, alias: gem-gap, channel: google-api}
+        prices:
+          - channel: google-api
+            region: global
+            effective_from: "2026-01-01"
+            effective_to: "2026-04-01"
+            input_per_mtok: 0.8
+            output_per_mtok: 2.4
+            source_url: https://example.test/google
+          - channel: google-api
+            region: global
+            effective_from: "2026-09-01"
+            input_per_mtok: 1.6
+            output_per_mtok: 4.8
+            source_url: https://example.test/google
+      - canonical_id: google/gem-reg
+        aliases:
+          - {provider: google, alias: gem-reg, channel: google-api}
+        prices:
+          - channel: google-api
+            region: us-east-1
+            effective_from: "2026-01-01"
+            effective_to: "2026-04-01"
+            input_per_mtok: 0.9
+            output_per_mtok: 2.7
+            source_url: https://example.test/google
+          - channel: google-api
+            region: global
+            effective_from: "2026-01-01"
+            effective_to: "2026-08-01"
+            input_per_mtok: 0.8
+            output_per_mtok: 2.4
+            source_url: https://example.test/google
       - canonical_id: anthropic/claude-x
         aliases:
           - {provider: bedrock, alias: claude-x-bedrock, channel: aws-bedrock}
@@ -699,6 +745,23 @@ def test_installed_catalog_prices_retired_gemini_3_pro_at_its_redirect_rate():
     assert after.canonical_model == "google/gemini-3-pro"
     assert after.price_id == "google/gemini-3-pro:google-api:global:2026-03-09"
     assert after.cost_usd == Decimal("0.00800000")
+
+
+
+def test_installed_catalog_prices_routed_gemini_35_flash_at_36_flash_rates():
+    # Google routes gemini-3.5-flash to gemini-3.6-flash from 2026-10-08.
+    catalog = load_catalog()
+    for at in (datetime(2026, 10, 21, tzinfo=timezone.utc), datetime(2027, 2, 1, tzinfo=timezone.utc)):
+        routed, target = (
+            catalog.price(
+                model=model, channel="google-api", at=at,
+                input_tokens=1_000_000, output_tokens=1_000_000,
+            )
+            for model in ("gemini-3.5-flash", "gemini-3.6-flash")
+        )
+        assert routed.status == "priced"
+        assert routed.canonical_model == "google/gemini-3.5-flash"
+        assert routed.cost_usd == target.cost_usd
 
 
 _AT_NANO = datetime(2026, 3, 17, tzinfo=timezone.utc)
@@ -1549,10 +1612,14 @@ def test_installed_catalog_ends_claude_35_haiku_without_contradictory_evidence()
 
     assert before.status == "priced"
     assert before.cost_usd == Decimal("4.80000000")
+    # The retired -latest alias names nothing after its window.
     assert alias_after_retirement.status == "unpriced"
     assert alias_after_retirement.canonical_model is None
-    assert exact_after_retirement.status == "unpriced"
+    # The exact id keeps the last known price, and says it ended.
+    assert exact_after_retirement.status == "priced"
+    assert exact_after_retirement.reasons == ("price_ended",)
     assert exact_after_retirement.canonical_model == "anthropic/claude-haiku-3.5"
+    assert exact_after_retirement.cost_usd == before.cost_usd
 
 
 def test_installed_catalog_prices_claude_35_haiku_until_gateway_shutdown():
@@ -2610,3 +2677,96 @@ def test_installed_catalog_moves_gateway_mimo_v2_5_to_the_lower_rate_on_october_
     )
     assert resolved.status == "priced"
     assert resolved.cost_usd == Decimal(cost)
+
+
+# --- A price nothing replaced -------------------------------------------------
+
+_AFTER_END = datetime(2026, 5, 1, tzinfo=timezone.utc)
+
+
+def test_a_call_after_an_unreplaced_price_ended_is_priced_at_that_price(tmp_path):
+    catalog = _catalog(tmp_path)
+    result = catalog.calculate_cost(
+        model="gem-old", provider="google", at=_AFTER_END,
+        usage=ModelUsage(input_tokens=1_000_000, output_tokens=1_000_000),
+    )
+    assert result.status == "priced"
+    assert result.reasons == ("price_ended",)
+    assert result.cost == Decimal("3.20000000")
+    assert result.price.id == "google/gem-old:google-api:global:2026-01-01"
+    assert result.price.effective_to == datetime(2026, 4, 1, tzinfo=timezone.utc)
+    assert result.missing_dimensions == ()
+
+
+def test_lookup_reports_an_ended_price(tmp_path):
+    catalog = _catalog(tmp_path)
+    found = catalog.lookup_price(model="gem-old", provider="google", at=_AFTER_END)
+    assert found.status == "priced"
+    assert found.reasons == ("price_ended",)
+    assert found.model_id == "google/gem-old"
+    within = catalog.lookup_price(model="gem-old", provider="google", at=_AT)
+    assert within.reasons == ()
+
+
+def test_every_entry_point_extends_an_unreplaced_price(tmp_path):
+    catalog = _catalog(tmp_path)
+    by_provider = catalog.snapshot.cost(
+        provider="google", model="gem-old", at=_AFTER_END,
+        input_tokens=1000, output_tokens=1000,
+    )
+    by_channel = catalog.price(
+        model="gem-old", channel="google-api", at=_AFTER_END,
+        input_tokens=1000, output_tokens=1000,
+    )
+    resolved = catalog.snapshot.resolve_price(model="gem-old", channel="google-api", at=_AFTER_END)
+    assert by_provider.status == by_channel.status == "priced"
+    assert by_provider.reasons == by_channel.reasons == ("price_ended",)
+    assert by_provider.cost_usd == by_channel.cost_usd
+    assert resolved.ended is True
+
+
+def test_a_reason_beside_an_ended_price_still_makes_it_partial(tmp_path):
+    catalog = _catalog(tmp_path)
+    result = catalog.calculate_cost(
+        model="gem-old", provider="google", at=_AFTER_END,
+        usage=ModelUsage(input_tokens=1000),
+    )
+    assert result.status == "partial"
+    assert result.reasons == ("price_ended", "missing_output_tokens")
+
+
+def test_a_superseded_price_never_extends(tmp_path):
+    catalog = _catalog(tmp_path)
+    found = catalog.lookup_price(model="gpt-x", provider="openai", at=datetime(2026, 7, 1, tzinfo=timezone.utc))
+    assert found.price.id == "openai/gpt-x:openai-api:global:2026-06-01"
+    assert found.reasons == ()
+
+
+def test_a_gap_before_a_scheduled_price_is_not_bridged(tmp_path):
+    catalog = _catalog(tmp_path)
+    gap = catalog.lookup_price(model="gem-gap", provider="google", at=_AFTER_END)
+    assert gap.status == "unpriced"
+    assert gap.price is None
+    later = catalog.lookup_price(model="gem-gap", provider="google", at=datetime(2026, 10, 1, tzinfo=timezone.utc))
+    assert later.status == "priced" and later.reasons == ()
+    by_provider = catalog.snapshot.cost(
+        provider="google", model="gem-gap", at=_AFTER_END, input_tokens=1, output_tokens=1,
+    )
+    assert by_provider.reasons == ("no_effective_price",)
+
+
+def test_a_call_before_the_first_price_is_still_unpriced(tmp_path):
+    catalog = _catalog(tmp_path)
+    found = catalog.lookup_price(model="gem-old", provider="google", at=datetime(2025, 12, 1, tzinfo=timezone.utc))
+    assert found.status == "unpriced"
+
+
+def test_the_last_known_price_is_the_one_that_applied_most_recently(tmp_path):
+    catalog = _catalog(tmp_path)
+    found = catalog.lookup_price(
+        model="gem-reg", provider="google", region="us-east-1",
+        at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+    )
+    assert found.reasons == ("price_ended",)
+    assert found.price.region == "global"
+    assert found.price.input_per_mtok == Decimal("0.8")
