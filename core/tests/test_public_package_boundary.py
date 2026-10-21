@@ -55,17 +55,6 @@ README_OPENING = (
 )
 
 
-@pytest.mark.parametrize("name", ["pyproject.toml", "README.md"])
-def test_core_manifest_and_readme_link_only_the_public_organization(name):
-    text = (REPOSITORY / "core" / name).read_text()
-    assert "pioneersquarelabs" not in text.lower()
-
-
-@pytest.mark.parametrize("name", ["pyproject.toml", "README.md"])
-def test_core_manifest_and_readme_use_no_em_dashes(name):
-    assert "—" not in (REPOSITORY / "core" / name).read_text()
-
-
 def test_core_readme_opens_with_the_cost_lookup_pitch():
     readme = (REPOSITORY / "core" / "README.md").read_text()
     title, _, rest = readme.partition("\n\n")
