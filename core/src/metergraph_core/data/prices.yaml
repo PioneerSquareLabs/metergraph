@@ -3022,6 +3022,22 @@ models:
         cache_read_per_mtok: 0.15
         source_url: https://vercel.com/ai-gateway/models/muse-spark-1.3
 
+  - canonical_id: typesafe-ai/jev-1.13.0
+    publisher: typesafe-ai
+    aliases:
+      - {provider: typesafe-ai, alias: typesafe-ai/jev-1.13.0, channel: vercel-ai-gateway}
+      - {provider: vercel, alias: typesafe-ai/jev-1.13.0, channel: vercel-ai-gateway}
+      - {provider: unknown, alias: typesafe/jev-1.13.0, channel: vercel-ai-gateway}
+      - {provider: unknown, alias: jev-1.13.0, channel: vercel-ai-gateway}
+    prices:
+      # Vercel lists an input rate and no output fee for this decision model.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-09-15"
+        input_per_mtok: 0.04
+        output_per_mtok: 0
+        source_url: https://vercel.com/ai-gateway/models/jev-1.13.0
+
   - canonical_id: thinkingmachines/inkling
     publisher: thinkingmachines
     aliases:

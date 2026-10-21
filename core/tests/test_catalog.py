@@ -61,8 +61,8 @@ def test_current_catalog_prices_more_than_one_thousand_provider_model_pairs():
     }
 
     # Includes claude-3-5-haiku-20241022 at its last known price.
-    assert len(pairs) == 1113
-    assert sum(provider == "vercel" for provider, _ in pairs) == 186
+    assert len(pairs) == 1117
+    assert sum(provider == "vercel" for provider, _ in pairs) == 187
     assert sum(provider == "openrouter" for provider, _ in pairs) == 212
 
 
@@ -346,6 +346,29 @@ def test_october_16_gateway_catalog_additions(
         None if cache_read_rate is None else Decimal(cache_read_rate)
     )
     assert bool(resolved.rules.get("varies_by_provider")) is varies_by_provider
+
+
+@pytest.mark.parametrize(
+    ("provider", "model"),
+    [
+        ("vercel", "typesafe-ai/jev-1.13.0"),
+        ("unknown", "typesafe/jev-1.13.0"),
+        ("unknown", "jev-1.13.0"),
+    ],
+)
+def test_jev_113_gateway_aliases_price_input_only_requests(provider, model):
+    result = SNAPSHOT.cost(
+        provider=provider,
+        model=model,
+        at=_at("2026-09-15"),
+        input_tokens=100_000,
+        output_tokens=1_000,
+    )
+
+    assert result.status == "priced"
+    assert result.canonical_model == "typesafe-ai/jev-1.13.0"
+    assert result.cost_usd == Decimal("0.00400000")
+    assert result.missing_dimensions == ()
 
 
 def test_deepseek_v4_1_flash_gateway_reprice_preserves_history_and_peak_windows():
