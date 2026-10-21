@@ -1,22 +1,8 @@
 # metergraph-core
 
-Reusable model registry, price catalog, and deterministic billing engine for
-[Metergraph](https://github.com/metergraph/metergraph), which attributes LLM
-cost to the function, agent, and workflow that made each call.
-
-`metergraph-core` owns two separate public datasets. `models.yaml` records
-canonical model identity, customer-facing names, executable provider routes,
-and the ordered candidate fields MeterGraph products offer. `prices.yaml`
-records effective-dated rates and billing rules. Core parses and validates both
-datasets, resolves provider aliases and routes, calculates deterministic costs,
-and selects a qualified gateway-reported charge or catalog estimate as the
-effective call cost. A third dataset, `sources.yaml`, registers the official
-pricing sources that keep `prices.yaml` current; see
-[Source registry](#source-registry).
-
-It does not own HTTP routes, database access, migrations, authentication,
-tenancy, ingest, dashboard code, or any hosted-only concern, and it never reads
-server environment variables.
+Calculate the cost of an LLM call from its model, provider, tokens, region, and
+date. `metergraph-core` ships an open, effective-dated model pricing catalog and
+a deterministic Python cost engine.
 
 ## Install
 
@@ -41,6 +27,32 @@ result = catalog.snapshot.cost(
 )
 print(result.canonical_model, result.price_id, result.cost_usd, result.status)
 ```
+
+The result names the canonical model and the catalog price row it was billed
+at, so every cost traces back to an effective-dated rate.
+
+## Package scope
+
+`metergraph-core` is the reusable model registry, price catalog, and
+deterministic billing engine for
+[Metergraph](https://github.com/metergraph/metergraph), which attributes LLM
+cost to the function, agent, and workflow that made each call.
+
+It owns two separate public datasets. `models.yaml` records
+canonical model identity, customer-facing names, executable provider routes,
+and the ordered candidate fields MeterGraph products offer. `prices.yaml`
+records effective-dated rates and billing rules. Core parses and validates both
+datasets, resolves provider aliases and routes, calculates deterministic costs,
+and selects a qualified gateway-reported charge or catalog estimate as the
+effective call cost. A third dataset, `sources.yaml`, registers the official
+pricing sources that keep `prices.yaml` current; see
+[Source registry](#source-registry).
+
+It does not own HTTP routes, database access, migrations, authentication,
+tenancy, ingest, dashboard code, or any hosted-only concern, and it never reads
+server environment variables.
+
+## Loading catalogs
 
 `load_catalog()` loads the catalog bundled in the installed package. Pass an
 explicit `path` for tests or a self-hosted catalog replacement. The returned

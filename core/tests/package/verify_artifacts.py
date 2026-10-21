@@ -3,7 +3,8 @@
 
 Builds (or, with ``--no-build``, reuses) exactly one sdist and one wheel, then:
 
-1. checks the distribution name, version, and ``Requires-Python`` metadata;
+1. checks the distribution name, version, ``Requires-Python``, summary, author,
+   keywords, and project URL metadata;
 2. confirms each artifact ships the public modules and exactly one bundled
    ``data/models.yaml``, ``data/prices.yaml`` and ``data/sources.yaml``;
 3. rejects top-level test packages in the installed wheel;
@@ -35,8 +36,39 @@ CORE_DIR = Path(__file__).resolve().parents[2]  # core/
 DIST_DIR = CORE_DIR / "dist"
 
 EXPECTED_NAME = "metergraph-core"
-EXPECTED_VERSION = "0.5.0"
+EXPECTED_VERSION = "0.5.1"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
+EXPECTED_SUMMARY = (
+    "Open, effective-dated LLM pricing catalog and deterministic cost calculator "
+    "for popular models across major providers and gateways, including OpenAI, "
+    "Anthropic, Google Gemini, AWS Bedrock, OpenRouter, Vercel AI Gateway, and more."
+)
+EXPECTED_AUTHOR = "Metergraph"
+EXPECTED_KEYWORDS = (
+    "llm",
+    "pricing",
+    "cost",
+    "token-pricing",
+    "model-catalog",
+    "llm-pricing",
+    "model-pricing",
+    "token-cost",
+    "cost-calculation",
+    "openai",
+    "anthropic",
+    "gemini",
+    "bedrock",
+    "openrouter",
+    "vercel-ai-gateway",
+    "finops",
+)
+EXPECTED_PROJECT_URLS = {
+    "Homepage": "https://github.com/metergraph/metergraph",
+    "Documentation": "https://github.com/metergraph/metergraph/tree/main/core#readme",
+    "Source": "https://github.com/metergraph/metergraph/tree/main/core",
+    "Issues": "https://github.com/metergraph/metergraph/issues",
+    "Release notes": "https://github.com/metergraph/metergraph/releases",
+}
 GOLDEN_COST = "0.52500000"
 GOLDEN_PRICE_ID = "openai/gpt-5.4-mini:openai-api:global:2026-03-17"
 GOLDEN_PINNED_PRICE_ID = "openai/gpt-6.1-sol:aws-bedrock:us-east-1:2026-09-29"
@@ -91,12 +123,25 @@ def _single(pattern: str) -> Path:
     return matches[0]
 
 
-def _parse_metadata(raw: bytes) -> dict[str, str]:
+def _parse_metadata(raw: bytes) -> dict[str, object]:
     message = BytesParser().parsebytes(raw)
-    return {key: message.get(key, "") for key in ("Name", "Version", "Requires-Python")}
+    fields: dict[str, object] = {
+        key: message.get(key, "")
+        for key in ("Name", "Version", "Requires-Python", "Summary", "Author", "Keywords")
+    }
+    fields["Project-URL"] = message.get_all("Project-URL") or []
+    return fields
 
 
-def _check_metadata(fields: dict[str, str], source: str) -> None:
+def _project_urls(entries: list[str]) -> dict[str, str]:
+    urls: dict[str, str] = {}
+    for entry in entries:
+        label, _, url = entry.partition(",")
+        urls[label.strip()] = url.strip()
+    return urls
+
+
+def _check_metadata(fields: dict[str, object], source: str) -> None:
     _require(
         fields["Name"] == EXPECTED_NAME,
         f"{source}: Name {fields['Name']!r} != {EXPECTED_NAME!r}",
@@ -109,6 +154,24 @@ def _check_metadata(fields: dict[str, str], source: str) -> None:
         fields["Requires-Python"] == EXPECTED_REQUIRES_PYTHON,
         f"{source}: Requires-Python {fields['Requires-Python']!r} != "
         f"{EXPECTED_REQUIRES_PYTHON!r}",
+    )
+    _require(
+        fields["Summary"] == EXPECTED_SUMMARY,
+        f"{source}: Summary {fields['Summary']!r} != {EXPECTED_SUMMARY!r}",
+    )
+    _require(
+        fields["Author"] == EXPECTED_AUTHOR,
+        f"{source}: Author {fields['Author']!r} != {EXPECTED_AUTHOR!r}",
+    )
+    keywords = tuple(k.strip() for k in str(fields["Keywords"]).split(",") if k.strip())
+    _require(
+        keywords == EXPECTED_KEYWORDS,
+        f"{source}: Keywords {keywords!r} != {EXPECTED_KEYWORDS!r}",
+    )
+    urls = _project_urls(list(fields["Project-URL"]))
+    _require(
+        urls == EXPECTED_PROJECT_URLS,
+        f"{source}: Project-URL {urls!r} != {EXPECTED_PROJECT_URLS!r}",
     )
 
 

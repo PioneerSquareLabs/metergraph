@@ -48,6 +48,56 @@ def test_the_source_registry_ships_as_package_data():
     ]
 
 
+README_OPENING = (
+    "Calculate the cost of an LLM call from its model, provider, tokens, region, "
+    "and date. `metergraph-core` ships an open, effective-dated model pricing "
+    "catalog and a deterministic Python cost engine."
+)
+
+
+@pytest.mark.parametrize("name", ["pyproject.toml", "README.md"])
+def test_core_manifest_and_readme_link_only_the_public_organization(name):
+    text = (REPOSITORY / "core" / name).read_text()
+    assert "pioneersquarelabs" not in text.lower()
+
+
+@pytest.mark.parametrize("name", ["pyproject.toml", "README.md"])
+def test_core_manifest_and_readme_use_no_em_dashes(name):
+    assert "—" not in (REPOSITORY / "core" / name).read_text()
+
+
+def test_core_readme_opens_with_the_cost_lookup_pitch():
+    readme = (REPOSITORY / "core" / "README.md").read_text()
+    title, _, rest = readme.partition("\n\n")
+    assert title == "# metergraph-core"
+    opening = rest.partition("\n\n")[0]
+    assert " ".join(opening.split()) == README_OPENING
+    assert readme.index("## Install") < readme.index("## Usage")
+    assert readme.index("## Usage") < readme.index("does not own HTTP routes")
+
+
+def test_core_metadata_targets_pricing_discovery():
+    tomllib = pytest.importorskip("tomllib")
+    project = tomllib.loads((REPOSITORY / "core" / "pyproject.toml").read_text())["project"]
+    assert project["description"] == (
+        "Open, effective-dated LLM pricing catalog and deterministic cost calculator "
+        "for popular models across major providers and gateways, including OpenAI, "
+        "Anthropic, Google Gemini, AWS Bedrock, OpenRouter, Vercel AI Gateway, and more."
+    )
+    assert {
+        "llm", "pricing", "cost", "token-pricing", "model-catalog",
+        "llm-pricing", "model-pricing", "token-cost", "cost-calculation", "openai",
+        "anthropic", "gemini", "bedrock", "openrouter", "vercel-ai-gateway", "finops",
+    } <= set(project["keywords"])
+    assert project["license"] == "Apache-2.0"
+    assert project["authors"] == [{"name": "Metergraph"}]
+    assert project["requires-python"] == ">=3.10"
+    assert all(
+        url.startswith("https://github.com/metergraph/metergraph")
+        for url in project["urls"].values()
+    )
+
+
 PUBLIC_NAMES = [
     "CATALOG_DELTA_SCHEMA_VERSION", "CatalogDelta", "CatalogDeltaConflict", "CatalogDeltaError", "DeltaConflict",
     "Escalation", "ExtractedRate", "Extraction", "LowRiskPolicy",
