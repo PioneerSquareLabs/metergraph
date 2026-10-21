@@ -15,6 +15,7 @@ import yaml
 
 from .catalog import (
     Alias,
+    PRICE_ENDED,
     CatalogSnapshot,
     CostResult,
     ModelUsage,
@@ -159,6 +160,7 @@ class LoadedCatalog:
             resolved.price,
             when,
             missing,
+            (PRICE_ENDED,) if resolved.ended else (),
         )
 
     def calculate_cost(
