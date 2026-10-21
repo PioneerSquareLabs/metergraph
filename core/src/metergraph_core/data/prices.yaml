@@ -8026,19 +8026,37 @@ models:
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-20"
+        effective_to: "2026-10-21"
         input_per_mtok: 0.14
         output_per_mtok: 0.28
         cache_read_per_mtok: 0.0028
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-21"
+        input_per_mtok: 0.119
+        output_per_mtok: 0.238
+        cache_read_per_mtok: 0.0025
+        source_url: https://ai-gateway.vercel.sh/v1/models
 
       - channel: openrouter-api
         region: global
         effective_from: "2026-10-20"
+        effective_to: "2026-10-21"
         input_per_mtok: 0.14
         output_per_mtok: 0.28
         cache_read_per_mtok: 0.0028
+        rules:
+          varies_by_provider: true
+        source_url: https://openrouter.ai/api/v1/models
+      - channel: openrouter-api
+        region: global
+        effective_from: "2026-10-21"
+        input_per_mtok: 0.119
+        output_per_mtok: 0.238
+        cache_read_per_mtok: 0.00255
         rules:
           varies_by_provider: true
         source_url: https://openrouter.ai/api/v1/models
