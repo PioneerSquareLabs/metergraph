@@ -83,6 +83,8 @@ _BEDROCK_CHANNELS = frozenset({_BEDROCK_CHANNEL, "aws-bedrock-geo"})
 _BEDROCK_VERSION_SUFFIX = re.compile(r"-v\d+(?::\d+)?$")
 _BEDROCK_GLOBAL_PREFIX = "global."
 _GLOBAL_REGION = "global"
+# Reason for a result priced at a price that ended and was not replaced.
+PRICE_ENDED = "price_ended"
 
 
 def _bedrock_fallback_ids(model_key: str) -> tuple[tuple[str, bool], ...]:
@@ -321,6 +323,8 @@ class PriceResult:
     price: Price | None
     effective_at: datetime
     missing_dimensions: tuple[str, ...] = ()
+    # Notes that do not make the result partial, such as ``price_ended``.
+    reasons: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -330,6 +334,8 @@ class ResolvedPrice:
     canonical_model: str
     price: Price
     rules: Mapping[str, Any]
+    # The last known price: it ended before the resolved time, unreplaced.
+    ended: bool = False
 
 
 def _billed_terms(resolved: ResolvedPrice) -> tuple[Any, ...]:
@@ -611,6 +617,9 @@ def _cost_result(
         batch=usage.batch,
     )
     reasons = [f"missing_{dimension}" for dimension in missing] + reasons
+    partial = bool(reasons)
+    if resolved.ended:
+        reasons = [PRICE_ENDED] + reasons
     missing += tuple(
         dimension
         for dimension in ("input_tokens", "output_tokens")
@@ -620,7 +629,7 @@ def _cost_result(
         resolved.canonical_model,
         resolved.price.id,
         cost,
-        "partial" if reasons else "priced",
+        "partial" if partial else "priced",
         tuple(dict.fromkeys(reasons)),
         components=components,
         publisher=resolved.price.publisher,
@@ -715,18 +724,37 @@ class CatalogSnapshot:
 
     def _price_for(
         self, alias: Alias, at: datetime, region: str | None = None
-    ) -> Price | None:
+    ) -> tuple[Price | None, bool]:
+        """The price in effect at ``at``, and whether it is the last known
+        price: when no row covers ``at``, the row that applied most recently,
+        provided nothing in these scopes starts at or after its end. A
+        superseded price, or a gap before a scheduled one, never extends."""
         at = at if at.tzinfo else at.replace(tzinfo=timezone.utc)
         candidates = self._prices.get((alias.model_id, alias.pricing_channel), [])
-        for scope in self._price_regions(alias, region or self._region):
+        scopes = self._price_regions(alias, region or self._region)
+        for scope in scopes:
             for price in candidates:
                 if price.region.lower() != scope:
                     continue
                 if price.effective_from <= at and (
                     price.effective_to is None or at < price.effective_to
                 ):
-                    return price
-        return None
+                    return price, False
+        in_scopes = [price for price in candidates if price.region.lower() in scopes]
+        ended = [
+            price for price in in_scopes
+            if price.effective_to is not None and price.effective_to <= at
+        ]
+        if not ended:
+            return None, False
+        # The latest end wins; on a tie, the earlier scope, as above.
+        last = max(
+            ended,
+            key=lambda price: (price.effective_to, -scopes.index(price.region.lower())),
+        )
+        if any(price.effective_from >= last.effective_to for price in in_scopes):
+            return None, False
+        return last, True
 
     def infer_direct_channel(self, model: Any) -> str | None:
         """Return the sole direct billing channel known for ``model``.
@@ -791,13 +819,14 @@ class CatalogSnapshot:
                     break
         if alias is None:
             return None
-        price = self._price_for(alias, when, region)
+        price, ended = self._price_for(alias, when, region)
         if price is None:
             return None
         return ResolvedPrice(
             canonical_model=alias.canonical_id,
             price=price,
             rules=MappingProxyType({**price.rules, **alias.rules}),
+            ended=ended,
         )
 
     def _lookup(
@@ -876,7 +905,7 @@ class CatalogSnapshot:
                     None, None, None, "unpriced", ("no_effective_alias",)
                 )
             return CostResult(None, None, None, "unpriced", ("unknown_model",))
-        price = self._price_for(alias, when)
+        price, ended = self._price_for(alias, when)
         if price is None:
             return CostResult(
                 alias.canonical_id,
@@ -886,7 +915,9 @@ class CatalogSnapshot:
                 ("no_effective_price",),
             )
         return _cost_result(
-            ResolvedPrice(alias.canonical_id, price, {**price.rules, **alias.rules}),
+            ResolvedPrice(
+                alias.canonical_id, price, {**price.rules, **alias.rules}, ended=ended
+            ),
             at=when,
             usage=ModelUsage(
                 input_tokens=input_tokens,
