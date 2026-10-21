@@ -747,6 +747,23 @@ def test_installed_catalog_prices_retired_gemini_3_pro_at_its_redirect_rate():
     assert after.cost_usd == Decimal("0.00800000")
 
 
+
+def test_installed_catalog_prices_routed_gemini_35_flash_at_36_flash_rates():
+    # Google routes gemini-3.5-flash to gemini-3.6-flash from 2026-10-08.
+    catalog = load_catalog()
+    for at in (datetime(2026, 10, 21, tzinfo=timezone.utc), datetime(2027, 2, 1, tzinfo=timezone.utc)):
+        routed, target = (
+            catalog.price(
+                model=model, channel="google-api", at=at,
+                input_tokens=1_000_000, output_tokens=1_000_000,
+            )
+            for model in ("gemini-3.5-flash", "gemini-3.6-flash")
+        )
+        assert routed.status == "priced"
+        assert routed.canonical_model == "google/gemini-3.5-flash"
+        assert routed.cost_usd == target.cost_usd
+
+
 _AT_NANO = datetime(2026, 3, 17, tzinfo=timezone.utc)
 
 
