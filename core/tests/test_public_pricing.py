@@ -1641,6 +1641,29 @@ def test_installed_catalog_prices_current_vercel_gateway_models(
     assert result.cost_usd == Decimal(cost)
 
 
+def test_installed_catalog_prices_direct_meta_muse_spark_1_3():
+    catalog = load_catalog()
+
+    result = catalog.snapshot.cost(
+        provider="meta",
+        model="muse-spark-1.3",
+        at=datetime(2026, 9, 11, tzinfo=timezone.utc),
+        input_tokens=600_000,
+        output_tokens=100_000,
+        cache_read_tokens=400_000,
+    )
+
+    # Meta reports cached tokens inside input_tokens, so only 0.2M input is
+    # billed at the input rate: 0.2M * $1.25 + 0.4M * $0.15 + 0.1M * $4.25.
+    assert result.status == "priced"
+    assert result.canonical_model == "meta/muse-spark-1.3"
+    assert result.price.pricing_channel == "meta-api"
+    assert result.components.input_usd == Decimal("0.25000000")
+    assert result.components.cache_read_usd == Decimal("0.06000000")
+    assert result.components.output_usd == Decimal("0.42500000")
+    assert result.cost_usd == Decimal("0.73500000")
+
+
 _AT_KIMI_26 = datetime(2026, 9, 6, tzinfo=timezone.utc)
 
 

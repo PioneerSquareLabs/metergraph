@@ -27,7 +27,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-10-20"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-10-21"
 
 
 def test_openrouter_cache_reads_are_not_charged_as_fresh_input():
@@ -60,7 +60,7 @@ def test_current_catalog_prices_more_than_one_thousand_provider_model_pairs():
         == "priced"
     }
 
-    assert len(pairs) == 1111
+    assert len(pairs) == 1112
     assert sum(provider == "vercel" for provider, _ in pairs) == 186
     assert sum(provider == "openrouter" for provider, _ in pairs) == 212
 
