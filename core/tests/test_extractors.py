@@ -53,6 +53,9 @@ EXPECTED = {
     ("google", "google-api-pricing"): {
         ("gemini-x", "global"): {"input_per_mtok": D("0.25"), "output_per_mtok": D("1.50"), "cache_read_per_mtok": D("0.025")},
         ("gemini-x-image", "global"): {"input_per_mtok": D("0.30")},
+        ("gemini-x-lite", "global"): {"input_per_mtok": D("0.10"), "output_per_mtok": D("0.40"), "cache_read_per_mtok": D("0.01")},
+        ("gemini-x-pro-preview", "global"): {"input_per_mtok": D("2.00"), "output_per_mtok": D("12.00"), "cache_read_per_mtok": D("0.20")},
+        ("gemini-x-pro-preview-customtools", "global"): {"input_per_mtok": D("2.00"), "output_per_mtok": D("12.00"), "cache_read_per_mtok": D("0.20")},
     },
     ("xai", "xai-api-pricing"): {
         ("grok-x", "global"): {"input_per_mtok": D("2"), "cache_read_per_mtok": D("0.5"), "output_per_mtok": D("6")},

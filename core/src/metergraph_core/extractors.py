@@ -194,25 +194,42 @@ def parse_anthropic(html_text: str, *, duplicates: list[str] | None = None) -> T
 _GOOGLE_LABELS = ("Input price", "Output price", "Context caching price")
 
 
+def _google_ids(cells: list[str]) -> list[str]:
+    """The model ids ending a block's heading: one id, or several joined by
+    "and" when a variant shares the model's prices."""
+    ids: list[str] = []
+    for cell in reversed(cells):
+        if cell == "and":
+            if not ids:
+                break
+        elif re.fullmatch(r"[a-z0-9][a-z0-9.-]*", cell):
+            ids.append(cell)
+        else:
+            break
+    return ids[::-1]
+
+
 def parse_google(html_text: str, *, duplicates: list[str] | None = None) -> Table:
     """The Gemini API page: each model's id precedes its "Try it" link, and
     its paid-tier prices follow. Where a price is dated the first amount is
-    the one in effect; per-image output is not a token rate."""
+    the one in effect; per-image output is not a token rate. A label may name
+    the media it covers, as in "Input price (text, image, video)"."""
     parts = page_text(html_text).split("Try it in Google AI Studio")
     tier = r"(?:Free of charge \| |Not available \| )?([^|]*\$[^|]*)"
     table: Table = {}
     for before, block in zip(parts, parts[1:]):
-        cells = [c.strip() for c in before.split("|") if c.strip()]
-        if not cells or not re.fullmatch(r"[a-z0-9][a-z0-9.-]*", cells[-1]):
+        ids = _google_ids([c.strip() for c in before.split("|") if c.strip()])
+        if not ids:
             continue
-        inp = re.search(r"Input price \| " + tier, block)
+        inp = re.search(r"Input price[^|]*\| " + tier, block)
         out = re.search(r"Output price[^|]*\| " + tier, block)
         if not (inp and out):
             continue
-        cache = re.search(r"Context caching price \| " + tier, block)
+        cache = re.search(r"Context caching price[^|]*\| " + tier, block)
         output = None if "per image" in out.group(1) else dollars(out.group(1))
         rates = {"input": dollars(inp.group(1)), "output": output, "cache_read": dollars(cache.group(1)) if cache else None}
-        _keep_first(table, cells[-1], {k: v for k, v in rates.items() if v is not None}, duplicates)
+        for model_id in ids:
+            _keep_first(table, model_id, {k: v for k, v in rates.items() if v is not None}, duplicates)
     return table
 
 
