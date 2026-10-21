@@ -2604,8 +2604,6 @@ def test_installed_catalog_prices_gpt_5_6_terra_direct_by_date(at, input_rate, o
     ],
 )
 def test_installed_catalog_moves_gateway_mimo_v2_5_to_the_lower_rate_on_october_21(channel, at, cost):
-    """Both gateways list MiMo V2.5 15% lower from 2026-10-21; earlier calls
-    keep the rate listed on 2026-10-20."""
     resolved = load_catalog().price(
         model="xiaomi/mimo-v2.5", channel=channel, at=at,
         input_tokens=1_000_000, output_tokens=1_000_000,

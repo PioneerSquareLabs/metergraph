@@ -498,7 +498,6 @@ def test_deepseek_page_takes_the_peak_column_per_model():
     page = (
         "<table>"
         "<tr><th>MODEL</th><th>deepseek-flash(1)</th><th>deepseek-v4-pro</th></tr>"
-        # A version row names the release behind each column, not new columns.
         "<tr><td>MODEL VERSION</td><td>DeepSeek-V4.1-Flash-1017</td><td>DeepSeek-V4-Pro-0813</td></tr>"
         "<tr><td>PRICING(2)</td><td>1M INPUT TOKENS(CACHE HIT)</td><td>OFF-PEAK</td><td>$0.003</td><td>$0.022</td></tr>"
         "<tr><td>PEAK</td><td>$0.006</td><td>$0.044</td></tr>"

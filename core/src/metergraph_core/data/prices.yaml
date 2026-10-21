@@ -7992,10 +7992,6 @@ models:
         rules:
           varies_by_provider: true
         source_url: https://ai-gateway.vercel.sh/v1/models
-      # Both gateways now list GMICloud's rate, 15% under the earlier rate
-      # (Vercel's only route for this model); OpenRouter marks it a discount.
-      # Recorded as listed; if it is promotional it will need an
-      # `effective_to` when it moves.
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-21"

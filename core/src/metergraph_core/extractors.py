@@ -247,7 +247,7 @@ def parse_deepseek(html_text: str, *, duplicates: list[str] | None = None) -> Ta
     section = ""
     for rows_ in page_tables(html_text):
         for cells in rows_:
-            # Only the MODEL row names the columns; MODEL VERSION does not.
+            # MODEL VERSION is data, not a header.
             if cells and cells[0].strip().upper() == "MODEL" and len(cells) > 1:
                 columns = [deepseek_name(c) for c in cells[1:]]
                 for column in columns:
