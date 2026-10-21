@@ -192,21 +192,21 @@ def parse_anthropic(html_text: str, *, duplicates: list[str] | None = None) -> T
 
 
 _GOOGLE_LABELS = ("Input price", "Output price", "Context caching price")
+_GOOGLE_ID = re.compile(r"[a-z0-9][a-z0-9.-]*")
 
 
 def _google_ids(cells: list[str]) -> list[str]:
     """The model ids ending a block's heading: one id, or several joined by
-    "and" when a variant shares the model's prices."""
+    "and" when a variant shares the model's prices. A lowercase cell not
+    joined by "and" is not an id."""
     ids: list[str] = []
-    for cell in reversed(cells):
-        if cell == "and":
-            if not ids:
-                break
-        elif re.fullmatch(r"[a-z0-9][a-z0-9.-]*", cell):
-            ids.append(cell)
-        else:
+    end = len(cells)
+    while end and cells[end - 1] != "and" and _GOOGLE_ID.fullmatch(cells[end - 1]):
+        ids.insert(0, cells[end - 1])
+        if end < 2 or cells[end - 2] != "and":
             break
-    return ids[::-1]
+        end -= 2
+    return ids
 
 
 def parse_google(html_text: str, *, duplicates: list[str] | None = None) -> Table:

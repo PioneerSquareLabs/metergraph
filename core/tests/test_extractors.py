@@ -400,6 +400,30 @@ def test_fingerprint_changes_with_parser_relevant_structure(parser):
     assert structural_fingerprint(parser, restructure(base)) != structural_fingerprint(parser, base)
 
 
+def _google_block(heading):
+    return (
+        f"<h2>Gemini Z</h2>{heading}<a>Try it in Google AI Studio</a>"
+        "<table><tr><td>Input price</td><td>$1</td></tr><tr><td>Output price</td><td>$2</td></tr></table>"
+    )
+
+
+def test_google_reads_every_id_joined_by_and():
+    page = _google_block("<p>gemini-z</p><p>and</p><p>gemini-z-001</p><p>and</p><p>gemini-z-latest</p>")
+    rates = {"input_per_mtok": D("1"), "output_per_mtok": D("2")}
+    assert _rates(extract("google", page)) == {
+        ("gemini-z", "global"): rates,
+        ("gemini-z-001", "global"): rates,
+        ("gemini-z-latest", "global"): rates,
+    }
+
+
+def test_google_does_not_read_an_adjacent_lowercase_cell_without_and_as_an_id():
+    page = _google_block("<p>preview</p><p>gemini-z</p>")
+    assert _rates(extract("google", page)) == {
+        ("gemini-z", "global"): {"input_per_mtok": D("1"), "output_per_mtok": D("2")},
+    }
+
+
 def _swap(text, first, second):
     return text.replace(first, "\0").replace(second, first).replace("\0", second)
 
