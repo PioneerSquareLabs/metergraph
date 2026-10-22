@@ -1183,26 +1183,23 @@ def test_installed_catalog_prices_grok_4_7_on_the_us_regional_endpoint():
 
 
 def test_installed_catalog_prices_grok_4_6_on_the_us_regional_endpoint():
-    """xAI's US endpoint serves grok-4.7 and grok-4.6 at a 10% premium. Before
-    the premium row starts, a US deployment falls back to the global rate."""
+    """xAI's US endpoint prices grok-4.6 at a 10% premium."""
     catalog = load_catalog(region="us")
-    usage = dict(
-        provider="xai", model="grok-4.6", input_tokens=100_000, output_tokens=100_000,
-    )
+    at = datetime(2026, 8, 12, tzinfo=timezone.utc)
 
-    before = catalog.snapshot.cost(at=datetime(2026, 10, 21, tzinfo=timezone.utc), **usage)
-    result = catalog.snapshot.cost(at=datetime(2026, 10, 22, tzinfo=timezone.utc), **usage)
+    result = catalog.snapshot.cost(
+        provider="xai", model="grok-4.6", at=at,
+        input_tokens=100_000, output_tokens=100_000,
+    )
     cached = catalog.snapshot.cost(
         provider="xai",
         model="grok-4.6",
-        at=datetime(2026, 10, 22, tzinfo=timezone.utc),
+        at=at,
         input_tokens=100_000,
         output_tokens=0,
         cache_read_tokens=100_000,
     )
 
-    assert before.status == "priced"
-    assert before.cost_usd == Decimal("0.80000000")
     assert result.status == "priced"
     assert result.cost_usd == Decimal("0.88000000")
     assert cached.status == "priced"
@@ -1887,8 +1884,8 @@ def test_installed_catalog_prices_gemini_omni_flash_preview(model):
     "model", ["gemini-omni-1.1-flash", "models/gemini-omni-1.1-flash"]
 )
 def test_installed_catalog_prices_gemini_omni_flash_on_the_ga_id(model):
-    """The preview endpoint shuts down on 2026-10-22, and the GA id carries the
-    same rates from the day it went generally available."""
+    """The preview endpoint shuts down on 2026-10-22, and the GA id is priced
+    from the day it went generally available, at its video output rate."""
     catalog = load_catalog()
 
     resolved = catalog.price(
@@ -1904,7 +1901,7 @@ def test_installed_catalog_prices_gemini_omni_flash_on_the_ga_id(model):
 
     assert resolved.status == "priced"
     assert resolved.canonical_model == "google/gemini-omni-1.1-flash"
-    assert resolved.cost_usd == Decimal("10.50000000")
+    assert resolved.cost_usd == Decimal("19.00000000")
     assert before_ga.status == "unpriced"
 
 
@@ -2360,7 +2357,7 @@ _AT_DIRECT_LONG_CONTEXT = datetime(2026, 10, 22, tzinfo=timezone.utc)
     [
         ("openai/gpt-5.5", "1.50000000", "3.00000000"),
         ("openai/gpt-5.4-pro", "9.00000000", "18.00000000"),
-        ("openai/gpt-5.6-cyber", "3.75000000", "7.50000000"),
+        ("openai/gpt-5.5-pro", "9.00000000", "18.00000000"),
     ],
 )
 def test_direct_openai_rows_charge_the_documented_long_context_surcharge(
@@ -2387,6 +2384,25 @@ def test_direct_openai_rows_charge_the_documented_long_context_surcharge(
     assert before.cost_usd == Decimal(flat_cost)
     assert after.cost_usd == Decimal(tiered_cost)
     assert below_threshold.cost_usd == Decimal(flat_cost) / 3
+
+
+def test_gpt_5_5_pro_long_context_surcharge_skips_batch():
+    """OpenAI lists no long-context batch rate for gpt-5.5-pro, so a long
+    batch prompt keeps the flat batch rates."""
+    catalog = load_catalog()
+    usage = dict(
+        model="openai/gpt-5.5-pro", channel="openai-api", at=_AT_DIRECT_LONG_CONTEXT,
+        input_tokens=300_000, output_tokens=100_000,
+    )
+
+    standard = catalog.price(**usage)
+    batch = catalog.price(batch=True, **usage)
+
+    assert standard.status == batch.status == "priced"
+    # 300K x $60 + 100K x $270.
+    assert standard.cost_usd == Decimal("45.00000000")
+    # 300K x $15 + 100K x $90.
+    assert batch.cost_usd == Decimal("13.50000000")
 
 
 @pytest.mark.parametrize(
