@@ -815,6 +815,25 @@ def test_installed_catalog_prices_gemini_2_5_flash_image_on_google_api():
     assert resolved.cost_usd == Decimal("30.30000000")
 
 
+def test_installed_catalog_ends_gemini_2_5_flash_image_at_its_shutdown():
+    """Google shut the model down on 2026-10-02 and states its output price per
+    image, so the token row stops there and later calls say the price ended."""
+    catalog = load_catalog()
+    usage = dict(
+        model="gemini-2.5-flash-image", channel="google-api",
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+
+    last_day = catalog.price(at=datetime(2026, 10, 1, tzinfo=timezone.utc), **usage)
+    after = catalog.price(at=datetime(2026, 10, 2, tzinfo=timezone.utc), **usage)
+
+    assert last_day.status == "priced"
+    assert last_day.reasons == ()
+    assert after.status == "priced"
+    assert after.reasons == ("price_ended",)
+    assert after.cost_usd == last_day.cost_usd
+
+
 @pytest.mark.parametrize(
     "channel,cache_read_cost",
     # Google reports cached tokens inside promptTokenCount on both channels, so
@@ -1157,6 +1176,33 @@ def test_installed_catalog_prices_grok_4_7_on_the_us_regional_endpoint():
         cache_read_tokens=100_000,
     )
 
+    assert result.status == "priced"
+    assert result.cost_usd == Decimal("0.88000000")
+    assert cached.status == "priced"
+    assert cached.cost_usd == Decimal("0.05500000")
+
+
+def test_installed_catalog_prices_grok_4_6_on_the_us_regional_endpoint():
+    """xAI's US endpoint serves grok-4.7 and grok-4.6 at a 10% premium. Before
+    the premium row starts, a US deployment falls back to the global rate."""
+    catalog = load_catalog(region="us")
+    usage = dict(
+        provider="xai", model="grok-4.6", input_tokens=100_000, output_tokens=100_000,
+    )
+
+    before = catalog.snapshot.cost(at=datetime(2026, 10, 21, tzinfo=timezone.utc), **usage)
+    result = catalog.snapshot.cost(at=datetime(2026, 10, 22, tzinfo=timezone.utc), **usage)
+    cached = catalog.snapshot.cost(
+        provider="xai",
+        model="grok-4.6",
+        at=datetime(2026, 10, 22, tzinfo=timezone.utc),
+        input_tokens=100_000,
+        output_tokens=0,
+        cache_read_tokens=100_000,
+    )
+
+    assert before.status == "priced"
+    assert before.cost_usd == Decimal("0.80000000")
     assert result.status == "priced"
     assert result.cost_usd == Decimal("0.88000000")
     assert cached.status == "priced"
@@ -1645,6 +1691,24 @@ def test_installed_catalog_prices_claude_35_haiku_until_gateway_shutdown():
     assert after.status == "unpriced"
 
 
+def test_installed_catalog_keeps_claude_opus_5_fast_on_the_gateway_only():
+    """Anthropic's pricing and lifecycle pages name no claude-opus-5-fast, so
+    the first-party row ends while the gateway listing stays open."""
+    snapshot = load_catalog().snapshot
+    at = datetime(2026, 10, 22, tzinfo=timezone.utc)
+
+    direct = snapshot.resolve_price(
+        model="claude-opus-5-fast", channel="anthropic-api", at=at
+    )
+    gateway = snapshot.resolve_price(
+        model="anthropic/claude-opus-5-fast", channel="vercel-ai-gateway", at=at
+    )
+
+    assert direct is not None and direct.ended is True
+    assert direct.price.effective_to == at
+    assert gateway is not None and gateway.ended is False
+
+
 @pytest.mark.parametrize("model", ["gemini-3.6-flash", "gemini-3.7-flash"])
 @pytest.mark.parametrize(
     "batch,before_cost,after_cost",
@@ -1817,6 +1881,31 @@ def test_installed_catalog_prices_gemini_omni_flash_preview(model):
     assert resolved.status == "priced"
     assert resolved.canonical_model == "google/gemini-omni-flash-preview"
     assert resolved.cost_usd == Decimal("10.50000000")
+
+
+@pytest.mark.parametrize(
+    "model", ["gemini-omni-1.1-flash", "models/gemini-omni-1.1-flash"]
+)
+def test_installed_catalog_prices_gemini_omni_flash_on_the_ga_id(model):
+    """The preview endpoint shuts down on 2026-10-22, and the GA id carries the
+    same rates from the day it went generally available."""
+    catalog = load_catalog()
+
+    resolved = catalog.price(
+        model=model, channel="google-api",
+        at=datetime(2026, 10, 22, tzinfo=timezone.utc),
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    before_ga = catalog.price(
+        model=model, channel="google-api",
+        at=datetime(2026, 8, 26, tzinfo=timezone.utc),
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+
+    assert resolved.status == "priced"
+    assert resolved.canonical_model == "google/gemini-omni-1.1-flash"
+    assert resolved.cost_usd == Decimal("10.50000000")
+    assert before_ga.status == "unpriced"
 
 
 @pytest.mark.parametrize(
@@ -2254,6 +2343,43 @@ def test_gateway_long_context_tier_starts_at_the_refresh(model, flat_cost, tiere
     after = catalog.price(at=_GATEWAY_REFRESH, **usage)
     below_threshold = catalog.price(
         model=model, channel=_GATEWAY, at=_GATEWAY_REFRESH,
+        input_tokens=100_000, output_tokens=0,
+    )
+
+    assert before.status == after.status == "priced"
+    assert before.cost_usd == Decimal(flat_cost)
+    assert after.cost_usd == Decimal(tiered_cost)
+    assert below_threshold.cost_usd == Decimal(flat_cost) / 3
+
+
+_AT_DIRECT_LONG_CONTEXT = datetime(2026, 10, 22, tzinfo=timezone.utc)
+
+
+@pytest.mark.parametrize(
+    "model,flat_cost,tiered_cost",
+    [
+        ("openai/gpt-5.5", "1.50000000", "3.00000000"),
+        ("openai/gpt-5.4-pro", "9.00000000", "18.00000000"),
+        ("openai/gpt-5.6-cyber", "3.75000000", "7.50000000"),
+    ],
+)
+def test_direct_openai_rows_charge_the_documented_long_context_surcharge(
+    model, flat_cost, tiered_cost
+):
+    """OpenAI prices a >272K prompt at 2x input and 1.5x output on these models.
+    The rows seeded from the gateway list carried no such rule, so the direct
+    channel under-charged a long prompt until the correction."""
+    catalog = load_catalog()
+    usage = dict(
+        model=model, channel="openai-api", input_tokens=300_000, output_tokens=0,
+    )
+
+    before = catalog.price(
+        at=_AT_DIRECT_LONG_CONTEXT - timedelta(seconds=1), **usage
+    )
+    after = catalog.price(at=_AT_DIRECT_LONG_CONTEXT, **usage)
+    below_threshold = catalog.price(
+        model=model, channel="openai-api", at=_AT_DIRECT_LONG_CONTEXT,
         input_tokens=100_000, output_tokens=0,
     )
 
