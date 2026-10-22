@@ -1910,7 +1910,8 @@ def test_installed_catalog_prices_gemini_omni_flash_on_the_ga_id(model):
     [
         # A provider's own short name, which its SDK is what actually sends.
         ("openai", "gpt-5", "openai/gpt-5", "11.25000000"),
-        ("openai", "gpt-5.5", "openai/gpt-5.5", "35.00000000"),
+        # 1M input crosses gpt-5.5's 272K long-context threshold.
+        ("openai", "gpt-5.5", "openai/gpt-5.5", "55.00000000"),
         ("openai", "o4-mini", "openai/o4-mini", "5.50000000"),
         ("mistral", "mistral-small-4", "mistral/mistral-small-4", "0.75000000"),
         ("zai", "glm-5.1", "zai/glm-5.1", "5.80000000"),
@@ -1925,7 +1926,7 @@ def test_installed_catalog_prices_gemini_omni_flash_on_the_ga_id(model):
         ("amazon", "nova-pro", "amazon/nova-pro", "4.00000000"),
         # A proxy that forwards without naming the provider still has to price,
         # on the publisher's own channel rather than a gateway list price.
-        ("unknown", "gpt-5.5", "openai/gpt-5.5", "35.00000000"),
+        ("unknown", "gpt-5.5", "openai/gpt-5.5", "55.00000000"),
         ("litellm", "claude-opus-4.8", "anthropic/claude-opus-4.8", "30.00000000"),
     ],
 )
@@ -2349,41 +2350,34 @@ def test_gateway_long_context_tier_starts_at_the_refresh(model, flat_cost, tiere
     assert below_threshold.cost_usd == Decimal(flat_cost) / 3
 
 
-_AT_DIRECT_LONG_CONTEXT = datetime(2026, 10, 22, tzinfo=timezone.utc)
-
-
 @pytest.mark.parametrize(
-    "model,flat_cost,tiered_cost",
+    "model,effective_from,short_cost,tiered_cost",
     [
-        ("openai/gpt-5.5", "1.50000000", "3.00000000"),
-        ("openai/gpt-5.4-pro", "9.00000000", "18.00000000"),
-        ("openai/gpt-5.5-pro", "9.00000000", "18.00000000"),
+        ("openai/gpt-5.4-pro", "2026-03-05", "3.00000000", "18.00000000"),
+        ("openai/gpt-5.5", "2026-04-24", "0.50000000", "3.00000000"),
+        ("openai/gpt-5.5-pro", "2026-04-24", "3.00000000", "18.00000000"),
     ],
 )
 def test_direct_openai_rows_charge_the_documented_long_context_surcharge(
-    model, flat_cost, tiered_cost
+    model, effective_from, short_cost, tiered_cost
 ):
-    """OpenAI prices a >272K prompt at 2x input and 1.5x output on these models.
-    The rows seeded from the gateway list carried no such rule, so the direct
-    channel under-charged a long prompt until the correction."""
+    """OpenAI prices a >272K prompt at 2x input and 1.5x output on these models
+    from the start of their direct price."""
     catalog = load_catalog()
-    usage = dict(
-        model=model, channel="openai-api", input_tokens=300_000, output_tokens=0,
-    )
+    at = datetime.fromisoformat(effective_from).replace(tzinfo=timezone.utc)
 
-    before = catalog.price(
-        at=_AT_DIRECT_LONG_CONTEXT - timedelta(seconds=1), **usage
+    long_prompt = catalog.price(
+        model=model, channel="openai-api", at=at,
+        input_tokens=300_000, output_tokens=0,
     )
-    after = catalog.price(at=_AT_DIRECT_LONG_CONTEXT, **usage)
-    below_threshold = catalog.price(
-        model=model, channel="openai-api", at=_AT_DIRECT_LONG_CONTEXT,
+    short_prompt = catalog.price(
+        model=model, channel="openai-api", at=at,
         input_tokens=100_000, output_tokens=0,
     )
 
-    assert before.status == after.status == "priced"
-    assert before.cost_usd == Decimal(flat_cost)
-    assert after.cost_usd == Decimal(tiered_cost)
-    assert below_threshold.cost_usd == Decimal(flat_cost) / 3
+    assert long_prompt.status == short_prompt.status == "priced"
+    assert long_prompt.cost_usd == Decimal(tiered_cost)
+    assert short_prompt.cost_usd == Decimal(short_cost)
 
 
 def test_gpt_5_5_pro_long_context_surcharge_skips_batch():
@@ -2391,7 +2385,8 @@ def test_gpt_5_5_pro_long_context_surcharge_skips_batch():
     batch prompt keeps the flat batch rates."""
     catalog = load_catalog()
     usage = dict(
-        model="openai/gpt-5.5-pro", channel="openai-api", at=_AT_DIRECT_LONG_CONTEXT,
+        model="openai/gpt-5.5-pro", channel="openai-api",
+        at=datetime(2026, 4, 24, tzinfo=timezone.utc),
         input_tokens=300_000, output_tokens=100_000,
     )
 

@@ -4952,17 +4952,6 @@ models:
       - channel: openai-api
         region: global
         effective_from: "2026-03-05"
-        effective_to: "2026-10-22"
-        input_per_mtok: 30
-        output_per_mtok: 180
-        batch_input_per_mtok: 15
-        batch_output_per_mtok: 90
-        source_url: https://ai-gateway.vercel.sh/v1/models
-      # Rates unchanged: the long-context rule corrects an omission in the row
-      # above rather than recording a new surcharge.
-      - channel: openai-api
-        region: global
-        effective_from: "2026-10-22"
         input_per_mtok: 30
         output_per_mtok: 180
         batch_input_per_mtok: 15
@@ -4994,18 +4983,6 @@ models:
       - channel: openai-api
         region: global
         effective_from: "2026-04-24"
-        effective_to: "2026-10-22"
-        input_per_mtok: 5
-        output_per_mtok: 30
-        cache_read_per_mtok: 0.5
-        batch_input_per_mtok: 2.5
-        batch_output_per_mtok: 15
-        source_url: https://ai-gateway.vercel.sh/v1/models
-      # Rates unchanged: the long-context rule corrects an omission in the row
-      # above rather than recording a new surcharge.
-      - channel: openai-api
-        region: global
-        effective_from: "2026-10-22"
         input_per_mtok: 5
         output_per_mtok: 30
         cache_read_per_mtok: 0.5
@@ -5045,20 +5022,10 @@ models:
       - {provider: unknown, alias: gpt-5.5-pro, channel: openai-api}
       - {provider: unknown, alias: gpt-5.5-pro-2026-04-23, channel: openai-api}
     prices:
+      # OpenAI lists no long-context batch rate, so batch stays flat.
       - channel: openai-api
         region: global
         effective_from: "2026-04-24"
-        effective_to: "2026-10-22"
-        input_per_mtok: 30
-        output_per_mtok: 180
-        batch_input_per_mtok: 15
-        batch_output_per_mtok: 90
-        source_url: https://ai-gateway.vercel.sh/v1/models
-      # Rates unchanged: the long-context rule corrects an omission in the row
-      # above. OpenAI lists no long-context batch rate, so batch stays flat.
-      - channel: openai-api
-        region: global
-        effective_from: "2026-10-22"
         input_per_mtok: 30
         output_per_mtok: 180
         batch_input_per_mtok: 15
