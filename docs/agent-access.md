@@ -12,6 +12,9 @@ content and replay cannot be retrieved through Agent Access.
 
 | Tool | Privacy class | OSS availability |
 |---|---|---|
+| `metergraph_list_classified_workloads` | metadata | unavailable: OSS has no analysis checkpoints |
+| `metergraph_get_workload_readiness` | metadata | unavailable: OSS has no classified trace cohorts |
+| `metergraph_get_model_readiness` | metadata | unavailable: OSS has no analysis provider configuration |
 | `metergraph_get_workspace_context` | metadata | available |
 | `metergraph_get_capabilities` | metadata | available |
 | `metergraph_list_routes` | metadata | available |
@@ -33,6 +36,7 @@ not fail with an ambiguous server error or return an empty document.
 - `days` is limited to 1 through 90.
 - List and query limits are limited to 1 through 200. Report evidence keeps the
   shared 1 through 50 limit even though reports are unavailable in OSS.
+  Workload readiness also keeps the shared 1 through 50 limit.
 - Responses are limited to 5 MiB.
 - Content is never included by default and cannot be enabled on the OSS server.
 
