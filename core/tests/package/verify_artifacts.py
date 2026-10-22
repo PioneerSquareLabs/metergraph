@@ -39,9 +39,8 @@ EXPECTED_NAME = "metergraph-core"
 EXPECTED_VERSION = "0.6.3"
 EXPECTED_REQUIRES_PYTHON = ">=3.10"
 EXPECTED_SUMMARY = (
-    "Open, effective-dated LLM pricing catalog and deterministic cost calculator "
-    "for popular models across major providers and gateways, including OpenAI, "
-    "Anthropic, Google Gemini, AWS Bedrock, OpenRouter, Vercel AI Gateway, and more."
+    "Open LLM model registry and effective-dated pricing catalog with "
+    "deterministic cost calculation across providers and gateways."
 )
 EXPECTED_AUTHOR = "Metergraph"
 EXPECTED_KEYWORDS = (

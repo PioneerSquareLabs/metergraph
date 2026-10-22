@@ -1,7 +1,7 @@
 [project]
 name = "metergraph-core"
 version = "0.6.3"
-description = "Open, effective-dated LLM pricing catalog and deterministic cost calculator for popular models across major providers and gateways, including OpenAI, Anthropic, Google Gemini, AWS Bedrock, OpenRouter, Vercel AI Gateway, and more."
+description = "Open LLM model registry and effective-dated pricing catalog with deterministic cost calculation across providers and gateways."
 readme = "README.md"
 license = "Apache-2.0"
 authors = [{ name = "Metergraph" }]

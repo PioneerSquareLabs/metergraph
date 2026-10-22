@@ -1,8 +1,8 @@
 # metergraph-core
 
-Calculate the cost of an LLM call from its model, provider, tokens, region, and
-date. `metergraph-core` ships an open, effective-dated model pricing catalog and
-a deterministic Python cost engine.
+Use an open LLM model registry and effective-dated pricing catalog in Python.
+`metergraph-core` ships both datasets with deterministic price lookup and cost
+calculation. It works locally without an API key or runtime network request.
 
 ## Install
 
@@ -15,21 +15,38 @@ python -m pip install metergraph-core
 ```python
 from datetime import datetime, timezone
 
-from metergraph_core import load_catalog
+from metergraph_core import ModelUsage, load_catalog
 
 catalog = load_catalog(region="global")
-result = catalog.snapshot.cost(
+result = catalog.calculate_cost(
     provider="openai",
     model="gpt-5.4-mini",
     at=datetime(2026, 8, 17, tzinfo=timezone.utc),
-    input_tokens=1000,
-    output_tokens=200,
+    usage=ModelUsage(input_tokens=1000, output_tokens=200),
 )
-print(result.canonical_model, result.price_id, result.cost_usd, result.status)
+print(result.model_id, result.cost, result.currency, result.status)
 ```
 
-The result names the canonical model and the catalog price row it was billed
-at, so every cost traces back to an effective-dated rate.
+The result includes the resolved model, applied price, component costs, source,
+effective date, currency, and any missing dimensions that would make the answer
+more precise.
+
+The bundled model registry provides canonical model identities and their
+provider routes:
+
+```python
+from metergraph_core import load_model_registry
+
+models = load_model_registry()
+model = models.model("openai/gpt-5.4-mini")
+print(model.canonical_id, model.display_name)
+for route in model.routes:
+    print(route.provider, route.model_id, route.pricing_channel)
+```
+
+The package API starts from structured usage and pricing context. To calculate
+cost directly from an original provider response or trace, use the hosted
+[MeterGraph Pricing API](https://www.metergraph.dev/docs/reference/pricing-api/).
 
 ## Package scope
 

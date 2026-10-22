@@ -49,13 +49,14 @@ def test_the_source_registry_ships_as_package_data():
 
 
 README_OPENING = (
-    "Calculate the cost of an LLM call from its model, provider, tokens, region, "
-    "and date. `metergraph-core` ships an open, effective-dated model pricing "
-    "catalog and a deterministic Python cost engine."
+    "Use an open LLM model registry and effective-dated pricing catalog in Python. "
+    "`metergraph-core` ships both datasets with deterministic price lookup and "
+    "cost calculation. It works locally without an API key or runtime network "
+    "request."
 )
 
 
-def test_core_readme_opens_with_the_cost_lookup_pitch():
+def test_core_readme_opens_with_the_model_and_pricing_pitch():
     readme = (REPOSITORY / "core" / "README.md").read_text()
     title, _, rest = readme.partition("\n\n")
     assert title == "# metergraph-core"
@@ -65,13 +66,12 @@ def test_core_readme_opens_with_the_cost_lookup_pitch():
     assert readme.index("## Usage") < readme.index("does not own HTTP routes")
 
 
-def test_core_metadata_targets_pricing_discovery():
+def test_core_metadata_targets_model_and_pricing_discovery():
     tomllib = pytest.importorskip("tomllib")
     project = tomllib.loads((REPOSITORY / "core" / "pyproject.toml").read_text())["project"]
     assert project["description"] == (
-        "Open, effective-dated LLM pricing catalog and deterministic cost calculator "
-        "for popular models across major providers and gateways, including OpenAI, "
-        "Anthropic, Google Gemini, AWS Bedrock, OpenRouter, Vercel AI Gateway, and more."
+        "Open LLM model registry and effective-dated pricing catalog with "
+        "deterministic cost calculation across providers and gateways."
     )
     assert {
         "llm", "pricing", "cost", "token-pricing", "model-catalog",
