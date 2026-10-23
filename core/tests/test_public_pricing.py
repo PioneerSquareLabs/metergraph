@@ -2816,6 +2816,51 @@ def test_installed_catalog_moves_gateway_mimo_v2_5_to_the_lower_rate_on_october_
     assert resolved.cost_usd == Decimal(cost)
 
 
+@pytest.mark.parametrize(
+    ("at", "batch_input", "batch_output"),
+    [
+        (datetime(2026, 10, 22, tzinfo=timezone.utc), None, None),
+        (datetime(2026, 10, 23, tzinfo=timezone.utc), "1.00", "5.00"),
+        (datetime(2026, 12, 1, tzinfo=timezone.utc), "2.00", "10.00"),
+    ],
+)
+def test_installed_catalog_records_gemini_4_argon_batch_rates(at, batch_input, batch_output):
+    resolved = load_catalog().snapshot.resolve_price(
+        model="gemini-4-argon", channel="google-api", at=at
+    )
+    assert resolved is not None
+    expected_input = None if batch_input is None else Decimal(batch_input)
+    expected_output = None if batch_output is None else Decimal(batch_output)
+    assert resolved.price.batch_input_per_mtok == expected_input
+    assert resolved.price.batch_output_per_mtok == expected_output
+
+
+@pytest.mark.parametrize(
+    ("at", "cost"),
+    [
+        (datetime(2026, 10, 22, tzinfo=timezone.utc), "2.00000000"),
+        (datetime(2026, 10, 23, tzinfo=timezone.utc), "2.75000000"),
+    ],
+)
+def test_installed_catalog_moves_direct_sonar_to_perplexitys_published_rates(at, cost):
+    resolved = load_catalog().price(
+        model="perplexity/sonar", channel="perplexity-api", at=at,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "partial"
+    assert resolved.reasons == ("uncaptured_fees",)
+    assert resolved.cost_usd == Decimal(cost)
+
+
+def test_installed_catalog_prices_direct_sonar_cache_reads():
+    resolved = load_catalog().price(
+        model="perplexity/sonar", channel="perplexity-api",
+        at=datetime(2026, 10, 23, tzinfo=timezone.utc),
+        input_tokens=0, output_tokens=0, cache_read_tokens=1_000_000,
+    )
+    assert resolved.cost_usd == Decimal("0.06250000")
+
+
 # --- A price nothing replaced -------------------------------------------------
 
 _AFTER_END = datetime(2026, 5, 1, tzinfo=timezone.utc)

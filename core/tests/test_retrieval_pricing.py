@@ -175,6 +175,29 @@ def test_prices_sonar_request_fee_by_search_context_size(operation, fee):
     assert priced.price_id == f"perplexity-api:{operation}:global:2025-04-18"
 
 
+@pytest.mark.parametrize(
+    "operation", ["search_request_medium", "search_request_high"]
+)
+def test_sonar_search_context_tiers_end_when_perplexity_stops_offering_them(operation):
+    catalog = load_catalog()
+    ended = catalog.price_retrieval(
+        channel="perplexity-api",
+        operation=operation,
+        units=1000,
+        at=datetime(2026, 10, 23, tzinfo=timezone.utc),
+    )
+    standing = catalog.price_retrieval(
+        channel="perplexity-api",
+        operation="search_request_low",
+        units=1000,
+        at=datetime(2026, 10, 23, tzinfo=timezone.utc),
+    )
+    assert ended.status == "unpriced"
+    assert ended.reasons == ("no_effective_price",)
+    assert standing.status == "priced"
+    assert standing.cost_usd == Decimal("5.00000000")
+
+
 def test_cost_scales_linearly_with_unit_count(tmp_path):
     catalog = _catalog(tmp_path)
     priced = catalog.price_retrieval(
