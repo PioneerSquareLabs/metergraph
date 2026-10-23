@@ -59,6 +59,7 @@ from .catalog_delta import (
     apply_catalog_delta,
     parse_catalog_delta,
 )
+from .responses import cost_from_response
 from .extractors import (
     ExtractedRate,
     Extraction,
@@ -133,6 +134,7 @@ __all__ = [
     "RetrievalPrice",
     "count_fetch_units",
     "count_search_units",
+    "cost_from_response",
     "counts_cache_read_in_input",
     "direct_channel_for_provider",
     "normalize_provider",
