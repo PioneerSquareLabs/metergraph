@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Any, Callable, Mapping
 
-from .catalog import CostResult, ModelUsage
+from .catalog import CostResult, ModelUsage, _coerce_datetime
 from .loader import LoadedCatalog, load_catalog
 
 _STANDARD_TIERS = frozenset({"default", "standard", "standard_only", "auto", "on_demand"})
@@ -188,21 +188,39 @@ def _bedrock_converse(response: Mapping[str, Any]) -> _Facts:
     )
 
 
-def _reader(response: Mapping[str, Any]) -> Callable[[Mapping[str, Any]], _Facts] | None:
-    """The reader for this response's shape, told apart by the fields each
-    API always returns."""
+_READERS: dict[str, Callable[[Mapping[str, Any]], _Facts]] = {
+    "openai.chat_completions": _openai_chat_completions,
+    "openai.responses": _openai_responses,
+    "anthropic.messages": _anthropic_messages,
+    "gemini.generate_content": _gemini,
+    "bedrock.converse": _bedrock_converse,
+}
+
+# The response formats :func:`cost_from_response` reads.
+RESPONSE_FORMATS = tuple(_READERS)
+
+
+def _detect(response: Mapping[str, Any]) -> str | None:
+    """The format of this response, told apart by the fields each API
+    always returns."""
     if _first(response, "usage_metadata", "usageMetadata") is not None:
-        return _gemini
+        return "gemini.generate_content"
     usage = _object(response.get("usage"))
     if "prompt_tokens" in usage:
-        return _openai_chat_completions
+        return "openai.chat_completions"
     if "inputTokens" in usage:
-        return _bedrock_converse
+        return "bedrock.converse"
     if response.get("type") == "message" or "cache_read_input_tokens" in usage:
-        return _anthropic_messages
+        return "anthropic.messages"
     if response.get("object") == "response" or "input_tokens_details" in usage:
-        return _openai_responses
+        return "openai.responses"
     return None
+
+
+def response_format(response: Any) -> str | None:
+    """The :data:`RESPONSE_FORMATS` entry ``response`` is in, or None when its
+    shape is not recognized."""
+    return _detect(_as_mapping(response))
 
 
 def _as_mapping(response: Any) -> Mapping[str, Any]:
@@ -271,6 +289,7 @@ def cost_from_response(
     channel: str | None = None,
     region: str | None = None,
     service_tier: str | None = None,
+    format: str | None = None,
 ) -> CostResult:
     """The cost of one provider response, from the usage it reports.
 
@@ -281,7 +300,9 @@ def cost_from_response(
     is given. ``model`` overrides the response's model id and is required for
     Bedrock Converse, whose responses do not name one. ``at`` defaults to the
     response's creation time when it reports one, else now. ``catalog``
-    defaults to the catalog bundled with this package.
+    defaults to the catalog bundled with this package. ``format``, one of
+    :data:`RESPONSE_FORMATS`, names the response's format; without it the
+    format is detected from the response's fields.
 
     A streamed call is costed from its final response or final usage chunk.
     Fees outside token usage, such as web search, are not included.
@@ -291,16 +312,24 @@ def cost_from_response(
     missing, since the catalog does not carry tier rates.
     """
     data = _as_mapping(response)
-    reader = _reader(data)
-    if reader is None:
+    if format is not None and format not in _READERS:
+        raise ValueError(f"format must be one of {', '.join(RESPONSE_FORMATS)}")
+    detected = format or _detect(data)
+    if detected is None:
         raise ValueError("response carries no usage this function can read")
-    facts = reader(data)
+    facts = _READERS[detected](data)
     when = at if at is not None else facts.at or datetime.now(timezone.utc)
     model_id = _text(model) or facts.model
     tier = (_text(service_tier) or facts.service_tier or "").lower() or None
     if model_id is None:
         return CostResult(
-            None, None, None, "unpriced", ("missing_model",), missing_dimensions=("model",)
+            None,
+            None,
+            None,
+            "unpriced",
+            ("missing_model",),
+            effective_at=_coerce_datetime(when),
+            missing_dimensions=("model",),
         )
     loaded = catalog if catalog is not None else _bundled_catalog()
     batch = tier == _BATCH_TIER
