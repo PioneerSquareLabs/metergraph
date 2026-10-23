@@ -2512,21 +2512,11 @@ models:
       - channel: perplexity-api
         region: global
         effective_from: "2025-04-18"
-        effective_to: "2026-10-23"
         input_per_mtok: 1.00
         output_per_mtok: 1.00
         rules:
           uncaptured_fees: true
         source_url: https://docs.perplexity.ai/docs/getting-started/pricing
-      - channel: perplexity-api
-        region: global
-        effective_from: "2026-10-23"
-        input_per_mtok: 0.25
-        output_per_mtok: 2.50
-        cache_read_per_mtok: 0.0625
-        rules:
-          uncaptured_fees: true
-        source_url: https://docs.perplexity.ai/docs/agent-api/models
       # The gateway bills Sonar's built-in search per call, so the row carries
       # it as a request fee and the call is priced in full.
       - channel: vercel-ai-gateway

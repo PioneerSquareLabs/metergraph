@@ -2839,10 +2839,10 @@ def test_installed_catalog_records_gemini_4_argon_batch_rates(at, batch_input, b
     ("at", "cost"),
     [
         (datetime(2026, 10, 22, tzinfo=timezone.utc), "2.00000000"),
-        (datetime(2026, 10, 23, tzinfo=timezone.utc), "2.75000000"),
+        (datetime(2026, 10, 23, tzinfo=timezone.utc), "2.00000000"),
     ],
 )
-def test_installed_catalog_moves_direct_sonar_to_perplexitys_published_rates(at, cost):
+def test_installed_catalog_retains_last_verified_direct_sonar_token_rates(at, cost):
     resolved = load_catalog().price(
         model="perplexity/sonar", channel="perplexity-api", at=at,
         input_tokens=1_000_000, output_tokens=1_000_000,
@@ -2852,13 +2852,13 @@ def test_installed_catalog_moves_direct_sonar_to_perplexitys_published_rates(at,
     assert resolved.cost_usd == Decimal(cost)
 
 
-def test_installed_catalog_prices_direct_sonar_cache_reads():
-    resolved = load_catalog().price(
+def test_installed_catalog_does_not_transfer_agent_api_sonar_cache_rate():
+    resolved = load_catalog().snapshot.resolve_price(
         model="perplexity/sonar", channel="perplexity-api",
         at=datetime(2026, 10, 23, tzinfo=timezone.utc),
-        input_tokens=0, output_tokens=0, cache_read_tokens=1_000_000,
     )
-    assert resolved.cost_usd == Decimal("0.06250000")
+    assert resolved is not None
+    assert resolved.price.cache_read_per_mtok is None
 
 
 # --- A price nothing replaced -------------------------------------------------
