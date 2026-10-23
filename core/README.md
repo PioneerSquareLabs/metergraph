@@ -170,6 +170,52 @@ A call after it ended resolves to that price, stays `priced`, and carries
 applied `price.effective_to` says when it ended. A closed price followed by a
 later one never extends, so a gap before a scheduled price stays `unpriced`.
 
+### Costing a provider response
+
+`cost_from_response` reads the usage out of a response you already have and
+costs it, so you do not extract token counts yourself:
+
+```python
+from openai import OpenAI
+from metergraph_core import cost_from_response
+
+response = OpenAI().chat.completions.create(model="gpt-5.4-mini", messages=messages)
+result = cost_from_response("openai", response)
+print(result.status, result.model_id, result.cost, result.currency)
+```
+
+It accepts the object a provider SDK returned or the same response as JSON:
+
+| Provider API | Example `provider` |
+|---|---|
+| OpenAI Chat Completions, and gateways that return its shape | `openai`, `openrouter`, `deepseek` |
+| OpenAI Responses | `openai` |
+| Anthropic Messages | `anthropic` |
+| Google Gemini `generateContent` | `google` |
+| Bedrock Converse (pass `model=`, the response does not name one) | `bedrock` |
+
+`provider` names who served the call and selects its direct channel unless
+`channel` is given. The response shape is detected from its fields. Only the
+model, usage counts, service tier and creation time are read; prompt and
+output content never are.
+
+Cached tokens are billed once whichever convention the response uses. OpenAI
+and Gemini count cached tokens inside the input total, so the total is
+restated in the convention of the price row that bills it, including a
+gateway row for another publisher's model. Gemini thinking tokens bill as
+output.
+
+The price in effect when the response was created applies, from `created`,
+`created_at` or `createTime`; `at=` overrides it, and a response with no
+creation time is priced now. `catalog=` costs against a catalog you loaded;
+the default is the bundled one.
+
+A batch service tier bills at batch rates. Any other tier besides standard,
+such as `priority` or `flex`, returns `partial` with `service_tier` in
+`missing_dimensions`, since the catalog carries no tier rates. Cost a streamed
+call from its final response or final usage chunk. Fees outside token usage,
+such as web search, are not included.
+
 ## Model registry
 
 ```python
@@ -436,6 +482,7 @@ from metergraph_core import (
     ResolvedPrice,
     SourceRegistry,
     apply_catalog_delta,
+    cost_from_response,
     discovery_evidence,
     extract,
     load_catalog,
