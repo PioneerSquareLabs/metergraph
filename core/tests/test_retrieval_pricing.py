@@ -176,7 +176,7 @@ def test_prices_sonar_request_fee_by_search_context_size(operation, fee):
 
 
 @pytest.mark.parametrize(
-    "operation", ["search_request_medium", "search_request_high"]
+    "operation", ["search_request_low", "search_request_medium", "search_request_high"]
 )
 def test_sonar_search_context_tiers_end_when_perplexity_stops_offering_them(operation):
     catalog = load_catalog()
@@ -186,16 +186,8 @@ def test_sonar_search_context_tiers_end_when_perplexity_stops_offering_them(oper
         units=1000,
         at=datetime(2026, 10, 23, tzinfo=timezone.utc),
     )
-    standing = catalog.price_retrieval(
-        channel="perplexity-api",
-        operation="search_request_low",
-        units=1000,
-        at=datetime(2026, 10, 23, tzinfo=timezone.utc),
-    )
     assert ended.status == "unpriced"
     assert ended.reasons == ("no_effective_price",)
-    assert standing.status == "priced"
-    assert standing.cost_usd == Decimal("5.00000000")
 
 
 def test_cost_scales_linearly_with_unit_count(tmp_path):

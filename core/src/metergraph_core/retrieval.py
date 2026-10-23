@@ -61,8 +61,8 @@ SEARCH_OPERATION_BY_CHANNEL: Mapping[str, str] = MappingProxyType({
     "anthropic-api": "web_search",
     "google-api": "google_search_grounding",
     "google-vertex-ai": "google_search_grounding",
-    # Perplexity bills per request and no capture path itemizes which tool
-    # ran, so every counted search maps to its standing request rate.
+    # Historical Sonar request fees use this operation; no current fee is
+    # assigned until its API and billing unit can be verified.
     "perplexity-api": "search_request_low",
 })
 FETCH_OPERATION_BY_CHANNEL: Mapping[str, str] = MappingProxyType({
