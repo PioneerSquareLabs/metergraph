@@ -62,6 +62,7 @@ _CATALOG = load_catalog_document(yaml.safe_load(textwrap.dedent(
             input_per_mtok: 3.0
             output_per_mtok: 15.0
             cache_read_per_mtok: 0.3
+            cache_write_5m_per_mtok: 3.75
             source_url: https://example.test/openrouter
           - channel: aws-bedrock
             region: global
@@ -222,6 +223,39 @@ def test_gateway_chat_shape_restates_input_for_a_row_that_does_not_deduct_cache(
     assert result.status == "priced"
     # 600 uncached at $3 and 400 cached at $0.30, not 1000 at $3 plus the reads.
     assert result.cost == Decimal("0.00192")
+
+
+@pytest.mark.parametrize("shape", ["chat", "responses"])
+def test_gateway_cache_writes_are_billed_at_the_write_rate(shape):
+    if shape == "chat":
+        response = _chat(model="anthropic/claude-x", usage={
+            "prompt_tokens": 1000,
+            "completion_tokens": 0,
+            "prompt_tokens_details": {"cached_tokens": 400, "cache_write_tokens": 200},
+        })
+    else:
+        response = {"object": "response", "model": "anthropic/claude-x", "usage": {
+            "input_tokens": 1000,
+            "output_tokens": 0,
+            "input_tokens_details": {"cached_tokens": 400, "cache_write_tokens": 200},
+        }}
+
+    result = _cost("openrouter", response)
+
+    assert result.status == "priced"
+    # 400 uncached at $3, 400 reads at $0.30, 200 writes at $3.75 per 1M.
+    assert result.cost == Decimal("0.00207")
+
+
+@pytest.mark.parametrize(("tier", "status"), [("priority", "partial"), ("default", "priced")])
+def test_bedrock_converse_reads_the_service_tier(tier, status):
+    result = _cost("bedrock", {
+        "usage": {"inputTokens": 100, "outputTokens": 10},
+        "serviceTier": {"type": tier},
+    }, model="anthropic.claude-x-v1:0")
+
+    assert result.status == status
+    assert ("service_tier" in result.missing_dimensions) == (status == "partial")
 
 
 def test_bedrock_converse_takes_the_model_from_the_caller():

@@ -121,6 +121,8 @@ def _openai_responses(response: Mapping[str, Any]) -> _Facts:
             "input_tokens": _count(usage.get("input_tokens")),
             "output_tokens": _count(usage.get("output_tokens")),
             "cache_read_tokens": _count(details.get("cached_tokens")),
+            # Gateways such as OpenRouter report cache writes beside reads.
+            "cache_write_tokens": _count(details.get("cache_write_tokens")),
         },
         input_includes_cache=True,
         service_tier=_text(response.get("service_tier")),
@@ -137,6 +139,7 @@ def _openai_chat_completions(response: Mapping[str, Any]) -> _Facts:
             "input_tokens": _count(usage.get("prompt_tokens")),
             "output_tokens": _count(usage.get("completion_tokens")),
             "cache_read_tokens": _count(details.get("cached_tokens")),
+            "cache_write_tokens": _count(details.get("cache_write_tokens")),
         },
         # Gateways relaying another publisher's model keep this shape, with
         # cached tokens inside the prompt total.
@@ -181,6 +184,7 @@ def _bedrock_converse(response: Mapping[str, Any]) -> _Facts:
             "cache_read_tokens": _count(usage.get("cacheReadInputTokens")),
             "cache_write_tokens": _count(usage.get("cacheWriteInputTokens")),
         },
+        service_tier=_text(_object(response.get("serviceTier")).get("type")),
     )
 
 
