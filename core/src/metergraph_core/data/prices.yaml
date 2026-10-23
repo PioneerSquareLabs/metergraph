@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-10-22"
+version: "2026-10-23"
 currency: USD
-pricing_verified_at: "2026-10-22"
+pricing_verified_at: "2026-10-23"
 models:
   - canonical_id: openai/gpt-6-sol
     publisher: openai
@@ -2500,6 +2500,7 @@ models:
       - channel: perplexity-api
         region: global
         effective_from: "2025-04-18"
+        effective_to: "2026-10-23"
         input_per_mtok: 1.00
         output_per_mtok: 1.00
         rules:
@@ -11074,15 +11075,15 @@ retrieval:
     per_1k_usd: 14.00
     effective_from: "2026-01-05"
     source_url: https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing
-  # Sonar charges a request fee on top of tokens, by search context size;
-  # low is the default. The sonar token row keeps `uncaptured_fees` until
-  # callers price requests alongside tokens.
+  # Historical Sonar request fees end before the new API-specific rates.
+  # The current Sonar fee is unverified, so its token row stays partial.
   - channel: perplexity-api
     operation: search_request_low
     region: global
     unit: request
     per_1k_usd: 5.00
     effective_from: "2025-04-18"
+    effective_to: "2026-10-23"
     source_url: https://docs.perplexity.ai/docs/getting-started/pricing
   - channel: perplexity-api
     operation: search_request_medium
@@ -11090,6 +11091,7 @@ retrieval:
     unit: request
     per_1k_usd: 8.00
     effective_from: "2025-04-18"
+    effective_to: "2026-10-23"
     source_url: https://docs.perplexity.ai/docs/getting-started/pricing
   - channel: perplexity-api
     operation: search_request_high
@@ -11097,6 +11099,7 @@ retrieval:
     unit: request
     per_1k_usd: 12.00
     effective_from: "2025-04-18"
+    effective_to: "2026-10-23"
     source_url: https://docs.perplexity.ai/docs/getting-started/pricing
 
 # Gateways whose reported amount billing declines for one publisher's models

@@ -2816,6 +2816,54 @@ def test_installed_catalog_moves_gateway_mimo_v2_5_to_the_lower_rate_on_october_
     assert resolved.cost_usd == Decimal(cost)
 
 
+@pytest.mark.parametrize(
+    "at",
+    [
+        datetime(2026, 10, 23, tzinfo=timezone.utc),
+        datetime(2026, 12, 1, tzinfo=timezone.utc),
+    ],
+)
+def test_installed_catalog_keeps_gemini_4_argon_batch_cache_partial(at):
+    resolved = load_catalog().price(
+        model="gemini-4-argon", channel="google-api",
+        at=at,
+        input_tokens=1_000_000, output_tokens=0,
+        cache_read_tokens=1_000_000, batch=True,
+    )
+    assert resolved.status == "partial"
+    assert "batch_rate_unavailable" in resolved.reasons
+
+
+@pytest.mark.parametrize(
+    ("at", "cost", "reasons"),
+    [
+        (datetime(2026, 10, 22, tzinfo=timezone.utc), "2.00000000", ("uncaptured_fees",)),
+        (
+            datetime(2026, 10, 23, tzinfo=timezone.utc),
+            "2.00000000",
+            ("price_ended", "uncaptured_fees"),
+        ),
+    ],
+)
+def test_installed_catalog_marks_direct_sonar_token_rates_as_last_known(at, cost, reasons):
+    resolved = load_catalog().price(
+        model="perplexity/sonar", channel="perplexity-api", at=at,
+        input_tokens=1_000_000, output_tokens=1_000_000,
+    )
+    assert resolved.status == "partial"
+    assert resolved.reasons == reasons
+    assert resolved.cost_usd == Decimal(cost)
+
+
+def test_installed_catalog_does_not_transfer_agent_api_sonar_cache_rate():
+    resolved = load_catalog().snapshot.resolve_price(
+        model="perplexity/sonar", channel="perplexity-api",
+        at=datetime(2026, 10, 23, tzinfo=timezone.utc),
+    )
+    assert resolved is not None
+    assert resolved.price.cache_read_per_mtok is None
+
+
 # --- A price nothing replaced -------------------------------------------------
 
 _AFTER_END = datetime(2026, 5, 1, tzinfo=timezone.utc)
