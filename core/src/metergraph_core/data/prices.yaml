@@ -1599,30 +1599,18 @@ models:
       - channel: google-api
         region: global
         effective_from: "2026-10-13"
-        effective_to: "2026-10-23"
+        effective_to: "2026-12-01"
         input_per_mtok: 2.00
         output_per_mtok: 10.00
         cache_read_per_mtok: 0.10
         source_url: https://ai.google.dev/gemini-api/docs/generate-content/latest-model
       - channel: google-api
         region: global
-        effective_from: "2026-10-23"
-        effective_to: "2026-12-01"
-        input_per_mtok: 2.00
-        output_per_mtok: 10.00
-        cache_read_per_mtok: 0.10
-        batch_input_per_mtok: 1.00
-        batch_output_per_mtok: 5.00
-        source_url: https://ai.google.dev/gemini-api/docs/pricing
-      - channel: google-api
-        region: global
         effective_from: "2026-12-01"
         input_per_mtok: 4.00
         output_per_mtok: 20.00
         cache_read_per_mtok: 0.20
-        batch_input_per_mtok: 2.00
-        batch_output_per_mtok: 10.00
-        source_url: https://ai.google.dev/gemini-api/docs/pricing
+        source_url: https://ai.google.dev/gemini-api/docs/generate-content/latest-model
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-13"
@@ -2512,6 +2500,7 @@ models:
       - channel: perplexity-api
         region: global
         effective_from: "2025-04-18"
+        effective_to: "2026-10-23"
         input_per_mtok: 1.00
         output_per_mtok: 1.00
         rules:

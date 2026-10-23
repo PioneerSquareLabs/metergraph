@@ -2817,38 +2817,41 @@ def test_installed_catalog_moves_gateway_mimo_v2_5_to_the_lower_rate_on_october_
 
 
 @pytest.mark.parametrize(
-    ("at", "batch_input", "batch_output"),
+    "at",
     [
-        (datetime(2026, 10, 22, tzinfo=timezone.utc), None, None),
-        (datetime(2026, 10, 23, tzinfo=timezone.utc), "1.00", "5.00"),
-        (datetime(2026, 12, 1, tzinfo=timezone.utc), "2.00", "10.00"),
+        datetime(2026, 10, 23, tzinfo=timezone.utc),
+        datetime(2026, 12, 1, tzinfo=timezone.utc),
     ],
 )
-def test_installed_catalog_records_gemini_4_argon_batch_rates(at, batch_input, batch_output):
-    resolved = load_catalog().snapshot.resolve_price(
-        model="gemini-4-argon", channel="google-api", at=at
+def test_installed_catalog_keeps_gemini_4_argon_batch_cache_partial(at):
+    resolved = load_catalog().price(
+        model="gemini-4-argon", channel="google-api",
+        at=at,
+        input_tokens=1_000_000, output_tokens=0,
+        cache_read_tokens=1_000_000, batch=True,
     )
-    assert resolved is not None
-    expected_input = None if batch_input is None else Decimal(batch_input)
-    expected_output = None if batch_output is None else Decimal(batch_output)
-    assert resolved.price.batch_input_per_mtok == expected_input
-    assert resolved.price.batch_output_per_mtok == expected_output
+    assert resolved.status == "partial"
+    assert "batch_rate_unavailable" in resolved.reasons
 
 
 @pytest.mark.parametrize(
-    ("at", "cost"),
+    ("at", "cost", "reasons"),
     [
-        (datetime(2026, 10, 22, tzinfo=timezone.utc), "2.00000000"),
-        (datetime(2026, 10, 23, tzinfo=timezone.utc), "2.00000000"),
+        (datetime(2026, 10, 22, tzinfo=timezone.utc), "2.00000000", ("uncaptured_fees",)),
+        (
+            datetime(2026, 10, 23, tzinfo=timezone.utc),
+            "2.00000000",
+            ("price_ended", "uncaptured_fees"),
+        ),
     ],
 )
-def test_installed_catalog_retains_last_verified_direct_sonar_token_rates(at, cost):
+def test_installed_catalog_marks_direct_sonar_token_rates_as_last_known(at, cost, reasons):
     resolved = load_catalog().price(
         model="perplexity/sonar", channel="perplexity-api", at=at,
         input_tokens=1_000_000, output_tokens=1_000_000,
     )
     assert resolved.status == "partial"
-    assert resolved.reasons == ("uncaptured_fees",)
+    assert resolved.reasons == reasons
     assert resolved.cost_usd == Decimal(cost)
 
 
