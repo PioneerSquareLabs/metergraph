@@ -195,7 +195,9 @@ It accepts the object a provider SDK returned or the same response as JSON:
 | Bedrock Converse (pass `model=`, the response does not name one) | `bedrock` |
 
 `provider` names who served the call and selects its direct channel unless
-`channel` is given. The response shape is detected from its fields. Only the
+`channel` is given. The response format is detected from its fields; pass
+`format=`, one of `RESPONSE_FORMATS`, for a response too sparse to detect.
+`response_format(response)` returns the detected format, or `None`. Only the
 model, usage counts, service tier and creation time are read; prompt and
 output content never are.
 
@@ -210,7 +212,8 @@ The price in effect when the response was created applies, from `created`,
 creation time is priced now. `catalog=` costs against a catalog you loaded;
 the default is the bundled one.
 
-A batch service tier bills at batch rates. Any other tier besides standard,
+A batch service tier bills at batch rates. Pass `service_tier=` when the
+response does not state its tier, such as an OpenAI batch output line. Any other tier besides standard,
 such as `priority` or `flex`, returns `partial` with `service_tier` in
 `missing_dimensions`, since the catalog carries no tier rates. Cost a streamed
 call from its final response or final usage chunk. Fees outside token usage,
@@ -478,6 +481,7 @@ from metergraph_core import (
     PriceResult,
     PriceRowKey,
     PriceSource,
+    RESPONSE_FORMATS,
     RefreshResult,
     ResolvedPrice,
     SourceRegistry,
@@ -494,6 +498,7 @@ from metergraph_core import (
     parse_catalog_delta,
     plan_low_risk_refresh,
     resolve_billing,
+    response_format,
     structural_fingerprint,
     validate_model_registry,
     validate_source_registry,

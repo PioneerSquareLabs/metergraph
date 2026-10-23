@@ -11,7 +11,13 @@ from decimal import Decimal
 import pytest
 import yaml
 
-from metergraph_core import cost_from_response, load_catalog, load_catalog_document
+from metergraph_core import (
+    RESPONSE_FORMATS,
+    cost_from_response,
+    load_catalog,
+    load_catalog_document,
+    response_format,
+)
 
 
 _CATALOG = load_catalog_document(yaml.safe_load(textwrap.dedent(
@@ -182,6 +188,21 @@ def test_unpriced_service_tier_turns_the_result_partial():
     assert result.cost == Decimal("0.00164")
 
 
+def test_service_tier_argument_overrides_the_response():
+    batch = _cost("anthropic", _anthropic(
+        cache_read_input_tokens=0,
+        cache_creation_input_tokens=0,
+        cache_creation=None,
+        service_tier="standard",
+    ), service_tier="batch")
+    partial = _cost("openai", _chat(service_tier="default"), service_tier="priority")
+
+    assert batch.status == "priced"
+    assert batch.cost == Decimal("0.00165")
+    assert partial.status == "partial"
+    assert "service_tier" in partial.missing_dimensions
+
+
 def test_standard_service_tier_stays_priced():
     assert _cost("openai", _chat(service_tier="default")).status == "priced"
 
@@ -308,6 +329,45 @@ def test_only_pricing_fields_are_read():
     _cost("openai", Watched(_chat()))
 
     assert "choices" not in read
+
+
+def test_a_stated_format_reads_a_response_detection_cannot_place():
+    sparse = {"model": "claude-x", "usage": {"input_tokens": 100, "output_tokens": 200}}
+
+    with pytest.raises(ValueError):
+        _cost("anthropic", sparse)
+    result = _cost("anthropic", sparse, format="anthropic.messages")
+
+    assert result.status == "priced"
+    # 100 in at $3, 200 out at $15 per 1M.
+    assert result.cost == Decimal("0.0033")
+
+
+def test_an_unknown_format_is_rejected():
+    with pytest.raises(ValueError):
+        _cost("openai", _chat(), format="openai.completions")
+
+
+def test_response_format_names_each_shape():
+    assert response_format(_chat()) == "openai.chat_completions"
+    assert response_format(_anthropic()) == "anthropic.messages"
+    assert response_format({"object": "response", "usage": {"input_tokens": 1}}) == "openai.responses"
+    assert response_format({"usageMetadata": {"promptTokenCount": 1}}) == "gemini.generate_content"
+    assert response_format({"usage": {"inputTokens": 1}}) == "bedrock.converse"
+    assert response_format({"model": "gpt-x"}) is None
+    assert set(RESPONSE_FORMATS) == {
+        "openai.chat_completions",
+        "openai.responses",
+        "anthropic.messages",
+        "gemini.generate_content",
+        "bedrock.converse",
+    }
+
+
+def test_a_missing_model_keeps_the_effective_time():
+    result = _cost("bedrock", {"usage": {"inputTokens": 1, "outputTokens": 1}})
+
+    assert result.effective_at == _JULY
 
 
 def test_unknown_model_is_unpriced():
