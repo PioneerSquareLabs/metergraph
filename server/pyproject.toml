@@ -24,7 +24,7 @@ dependencies = [
     "uvicorn>=0.29",
     "psycopg[binary,pool]>=3.1",
     "jsonschema>=4.0",
-    "metergraph-core>=0.6,<0.7",
+    "metergraph-core>=0.6,<0.8",
 ]
 
 [project.optional-dependencies]
