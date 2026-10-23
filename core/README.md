@@ -210,7 +210,8 @@ The price in effect when the response was created applies, from `created`,
 creation time is priced now. `catalog=` costs against a catalog you loaded;
 the default is the bundled one.
 
-A batch service tier bills at batch rates. Any other tier besides standard,
+A batch service tier bills at batch rates. Pass `service_tier=` when the
+response does not state its tier, such as an OpenAI batch output line. Any other tier besides standard,
 such as `priority` or `flex`, returns `partial` with `service_tier` in
 `missing_dimensions`, since the catalog carries no tier rates. Cost a streamed
 call from its final response or final usage chunk. Fees outside token usage,

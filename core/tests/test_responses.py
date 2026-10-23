@@ -182,6 +182,21 @@ def test_unpriced_service_tier_turns_the_result_partial():
     assert result.cost == Decimal("0.00164")
 
 
+def test_service_tier_argument_overrides_the_response():
+    batch = _cost("anthropic", _anthropic(
+        cache_read_input_tokens=0,
+        cache_creation_input_tokens=0,
+        cache_creation=None,
+        service_tier="standard",
+    ), service_tier="batch")
+    partial = _cost("openai", _chat(service_tier="default"), service_tier="priority")
+
+    assert batch.status == "priced"
+    assert batch.cost == Decimal("0.00165")
+    assert partial.status == "partial"
+    assert "service_tier" in partial.missing_dimensions
+
+
 def test_standard_service_tier_stays_priced():
     assert _cost("openai", _chat(service_tier="default")).status == "priced"
 

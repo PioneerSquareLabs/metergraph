@@ -270,6 +270,7 @@ def cost_from_response(
     at: Any = None,
     channel: str | None = None,
     region: str | None = None,
+    service_tier: str | None = None,
 ) -> CostResult:
     """The cost of one provider response, from the usage it reports.
 
@@ -283,9 +284,11 @@ def cost_from_response(
     defaults to the catalog bundled with this package.
 
     A streamed call is costed from its final response or final usage chunk.
-    Fees outside token usage, such as web search, are not included. A service
-    tier other than standard or batch turns the result ``partial`` with
-    ``service_tier`` missing, since the catalog does not carry tier rates.
+    Fees outside token usage, such as web search, are not included.
+    ``service_tier`` overrides the tier the response reports, for responses
+    that do not state it, such as an OpenAI batch output line. A tier other
+    than standard or batch turns the result ``partial`` with ``service_tier``
+    missing, since the catalog does not carry tier rates.
     """
     data = _as_mapping(response)
     reader = _reader(data)
@@ -294,7 +297,7 @@ def cost_from_response(
     facts = reader(data)
     when = at if at is not None else facts.at or datetime.now(timezone.utc)
     model_id = _text(model) or facts.model
-    tier = (facts.service_tier or "").lower() or None
+    tier = (_text(service_tier) or facts.service_tier or "").lower() or None
     if model_id is None:
         return CostResult(
             None, None, None, "unpriced", ("missing_model",), missing_dimensions=("model",)
