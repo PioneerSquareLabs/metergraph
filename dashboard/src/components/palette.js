@@ -1,15 +1,6 @@
-// Categorical series palette for spend charts.
-//
-// This 8-hue order is not cosmetic — it is the colorblind-safety mechanism.
-// It was validated with the dataviz palette checker against the dashboard's
-// light card surface (#fbfcfe): worst adjacent CVD ΔE 8.9 (≥8 target) and
-// worst adjacent normal-vision ΔE 19.6 (≥15 floor), all slots inside the
-// lightness band and above the chroma floor. Slot 5 is the brand emerald.
-//
-// Assign hues in this fixed order and never cycle: a 9th category folds into
-// "other" (the neutral gray) rather than reusing a hue. Three slots (emerald,
-// yellow, magenta) sit below 3:1 contrast on the light surface, so every chart
-// that uses them ships a legend with text labels and a coexisting table view.
+// Eight-color categorical order for spend charts. `seriesColor` wraps, so
+// callers that require unique identities must cap or fold additional series.
+// Charts must also provide labels, a legend, or a table; color is not identity.
 export const SERIES_COLORS = [
   '#2a78d6', // blue
   '#008300', // green
@@ -21,7 +12,7 @@ export const SERIES_COLORS = [
   '#e34948', // red
 ]
 
-// Neutral residual for the folded "other" bucket — never a categorical hue.
+// Neutral residual for a folded "other" bucket.
 export const OTHER_COLOR = '#9aa4b2'
 
 /** Color for the series at rank `index`; the residual "other" bucket is gray. */
