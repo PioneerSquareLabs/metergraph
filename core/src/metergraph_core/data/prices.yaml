@@ -6,9 +6,9 @@
 #
 # Community updates welcome: add an alias or price entry with its provider
 # source_url and open a PR. CI validates structure and date overlaps.
-version: "2026-10-23"
+version: "2026-10-24"
 currency: USD
-pricing_verified_at: "2026-10-23"
+pricing_verified_at: "2026-10-24"
 models:
   - canonical_id: openai/gpt-6-sol
     publisher: openai
@@ -2506,14 +2506,23 @@ models:
         rules:
           uncaptured_fees: true
         source_url: https://docs.perplexity.ai/docs/getting-started/pricing
-      # The gateway bills Sonar's built-in search per call, so the row carries
-      # it as a request fee and the call is priced in full.
       - channel: vercel-ai-gateway
         region: global
         effective_from: "2026-10-11"
+        effective_to: "2026-10-24"
         input_per_mtok: 0.25
         output_per_mtok: 2.50
         request_fee_per_1k_usd: 2.50
+        source_url: https://vercel.com/ai-gateway/models/sonar
+      # The gateway lists Sonar's web searches as a charge of their own, billed
+      # per search and not per request, so no request fee applies.
+      - channel: vercel-ai-gateway
+        region: global
+        effective_from: "2026-10-24"
+        input_per_mtok: 0.25
+        output_per_mtok: 2.50
+        rules:
+          uncaptured_fees: true
         source_url: https://vercel.com/ai-gateway/models/sonar
 
   - canonical_id: openai/gpt-5-mini

@@ -27,7 +27,7 @@ def test_prices_yaml_parses():
     assert VERSION
     assert DOC["models"]
     assert LOADED.currency == "USD"
-    assert LOADED.pricing_verified_at.isoformat() == "2026-10-23"
+    assert LOADED.pricing_verified_at.isoformat() == "2026-10-24"
 
 
 def test_openrouter_cache_reads_are_not_charged_as_fresh_input():
@@ -2262,11 +2262,10 @@ def test_an_unpriced_result_carries_no_components():
     assert result.components is None and result.publisher is None
 
 
-def test_gateway_sonar_is_priced_in_full_with_its_per_call_search_fee():
+def test_the_closed_gateway_sonar_row_still_charges_its_per_call_fee():
     catalog = _load_for_components()
-    # 1,000 input and 500 output tokens, plus one search: $0.00025 + $0.00125
-    # + $0.0025. The gateway bills Sonar's search per call, so nothing is left
-    # uncaptured and the call is fully priced.
+    # 1,000 input and 500 output tokens, plus the row's per-call fee:
+    # $0.00025 + $0.00125 + $0.0025.
     result = catalog.price(
         model="perplexity/sonar", channel="vercel-ai-gateway",
         at="2026-10-11T12:00:00+00:00", input_tokens=1_000, output_tokens=500,

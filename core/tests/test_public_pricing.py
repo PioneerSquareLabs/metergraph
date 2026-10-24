@@ -2864,6 +2864,18 @@ def test_installed_catalog_does_not_transfer_agent_api_sonar_cache_rate():
     assert resolved.price.cache_read_per_mtok is None
 
 
+def test_installed_catalog_charges_gateway_sonar_no_per_request_search_fee():
+    resolved = load_catalog().price(
+        model="perplexity/sonar", channel="vercel-ai-gateway",
+        at=datetime(2026, 10, 24, tzinfo=timezone.utc),
+        input_tokens=1_000, output_tokens=500,
+    )
+    assert resolved.status == "partial"
+    assert resolved.reasons == ("uncaptured_fees",)
+    assert resolved.cost_usd == Decimal("0.00150000")
+    assert resolved.components.request_usd == 0
+
+
 # --- A price nothing replaced -------------------------------------------------
 
 _AFTER_END = datetime(2026, 5, 1, tzinfo=timezone.utc)
